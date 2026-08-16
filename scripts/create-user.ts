@@ -29,7 +29,9 @@ async function main(): Promise<void> {
 
   const nameFlag = args.indexOf('--name')
   const name = nameFlag >= 0 ? args[nameFlag + 1] : undefined
-  const isDemo = args.includes('--demo')
+  // `undefined` (not false) when the flag is absent — so an upsert re-run
+  // without --demo leaves an existing demo user untouched (see update below).
+  const isDemo = args.includes('--demo') ? true : undefined
 
   const parsed = createUserSchema.safeParse({ email, password, name, isDemo })
   if (!parsed.success) {
@@ -54,7 +56,9 @@ async function main(): Promise<void> {
     update: {
       passwordHash,
       name: validatedName ?? undefined,
-      isDemo: validatedDemo ?? false,
+      // `?? undefined` = leave untouched on re-run (mirror `name`): omitting
+      // --demo must never flip an existing demo user back to a real one.
+      isDemo: validatedDemo ?? undefined,
     },
     create: {
       email: validatedEmail,
