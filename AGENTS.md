@@ -6,6 +6,15 @@
 
 Issues live as GitHub issues, driven through the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
+### Issue workflow — branch + PR, never close early
+
+Every issue ships through a pull request, never a direct commit to `main`:
+
+1. **Check out a new feature branch first**: `git checkout -b feat/issue-<n>-<slug>` (match existing naming, e.g. `feat/issue-1-scaffold`).
+2. **Commit all changes to the feature branch** — never commit to `main`.
+3. **Push the branch and open a PR** with `gh pr create`, body starting with `Closes #<n>`.
+4. **Never close the issue while its PR is still open.** The issue closes only when the PR merges (GitHub auto-closes via `Closes #<n>`). If the PR is open or under review, the issue stays open.
+
 ### Triage labels
 
 Five canonical roles with default label names (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
@@ -13,3 +22,13 @@ Five canonical roles with default label names (`needs-triage`, `needs-info`, `re
 ### Domain docs
 
 Single-context: one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

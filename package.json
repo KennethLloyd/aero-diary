@@ -11,11 +11,14 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "create-user": "tsx scripts/create-user.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@node-rs/argon2": "2.1.0",
     "@prisma/adapter-better-sqlite3": "7.9.1",
     "@prisma/client": "7.9.1",
     "better-sqlite3": "13.0.3",
@@ -34,6 +37,8 @@
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
     "dotenv": "17.4.2",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.3.1",
     "jsdom": "30.0.1",
     "prisma": "7.9.1",
     "tailwindcss": "4.3.3",
