@@ -20,3 +20,4 @@ A self-hosted mood journal ("your memories, vividly preserved") in the Frutiger 
 - Latest stable packages only, verified live (see ADR-0001; re-verify at scaffold).
 - Senior-level code: typed everything, Zod on every input, server-only data layer, security gates in every action.
 - Journal data is the most private thing this app holds — no Google data-use, no client-visible secrets.
+- Comments are concise and straightforward; max 1-2 lines only

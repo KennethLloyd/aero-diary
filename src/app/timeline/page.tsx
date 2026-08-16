@@ -3,6 +3,7 @@ import { AeroDock } from '@/components/aero/AeroDock'
 import { AeroOrb } from '@/components/aero/AeroOrb'
 import { AeroTitle } from '@/components/aero/AeroTitle'
 import { db } from '@/lib/db'
+import { verifySession } from '@/lib/dal'
 import type { Mood } from '@/generated/prisma/enums'
 
 // The timeline is inherently per-user/dynamic (auth lands in ticket #2).
@@ -60,9 +61,13 @@ function formatEntry(entry: DbEntry): TimelineEntry {
 }
 
 export default async function TimelinePage() {
+  // Auth gate (ADR-0002): every protected page/action starts with verifySession.
+  const session = await verifySession()
+
   // Scaffold spike (ADR-0001): exercise the better-sqlite3 adapter through
   // Turbopack at runtime. Real entry rendering lands with the timeline ticket.
   const dbEntries = await db.entry.findMany({
+    where: { userId: session.userId },
     orderBy: { date: 'desc' },
     take: 20,
     include: { activities: { include: { activity: true } } },

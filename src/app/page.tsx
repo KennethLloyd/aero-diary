@@ -1,11 +1,10 @@
 import { AeroBubbles } from '@/components/aero/AeroBubbles'
-import { AeroButton } from '@/components/aero/AeroButton'
 import { AeroLogo } from '@/components/aero/AeroLogo'
 import { AeroTitle } from '@/components/aero/AeroTitle'
+import { LoginForm } from '@/components/auth/LoginForm'
 
-// Login shell (ADR-0009: the prototype's Google button becomes the aero
-// email/password form + "Try the demo"). Auth wiring lands in ticket #2 —
-// this page is the styled scaffold shell.
+// Login screen (ADR-0009: the prototype's Google button becomes the aero
+// email/password form + "Try the demo"). Auth wiring lands in ticket #2.
 export default function LoginPage() {
   return (
     <>
@@ -19,31 +18,7 @@ export default function LoginPage() {
             Your memories, vividly preserved.
           </p>
 
-          <form className="flex w-full flex-col gap-3">
-            <input
-              type="email"
-              className="aero-input w-full"
-              placeholder="Email"
-              autoComplete="email"
-            />
-            <input
-              type="password"
-              className="aero-input w-full"
-              placeholder="Password"
-              autoComplete="current-password"
-            />
-            <AeroButton type="submit" className="w-full py-3 text-lg">
-              Sign in
-            </AeroButton>
-          </form>
-
-          <AeroButton
-            variant="white"
-            href="/timeline"
-            className="mt-3 w-full py-3 text-lg"
-          >
-            Try the demo
-          </AeroButton>
+          <LoginForm />
         </div>
       </main>
     </>
