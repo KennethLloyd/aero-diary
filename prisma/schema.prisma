@@ -1,0 +1,82 @@
+// Aero Diary data model — single source of truth: docs/data-model.md.
+// Prisma 7: the datasource URL lives in prisma.config.ts (ADR-0001).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum Mood {
+  AWFUL
+  BAD
+  MEH
+  GOOD
+  RAD
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
+  name          String?
+  styleStandard String? // polish style rules; real user seeded from Hermes style_summary
+  isDemo        Boolean   @default(false)
+  sessions      Session[]
+  entries       Entry[]
+  createdAt     DateTime  @default(now())
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique // SHA-256 of the opaque session token
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Entry {
+  id          String    @id @default(cuid())
+  sourceId    Int?      @unique // legacy Daylio id; null for new app-created entries
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date        DateTime // stored UTC; local offset handled at the boundary
+  localOffset Int // minutes east of UTC, from the legacy ISO offset
+  mood        Mood
+  note        String
+  isFavorite  Boolean   @default(false)
+  activities  EntryActivity[]
+  photos      Photo[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Activity {
+  id        String          @id @default(cuid())
+  name      String
+  emoji     String          @default("✨")
+  entries   EntryActivity[]
+  sortOrder Int             @default(0)
+  @@unique([name, emoji])
+}
+
+model EntryActivity {
+  entryId    String
+  activityId String
+  entry      Entry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  @@id([entryId, activityId])
+}
+
+model Photo {
+  id        String   @id @default(cuid())
+  entryId   String
+  entry     Entry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  drivePath String // e.g. "photos/<md5>.jpg" — relative to the AeroDiary Drive folder
+  mimeType  String
+  createdAt DateTime @default(now())
+}
