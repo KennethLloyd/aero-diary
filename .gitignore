@@ -16,3 +16,7 @@ dist/
 # misc
 .DS_Store
 *.log
+# generated / build artifacts
+src/generated/
+tsconfig.tsbuildinfo
+.vscode/

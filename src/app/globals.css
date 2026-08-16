@@ -1,0 +1,468 @@
+@import 'tailwindcss';
+
+/* ════════════════════════════════════════════════════════════════════
+   Aero Diary — Frutiger Aero design system (ADR-0009)
+   The prototype (aero_diary.html) is the spec. This is a design-token
+   layer + aero component classes, not pixel-dusted one-offs.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ── Design tokens ─────────────────────────────────────────────────── */
+@theme {
+  /* Humanist sans stack — matches the prototype typography */
+  --font-sans: 'Segoe UI', Frutiger, 'Frutiger Linotype', 'Dejavu Sans',
+    'Helvetica Neue', Arial, sans-serif;
+
+  /* Sky → grass gradient stops */
+  --color-aero-sky: #69a7e1;
+  --color-aero-sky-light: #9bd0f5;
+  --color-aero-grass: #76c77a;
+  --color-aero-grass-light: #bfe8c4;
+
+  /* Ink / text */
+  --color-aero-ink: #0a2f5c;
+  --color-aero-ink-soft: #2b4c73;
+  --color-aero-body: #1a2c42;
+
+  /* Glossy button blues */
+  --color-aero-blue: #4a9be6;
+  --color-aero-blue-deep: #146cc2;
+  --color-aero-blue-dark: #10427a;
+}
+
+/* ── Base ──────────────────────────────────────────────────────────── */
+@layer base {
+  body {
+    font-family: var(--font-sans);
+    /* Classic Aero sky and grass background */
+    background: linear-gradient(
+      to bottom,
+      #69a7e1 0%,
+      #9bd0f5 40%,
+      #bfe8c4 70%,
+      #76c77a 100%
+    );
+    background-attachment: fixed;
+    color: #1a202c;
+    min-height: 100vh;
+    overflow-x: hidden;
+    margin: 0;
+  }
+}
+
+/* Shared recipes (single source of truth for repeated glossy/glass values) */
+:root {
+  --aero-btn-gradient: linear-gradient(
+    180deg,
+    #93cefc 0%,
+    #4a9be6 49%,
+    #146cc2 50%,
+    #207ce5 100%
+  );
+  --aero-btn-gradient-hover: linear-gradient(
+    180deg,
+    #b0defc 0%,
+    #68b0f9 49%,
+    #1a7fe0 50%,
+    #2f8ff4 100%
+  );
+}
+
+/* ── Floating Aero Bubbles ─────────────────────────────────────────── */
+@keyframes float-up {
+  0% {
+    transform: translateY(110vh) scale(0.8);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.8;
+  }
+  90% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(-20vh) scale(1.2);
+    opacity: 0;
+  }
+}
+
+@layer components {
+  .bubble {
+    position: fixed;
+    border-radius: 50%;
+    background: radial-gradient(
+      circle at 30% 30%,
+      rgba(255, 255, 255, 0.8),
+      rgba(255, 255, 255, 0.1) 60%,
+      rgba(255, 255, 255, 0.4) 100%
+    );
+    box-shadow:
+      inset 0 0 10px rgba(255, 255, 255, 0.5),
+      0 4px 8px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    animation: float-up 15s infinite linear;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Aero Glass Panel ─────────────────────────────────────────────── */
+  .aero-glass {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.7) 0%,
+      rgba(255, 255, 255, 0.3) 50%,
+      rgba(255, 255, 255, 0.6) 100%
+    );
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow:
+      0 8px 20px rgba(0, 0, 0, 0.15),
+      inset 0 1px 0 rgba(255, 255, 255, 1),
+      inset 0 0 20px rgba(255, 255, 255, 0.5);
+    border-radius: 12px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    position: relative;
+    overflow: hidden;
+  }
+  .aero-glass::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
+    background: linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.5) 0%,
+      rgba(255, 255, 255, 0.1) 100%
+    );
+    pointer-events: none;
+  }
+
+  /* ── Classic 2008 Glossy Button ───────────────────────────────────── */
+  .aero-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--aero-btn-gradient);
+    border: 1px solid #10427a;
+    box-shadow:
+      inset 0px 1px 0px rgba(255, 255, 255, 0.8),
+      0px 2px 4px rgba(0, 0, 0, 0.3);
+    color: white;
+    text-shadow: 0 -1px 1px rgba(0, 0, 0, 0.6);
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-weight: bold;
+    transition: all 0.1s;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+  .aero-btn:hover {
+    background: var(--aero-btn-gradient-hover);
+  }
+  .aero-btn:active {
+    background: linear-gradient(180deg, #146cc2 0%, #207ce5 100%);
+    box-shadow: inset 0px 2px 5px rgba(0, 0, 0, 0.5);
+    text-shadow: none;
+  }
+
+  .aero-btn-white {
+    background: linear-gradient(
+      180deg,
+      #ffffff 0%,
+      #e6e6e6 49%,
+      #d4d4d4 50%,
+      #f0f0f0 100%
+    );
+    border: 1px solid #a0a0a0;
+    color: #333;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+  }
+  .aero-btn-white:hover {
+    background: linear-gradient(
+      180deg,
+      #ffffff 0%,
+      #f0f0f0 49%,
+      #e0e0e0 50%,
+      #f9f9f9 100%
+    );
+  }
+
+  .aero-btn-red {
+    background: linear-gradient(
+      180deg,
+      #ff9393 0%,
+      #e64a4a 49%,
+      #c21414 50%,
+      #e52020 100%
+    );
+    border: 1px solid #7a1010;
+  }
+  .aero-btn-red:hover {
+    background: linear-gradient(
+      180deg,
+      #fcb0b0 0%,
+      #f96868 49%,
+      #e01a1a 50%,
+      #f42f2f 100%
+    );
+  }
+
+  /* ── Inset well for inputs ────────────────────────────────────────── */
+  .aero-input {
+    background: #ffffff;
+    border: 1px solid #7a9eae;
+    box-shadow:
+      inset 0 2px 5px rgba(0, 0, 0, 0.2),
+      0 1px 0 rgba(255, 255, 255, 0.8);
+    border-radius: 6px;
+    color: #333;
+    padding: 8px 12px;
+    transition: all 0.2s;
+  }
+  .aero-input:focus {
+    outline: none;
+    border-color: #4a9be6;
+    box-shadow:
+      inset 0 2px 5px rgba(0, 0, 0, 0.2),
+      0 0 8px rgba(74, 155, 230, 0.6);
+  }
+
+  /* ── Glossy Mood Orbs (5 variants, red → cyan) ────────────────────── */
+  .aero-orb {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    box-shadow:
+      0 4px 6px rgba(0, 0, 0, 0.2),
+      inset 0 -4px 6px rgba(0, 0, 0, 0.2),
+      inset 0 4px 6px rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  .aero-orb:hover {
+    transform: scale(1.1);
+  }
+  .aero-orb::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 15%;
+    width: 70%;
+    height: 40%;
+    background: linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.9),
+      rgba(255, 255, 255, 0)
+    );
+    border-radius: 50%;
+  }
+  .orb-awful {
+    background: radial-gradient(circle at 30% 30%, #ff7b7b, #d80000);
+  }
+  .orb-bad {
+    background: radial-gradient(circle at 30% 30%, #ffc17b, #d86c00);
+  }
+  .orb-meh {
+    background: radial-gradient(circle at 30% 30%, #fff48f, #d8b400);
+  }
+  .orb-good {
+    background: radial-gradient(circle at 30% 30%, #8fff9c, #00b017);
+  }
+  .orb-rad {
+    background: radial-gradient(circle at 30% 30%, #7bffff, #00a4b0);
+  }
+
+  .mini-orb {
+    width: 14px;
+    height: 14px;
+    font-size: 0;
+    border-width: 1px;
+    box-shadow:
+      0 2px 3px rgba(0, 0, 0, 0.3),
+      inset 0 -2px 3px rgba(0, 0, 0, 0.2);
+  }
+  .mini-orb::after {
+    top: 1px;
+    height: 45%;
+  }
+
+  /* ── Frutiger Aero Bottom Dock ────────────────────────────────────── */
+  .aero-dock {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 12px;
+    padding: 10px 20px;
+    background: linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.7) 0%,
+      rgba(255, 255, 255, 0.3) 100%
+    );
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow:
+      0 10px 25px rgba(0, 0, 0, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 1),
+      inset 0 0 20px rgba(255, 255, 255, 0.4);
+    border-radius: 40px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 100;
+  }
+
+  .dock-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.9) 0%,
+      rgba(255, 255, 255, 0.2) 100%
+    );
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+  /* Tooltip */
+  .dock-icon::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: -35px;
+    left: 50%;
+    transform: translateX(-50%) scale(0.8);
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: bold;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .dock-icon:hover::before {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+  .dock-icon:hover {
+    transform: translateY(-10px) scale(1.15);
+    background: var(--aero-btn-gradient);
+    border-color: #10427a;
+  }
+  .dock-icon.active {
+    background: var(--aero-btn-gradient);
+    border-color: #10427a;
+    box-shadow:
+      inset 0px 2px 5px rgba(0, 0, 0, 0.5),
+      0 4px 12px rgba(32, 124, 229, 0.5);
+    transform: translateY(-4px);
+  }
+
+  /* ── Pure CSS Aero Logo ───────────────────────────────────────────── */
+  .aero-logo-orb {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #a1d9ff 0%, #3b9eeb 40%, #0c5699 100%);
+    box-shadow:
+      0 15px 25px rgba(0, 0, 0, 0.3),
+      inset -10px -10px 20px rgba(0, 0, 0, 0.4),
+      inset 5px 5px 15px rgba(255, 255, 255, 0.8);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+  }
+  .aero-logo-orb::before {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 15%;
+    width: 70%;
+    height: 45%;
+    background: linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.9),
+      rgba(255, 255, 255, 0)
+    );
+    border-radius: 50%;
+  }
+  .aero-swoosh {
+    position: absolute;
+    width: 140%;
+    height: 40px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(118, 199, 122, 0.9),
+      transparent
+    );
+    border-radius: 50%;
+    transform: rotate(-15deg);
+    box-shadow: 0 5px 15px rgba(118, 199, 122, 0.6);
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+  }
+
+  /* ── Progress Bars ────────────────────────────────────────────────── */
+  .aero-progress-track {
+    background: #e0e5e9;
+    border: 1px solid #b3c2cc;
+    border-radius: 10px;
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
+    height: 18px;
+    width: 100%;
+    overflow: hidden;
+    position: relative;
+  }
+  .aero-progress-fill {
+    height: 100%;
+    border-radius: 8px;
+    /* Default rad-cyan fill; per-mood colors override via inline style/utilities */
+    background: linear-gradient(90deg, #00a4b0, #7bffff);
+    box-shadow:
+      inset 0 1px 2px rgba(255, 255, 255, 0.8),
+      inset 0 -1px 2px rgba(0, 0, 0, 0.3);
+    position: relative;
+  }
+  .aero-progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
+    background: linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.7) 0%,
+      rgba(255, 255, 255, 0.1) 100%
+    );
+  }
+
+  /* ── Misc ─────────────────────────────────────────────────────────── */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
