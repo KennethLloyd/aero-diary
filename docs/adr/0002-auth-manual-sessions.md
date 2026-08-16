@@ -1,0 +1,26 @@
+# ADR-0002: Authentication — fully manual, DB-backed sessions
+
+**Status:** Accepted (2026-08-16)
+
+## Context
+
+Kenneth rejected Better Auth (black box: it owns the schema, the Prisma models, the flow — "I don't know how authentication works on my app"). Auth.js v5 never shipped stable (absorbed into Better Auth); Lucia is archived. The Next.js docs still document manual session management (jose / iron-session) as a sanctioned path, and the "use a library" guidance targets multi-user products with OAuth/2FA/password-resets. Aero Diary has exactly 2 users (real + demo), email+password only, tailnet-only deployment. Kenneth's #1 criterion: depth of understanding. His hard requirement: "fully secure and senior-level — the last thing I want is my journal entries getting hacked."
+
+## Decision
+
+Manual auth, every line owned:
+
+- **Schema**: `User` (id, email unique, passwordHash, name, styleStandard, isDemo, timestamps) + `Session` (id, userId FK, tokenHash, expiresAt, createdAt) — two small tables, no magic.
+- **Password hashing**: argon2id (e.g. `@node-rs/argon2`), per-user salt, hash verification only — never roll our own crypto.
+- **Sessions**: opaque 32-byte random token; store only its SHA-256 hash in `Session`; cookie holds the raw token with `httpOnly`, `secure`, `SameSite=Lax`; ~30-day expiry, sliding renewal; logout/delete = row removal = instant revoke.
+- **Gate**: one `verifySession()` DAL (`lib/dal.ts`, server-only) called at the top of **every** protected server action and data read — the Lesson-3 pattern, productionized.
+- **Inputs**: Zod schemas on login/register/change-password; generic error messages (no user enumeration); login rate-limiting (in-memory per-IP + per-email throttle, exponential backoff).
+- **Server-only rule**: `import 'server-only'` everywhere secrets live; no client component ever sees the token, user hash, or Drive credentials.
+- Cookie signing with jose is optional (opaque token needs no signing — the DB row is the authority); jose remains for CSRF-safe same-site cookies if needed.
+
+## Consequences
+
+- Full transparency: Kenneth can read and reason about every auth path.
+- Security burden is ours — mitigated by tiny attack surface (2 users, tailnet-only, no OAuth, no third-party surface).
+- Password reset is a deliberate non-feature in v1 (single real user; reset = edit row via `pnpm` script).
+- Demo login ("Try the demo") creates a Session for the demo user — same path, no special casing.
