@@ -6,6 +6,15 @@
 
 Issues live as GitHub issues, driven through the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
+### Issue workflow — branch + PR, never close early
+
+Every issue ships through a pull request, never a direct commit to `main`:
+
+1. **Check out a new feature branch first**: `git checkout -b feat/issue-<n>-<slug>` (match existing naming, e.g. `feat/issue-1-scaffold`).
+2. **Commit all changes to the feature branch** — never commit to `main`.
+3. **Push the branch and open a PR** with `gh pr create`, body starting with `Closes #<n>`.
+4. **Never close the issue while its PR is still open.** The issue closes only when the PR merges (GitHub auto-closes via `Closes #<n>`). If the PR is open or under review, the issue stays open.
+
 ### Triage labels
 
 Five canonical roles with default label names (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
