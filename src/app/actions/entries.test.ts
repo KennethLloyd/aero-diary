@@ -70,7 +70,7 @@ describe('createEntry action', () => {
       data: { email: 'ken@example.com', passwordHash: 'x' },
     })
     const activity = await testDb.activity.create({
-      data: { name: 'work', emoji: '💻' },
+      data: { userId: user.id, name: 'work', emoji: '💻' },
     })
     mocks.verifySession.mockResolvedValue({ isAuth: true, userId: user.id })
 
@@ -84,5 +84,23 @@ describe('createEntry action', () => {
     expect(entry).toMatchObject({ userId: user.id, mood: Mood.RAD, note: 'A good day to write things down.' })
     expect(entry.activities).toEqual([{ entryId: entry.id, activityId: activity.id }])
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/timeline')
+  })
+
+  it('rejects an activity owned by another user', async () => {
+    const user = await testDb.user.create({
+      data: { email: 'ken@example.com', passwordHash: 'x' },
+    })
+    const otherUser = await testDb.user.create({
+      data: { email: 'other@example.com', passwordHash: 'x' },
+    })
+    const activity = await testDb.activity.create({
+      data: { userId: otherUser.id, name: 'private', emoji: '🔒' },
+    })
+    mocks.verifySession.mockResolvedValue({ isAuth: true, userId: user.id })
+
+    const state = await createEntry(undefined, form({ activityId: activity.id }))
+
+    expect(state).toEqual({ error: 'One or more selected activities no longer exist.' })
+    expect(await testDb.entry.count()).toBe(0)
   })
 })

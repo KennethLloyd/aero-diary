@@ -27,6 +27,7 @@ model User {
   isDemo        Boolean   @default(false)
   sessions      Session[]
   entries       Entry[]
+  activities    Activity[]
   createdAt     DateTime  @default(now())
 }
 
@@ -57,12 +58,14 @@ model Entry {
 
 model Activity {
   id         String          @id @default(cuid())
+  userId     String
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   name       String
   emoji      String          @default("✨")
   isArchived Boolean         @default(false)
   entries    EntryActivity[]
   sortOrder  Int             @default(0)
-  @@unique([name, emoji])
+  @@unique([userId, name, emoji])
 }
 
 model EntryActivity {

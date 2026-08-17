@@ -30,7 +30,11 @@ export async function createEntry(
 
   const activityIds = [...new Set(parsed.data.activityIds)]
   const activities = await db.activity.findMany({
-    where: { id: { in: activityIds }, isArchived: false },
+    where: {
+      id: { in: activityIds },
+      userId: session.userId,
+      isArchived: false,
+    },
     select: { id: true },
   })
   if (activities.length !== activityIds.length) {

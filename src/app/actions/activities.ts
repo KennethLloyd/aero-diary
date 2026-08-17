@@ -20,9 +20,13 @@ function activityFormData(formData: FormData) {
   }
 }
 
-async function hasNameConflict(name: string, excludeId?: string): Promise<boolean> {
+async function hasNameConflict(
+  userId: string,
+  name: string,
+  excludeId?: string,
+): Promise<boolean> {
   const activities = await db.activity.findMany({
-    where: { isArchived: false },
+    where: { userId, isArchived: false },
     select: { id: true, name: true },
   })
   const normalizedName = name.toLocaleLowerCase()
@@ -37,23 +41,24 @@ export async function createActivity(
   _prevState: ActivityState,
   formData: FormData,
 ): Promise<ActivityState> {
-  await verifySession()
+  const session = await verifySession()
   const parsed = activitySchema.safeParse(activityFormData(formData))
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? SAVE_FAILED }
   }
-  if (await hasNameConflict(parsed.data.name)) {
+  if (await hasNameConflict(session.userId, parsed.data.name)) {
     return { error: DUPLICATE_ACTIVITY }
   }
 
   const lastActivity = await db.activity.findFirst({
-    where: { isArchived: false },
+    where: { userId: session.userId, isArchived: false },
     orderBy: { sortOrder: 'desc' },
     select: { sortOrder: true },
   })
   try {
     await db.activity.create({
       data: {
+        userId: session.userId,
         ...parsed.data,
         sortOrder: (lastActivity?.sortOrder ?? -1) + 1,
       },
@@ -72,18 +77,18 @@ export async function updateActivity(
   _prevState: ActivityState,
   formData: FormData,
 ): Promise<ActivityState> {
-  await verifySession()
+  const session = await verifySession()
   const parsedId = activityIdSchema.safeParse(activityId)
   const parsed = activitySchema.safeParse(activityFormData(formData))
   if (!parsedId.success || !parsed.success) {
     return { error: parsed.error?.issues[0]?.message ?? 'Invalid activity.' }
   }
-  if (await hasNameConflict(parsed.data.name, parsedId.data)) {
+  if (await hasNameConflict(session.userId, parsed.data.name, parsedId.data)) {
     return { error: DUPLICATE_ACTIVITY }
   }
 
-  const activity = await db.activity.findUnique({
-    where: { id: parsedId.data, isArchived: false },
+  const activity = await db.activity.findFirst({
+    where: { id: parsedId.data, userId: session.userId, isArchived: false },
     select: { id: true },
   })
   if (!activity) {
@@ -106,14 +111,14 @@ export async function updateActivity(
 }
 
 export async function deleteActivity(activityId: string): Promise<void> {
-  await verifySession()
+  const session = await verifySession()
   const parsedId = activityIdSchema.safeParse(activityId)
   if (!parsedId.success) {
     return
   }
 
   await db.activity.updateMany({
-    where: { id: parsedId.data, isArchived: false },
+    where: { id: parsedId.data, userId: session.userId, isArchived: false },
     data: { isArchived: true },
   })
   revalidatePath('/activities')

@@ -28,10 +28,16 @@ function form(name = 'work', emoji = '💻'): FormData {
 }
 
 describe('activity actions', () => {
+  let currentUserId: string
+
   beforeEach(async () => {
     await resetTestDb()
+    const user = await testDb.user.create({
+      data: { email: 'ken@example.com', passwordHash: 'x' },
+    })
+    currentUserId = user.id
     vi.clearAllMocks()
-    mocks.verifySession.mockResolvedValue({ isAuth: true, userId: 'user-1' })
+    mocks.verifySession.mockResolvedValue({ isAuth: true, userId: currentUserId })
   })
 
   it('rejects an anonymous create request before validating or writing', async () => {
@@ -61,12 +67,9 @@ describe('activity actions', () => {
       emoji: '🎯',
     })
 
-    const user = await testDb.user.create({
-      data: { email: 'ken@example.com', passwordHash: 'x' },
-    })
     const entry = await testDb.entry.create({
       data: {
-        userId: user.id,
+        userId: currentUserId,
         date: new Date(),
         localOffset: 480,
         mood: Mood.GOOD,
@@ -82,5 +85,25 @@ describe('activity actions', () => {
     expect(await testDb.entryActivity.findUnique({
       where: { entryId_activityId: { entryId: entry.id, activityId: activity.id } },
     })).not.toBeNull()
+  })
+
+  it('keeps activity vocabularies isolated between users', async () => {
+    const otherUser = await testDb.user.create({
+      data: { email: 'other@example.com', passwordHash: 'x' },
+    })
+    const otherActivity = await testDb.activity.create({
+      data: { userId: otherUser.id, name: 'work', emoji: '💻' },
+    })
+
+    expect(await createActivity(undefined, form())).toEqual({ success: 'Activity added.' })
+    expect(await testDb.activity.count({ where: { userId: currentUserId } })).toBe(1)
+
+    const update = await updateActivity(otherActivity.id, undefined, form('private', '🔒'))
+    expect(update).toEqual({ error: 'Activity not found.' })
+
+    await deleteActivity(otherActivity.id)
+    expect(await testDb.activity.findUniqueOrThrow({ where: { id: otherActivity.id } })).toMatchObject({
+      isArchived: false,
+    })
   })
 })

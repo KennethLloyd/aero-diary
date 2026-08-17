@@ -73,6 +73,7 @@ model User {
   isDemo        Boolean   @default(false)
   sessions      Session[]
   entries       Entry[]
+  activities    Activity[]
   createdAt     DateTime  @default(now())
 }
 
@@ -103,12 +104,14 @@ model Entry {
 
 model Activity {
   id         String          @id @default(cuid())
+  userId     String
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   name       String
   emoji      String          @default("✨")
   isArchived Boolean         @default(false)
   entries    EntryActivity[]
   sortOrder  Int             @default(0)
-  @@unique([name, emoji])
+  @@unique([userId, name, emoji])
 }
 
 model EntryActivity {
@@ -133,12 +136,14 @@ Notes:
 - `sourceId` unique + nullable → idempotent import (upsert skips existing sourceIds).
 - `Session.tokenHash` stores only the hash — a DB leak never exposes live tokens (ADR-0002).
 - `isArchived` hides an activity from new entries while preserving its historical `EntryActivity` links.
-- `@@unique([name, emoji])` prevents tag duplicates; ticket #9's legacy import must dedupe by lowercase name.
+- `Activity` rows are user-owned; all activity reads, mutations, and entry attachments must use the authenticated user's id. Demo and imported real-user activities are separate rows.
+- `@@unique([userId, name, emoji])` prevents per-user tag duplicates; ticket #9's legacy import must dedupe by lowercase name within the imported user.
 - Schema evolution follows ADR-0004; `isFavorite` intentionally has no UI in v1.
 
 ## Import contract (ticket #9)
 
 - Runs on OCI at the switchover (the JSON lives there); implemented against this doc — never by reading the file during development.
 - Idempotent via `sourceId`; validates total count (2,777) and reports a diff.
-- Resolves the 25 legacy activity names and curated emoji map into `Activity` rows; this is the only owner of legacy activity creation.
+- Resolves the 25 legacy activity names and curated emoji map into `Activity` rows for the imported real user; this is the only owner of legacy activity creation for imported data.
+- The demo seed in ticket #8 creates its own demo-user activity rows; it never creates global/shared activities.
 - Photo mapping: `photoPaths` entries resolve to Drive paths under `AeroDiary/photos/` (ADR-0003); missing files are reported, not fatal.
