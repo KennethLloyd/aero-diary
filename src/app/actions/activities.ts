@@ -21,7 +21,10 @@ function activityFormData(formData: FormData) {
 }
 
 async function hasNameConflict(name: string, excludeId?: string): Promise<boolean> {
-  const activities = await db.activity.findMany({ select: { id: true, name: true } })
+  const activities = await db.activity.findMany({
+    where: { isArchived: false },
+    select: { id: true, name: true },
+  })
   const normalizedName = name.toLocaleLowerCase()
   return activities.some(
     (activity) =>
@@ -44,6 +47,7 @@ export async function createActivity(
   }
 
   const lastActivity = await db.activity.findFirst({
+    where: { isArchived: false },
     orderBy: { sortOrder: 'desc' },
     select: { sortOrder: true },
   })
@@ -79,7 +83,7 @@ export async function updateActivity(
   }
 
   const activity = await db.activity.findUnique({
-    where: { id: parsedId.data },
+    where: { id: parsedId.data, isArchived: false },
     select: { id: true },
   })
   if (!activity) {
@@ -108,7 +112,10 @@ export async function deleteActivity(activityId: string): Promise<void> {
     return
   }
 
-  await db.activity.deleteMany({ where: { id: parsedId.data } })
+  await db.activity.updateMany({
+    where: { id: parsedId.data, isArchived: false },
+    data: { isArchived: true },
+  })
   revalidatePath('/activities')
   revalidatePath('/timeline/new')
   revalidatePath('/timeline')

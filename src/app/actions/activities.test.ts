@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { Mood } from '@/generated/prisma/enums'
 import { resetTestDb, testDb } from '@/test/test-db'
 
 const mocks = vi.hoisted(() => ({
@@ -47,7 +48,7 @@ describe('activity actions', () => {
     expect(await testDb.activity.count()).toBe(0)
   })
 
-  it('creates, renames, and deletes activities', async () => {
+  it('creates, renames, and archives activities without removing historical links', async () => {
     const created = await createActivity(undefined, form())
     expect(created).toEqual({ success: 'Activity added.' })
 
@@ -60,7 +61,26 @@ describe('activity actions', () => {
       emoji: '🎯',
     })
 
+    const user = await testDb.user.create({
+      data: { email: 'ken@example.com', passwordHash: 'x' },
+    })
+    const entry = await testDb.entry.create({
+      data: {
+        userId: user.id,
+        date: new Date(),
+        localOffset: 480,
+        mood: Mood.GOOD,
+        note: 'Historical activity link.',
+        activities: { create: [{ activityId: activity.id }] },
+      },
+    })
+
     await deleteActivity(activity.id)
-    expect(await testDb.activity.count()).toBe(0)
+    expect(await testDb.activity.findUniqueOrThrow({ where: { id: activity.id } })).toMatchObject({
+      isArchived: true,
+    })
+    expect(await testDb.entryActivity.findUnique({
+      where: { entryId_activityId: { entryId: entry.id, activityId: activity.id } },
+    })).not.toBeNull()
   })
 })

@@ -102,11 +102,12 @@ model Entry {
 }
 
 model Activity {
-  id        String          @id @default(cuid())
-  name      String
-  emoji     String          @default("✨")
-  entries   EntryActivity[]
-  sortOrder Int             @default(0)
+  id         String          @id @default(cuid())
+  name       String
+  emoji      String          @default("✨")
+  isArchived Boolean         @default(false)
+  entries    EntryActivity[]
+  sortOrder  Int             @default(0)
   @@unique([name, emoji])
 }
 
@@ -114,7 +115,7 @@ model EntryActivity {
   entryId    String
   activityId String
   entry      Entry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
-  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Restrict)
   @@id([entryId, activityId])
 }
 
@@ -131,7 +132,8 @@ model Photo {
 Notes:
 - `sourceId` unique + nullable → idempotent import (upsert skips existing sourceIds).
 - `Session.tokenHash` stores only the hash — a DB leak never exposes live tokens (ADR-0002).
-- `@@unique([name, emoji])` prevents tag duplicates; legacy seed must dedupe by lowercase name.
+- `isArchived` hides an activity from new entries while preserving its historical `EntryActivity` links.
+- `@@unique([name, emoji])` prevents tag duplicates; legacy import must dedupe by lowercase name.
 - Schema evolution follows ADR-0004; `isFavorite` intentionally has no UI in v1.
 
 ## Import contract (ticket #9)

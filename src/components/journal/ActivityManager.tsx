@@ -111,7 +111,7 @@ export function ActivityManager({ activities }: { activities: ActivityOption[] }
                 />
                 <form action={deleteActivity.bind(null, activity.id)}>
                   <AeroButton variant="red" type="submit" className="px-3 py-1 text-sm">
-                    Delete
+                    Archive
                   </AeroButton>
                 </form>
               </li>
@@ -119,7 +119,7 @@ export function ActivityManager({ activities }: { activities: ActivityOption[] }
           </ul>
         ) : (
           <p className="text-sm font-semibold text-[#2b4c73]">
-            No activities yet. Add one above or run the legacy activity seed.
+            No activities yet. Add one above.
           </p>
         )}
       </section>
