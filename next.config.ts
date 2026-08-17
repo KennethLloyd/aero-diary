@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   // The Prisma `prisma-client` generator emits plain TypeScript that is bundled
   // like any other source — the generator + better-sqlite3 adapter combo is
   // verified against Turbopack per ADR-0001.
+  // The app is commonly checked over the Mac's tailnet/LAN IP during dev.
+  allowedDevOrigins: ['192.168.1.13'],
 }
 
 export default nextConfig
