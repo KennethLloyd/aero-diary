@@ -27,6 +27,7 @@ model User {
   isDemo        Boolean   @default(false)
   sessions      Session[]
   entries       Entry[]
+  activities    Activity[]
   createdAt     DateTime  @default(now())
 }
 
@@ -56,19 +57,22 @@ model Entry {
 }
 
 model Activity {
-  id        String          @id @default(cuid())
-  name      String
-  emoji     String          @default("✨")
-  entries   EntryActivity[]
-  sortOrder Int             @default(0)
-  @@unique([name, emoji])
+  id         String          @id @default(cuid())
+  userId     String
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  emoji      String          @default("✨")
+  isArchived Boolean         @default(false)
+  entries    EntryActivity[]
+  sortOrder  Int             @default(0)
+  @@unique([userId, name, emoji])
 }
 
 model EntryActivity {
   entryId    String
   activityId String
   entry      Entry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
-  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Restrict)
   @@id([entryId, activityId])
 }
 

@@ -13,7 +13,7 @@ export default defineConfig({
     path: 'prisma/migrations',
   },
   // `?? ''` keeps `prisma generate` (postinstall) working on a fresh clone
-  // before `.env.local` exists; migrate/seed require DATABASE_URL to be set.
+  // before `.env.local` exists; migration commands require DATABASE_URL.
   datasource: {
     url: process.env.DATABASE_URL ?? '',
   },
