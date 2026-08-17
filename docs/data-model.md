@@ -49,7 +49,7 @@ good meal, travel, reading, character development, social, sideline,
 cooking, date, drawing, driving, focus, karaoke, korean, party, Piano, shopping
 ```
 
-These become `Activity` rows with a curated emoji map (reviewed before seeding; all editable in-app). Note the exact string `Piano` (capital P) — normalization/emoji mapping must handle case differences.
+These are import inputs. Ticket #9 resolves them into `Activity` rows with the curated emoji map; the Activities screen does not own this mapping or seed them at runtime. Note the exact string `Piano` (capital P) — normalization/emoji mapping must handle case differences.
 
 ## Aero Diary schema (Prisma)
 
@@ -133,11 +133,12 @@ Notes:
 - `sourceId` unique + nullable → idempotent import (upsert skips existing sourceIds).
 - `Session.tokenHash` stores only the hash — a DB leak never exposes live tokens (ADR-0002).
 - `isArchived` hides an activity from new entries while preserving its historical `EntryActivity` links.
-- `@@unique([name, emoji])` prevents tag duplicates; legacy import must dedupe by lowercase name.
+- `@@unique([name, emoji])` prevents tag duplicates; ticket #9's legacy import must dedupe by lowercase name.
 - Schema evolution follows ADR-0004; `isFavorite` intentionally has no UI in v1.
 
 ## Import contract (ticket #9)
 
 - Runs on OCI at the switchover (the JSON lives there); implemented against this doc — never by reading the file during development.
 - Idempotent via `sourceId`; validates total count (2,777) and reports a diff.
+- Resolves the 25 legacy activity names and curated emoji map into `Activity` rows; this is the only owner of legacy activity creation.
 - Photo mapping: `photoPaths` entries resolve to Drive paths under `AeroDiary/photos/` (ADR-0003); missing files are reported, not fatal.
