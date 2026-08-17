@@ -11,6 +11,7 @@ export default defineConfig({
   schema: 'prisma/schema.prisma',
   migrations: {
     path: 'prisma/migrations',
+    seed: 'tsx scripts/seed-activities.ts',
   },
   // `?? ''` keeps `prisma generate` (postinstall) working on a fresh clone
   // before `.env.local` exists; migrate/seed require DATABASE_URL to be set.
