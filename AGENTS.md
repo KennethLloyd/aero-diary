@@ -23,6 +23,24 @@ Five canonical roles with default label names (`needs-triage`, `needs-info`, `re
 
 Single-context: one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
 
+## Architecture and Idiomaticity
+
+- Treat idiomatic, framework-native architecture as a hard project constraint.
+- Prefer the capabilities already provided by Next.js, Tailwind, and the existing feature boundaries before adding
+  custom scripts, monkey patches, test harnesses, or other workaround layers.
+- Do not add noisy or non-idiomatic scaffolding to hide a race condition or
+  paper over an unclear ownership boundary. If a workaround is unavoidable,
+  document the architectural reason and keep it isolated and minimal.
+
+## Verification
+For UI work, prefer the `control-in-app-browser` skill when it is available:
+use it to inspect the rendered page, exercise the affected interactions, and
+spot responsive or visual UX regressions directly. Run the relevant
+`agent-browser` flow from the plan as a complementary automated check or as a
+fallback when the in-app browser is unavailable. Re-snapshot after navigation
+or dynamic UI changes; automated tests do not replace direct browser
+verification for UI behavior.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know
