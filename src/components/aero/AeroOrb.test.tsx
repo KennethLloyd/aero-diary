@@ -14,6 +14,11 @@ describe('AeroOrb', () => {
     expect(screen.getByLabelText('Mood: AWFUL')).toHaveTextContent('😭')
   })
 
+  it('uses the expressive smiling emoji for the good mood', () => {
+    render(<AeroOrb mood={Mood.GOOD} />)
+    expect(screen.getByLabelText('Mood: GOOD')).toHaveTextContent('😊')
+  })
+
   it('renders mini orbs without an emoji', () => {
     const { container } = render(<AeroOrb mood={Mood.MEH} mini />)
     const orb = container.querySelector('.mini-orb')

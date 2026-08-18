@@ -12,7 +12,7 @@ const ORB_EMOJI: Record<Mood, string> = {
   AWFUL: '😭',
   BAD: '😟',
   MEH: '😐',
-  GOOD: '🙂',
+  GOOD: '😊',
   RAD: '😃',
 }
 
