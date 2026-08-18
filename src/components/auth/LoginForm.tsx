@@ -1,7 +1,7 @@
 'use client'
 
 import { useActionState } from 'react'
-import { login, loginDemo, type LoginState } from '@/app/actions/auth'
+import { login, loginDemo, type LoginState } from '@/actions/auth'
 import { AeroButton } from '@/components/aero/AeroButton'
 
 // Aero login form (ADR-0009): email/password + "Try the demo". `useActionState`

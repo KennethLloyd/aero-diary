@@ -1,7 +1,7 @@
 'use client'
 
 import { useActionState, useState } from 'react'
-import { deleteEntry, type DeleteEntryState } from '@/app/actions/entries'
+import { deleteEntry, type DeleteEntryState } from '@/actions/entries'
 import { AeroButton } from '@/components/aero/AeroButton'
 
 export function DeleteEntryDialog({ entryId }: { entryId: string }) {

@@ -6,7 +6,7 @@ import {
   deleteActivity,
   updateActivity,
   type ActivityState,
-} from '@/app/actions/activities'
+} from '@/actions/activities'
 import { AeroButton } from '@/components/aero/AeroButton'
 import type { ActivityOption } from '@/lib/journal/types'
 

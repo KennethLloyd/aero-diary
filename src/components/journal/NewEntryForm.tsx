@@ -6,7 +6,7 @@ import {
   createEntry,
   updateEntry,
   type EntryActionState,
-} from '@/app/actions/entries'
+} from '@/actions/entries'
 import { AeroButton } from '@/components/aero/AeroButton'
 import { AeroOrb } from '@/components/aero/AeroOrb'
 import { Mood } from '@/generated/prisma/enums'

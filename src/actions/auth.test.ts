@@ -22,7 +22,7 @@ vi.mock('@/lib/db', async () => {
   return { db: testDb }
 })
 
-import { login, loginDemo, logout } from '@/app/actions/auth'
+import { login, loginDemo, logout } from '@/actions/auth'
 
 const NEXT_REDIRECT = 'NEXT_REDIRECT'
 const GENERIC_ERROR = 'Invalid email or password.'

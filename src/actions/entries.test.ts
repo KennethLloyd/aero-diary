@@ -16,7 +16,7 @@ vi.mock('@/lib/db', async () => {
   return { db: testDb }
 })
 
-import { createEntry, deleteEntry, updateEntry } from '@/app/actions/entries'
+import { createEntry, deleteEntry, updateEntry } from '@/actions/entries'
 
 const NEXT_REDIRECT = 'NEXT_REDIRECT'
 
