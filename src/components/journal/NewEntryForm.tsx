@@ -2,7 +2,11 @@
 
 import Link from 'next/link'
 import { useActionState, useRef, useState } from 'react'
-import { createEntry, type CreateEntryState } from '@/app/actions/entries'
+import {
+  createEntry,
+  updateEntry,
+  type EntryActionState,
+} from '@/app/actions/entries'
 import { AeroButton } from '@/components/aero/AeroButton'
 import { AeroOrb } from '@/components/aero/AeroOrb'
 import { Mood } from '@/generated/prisma/enums'
@@ -16,14 +20,34 @@ const MOODS: { value: Mood; label: string }[] = [
   { value: Mood.RAD, label: 'Rad' },
 ]
 
-export function NewEntryForm({ activities }: { activities: ActivityOption[] }) {
-  const [state, formAction, pending] = useActionState<CreateEntryState, FormData>(
-    createEntry,
+export type EditableEntry = {
+  id: string
+  mood: Mood
+  note: string
+  localOffset: number
+  activityIds: string[]
+}
+
+export function NewEntryForm({
+  activities,
+  entry,
+}: {
+  activities: ActivityOption[]
+  entry?: EditableEntry
+}) {
+  const action: (
+    prevState: EntryActionState,
+    formData: FormData,
+  ) => Promise<EntryActionState> = entry
+    ? updateEntry.bind(null, entry.id)
+    : createEntry
+  const [state, formAction, pending] = useActionState<EntryActionState, FormData>(
+    action,
     undefined,
   )
-  const [mood, setMood] = useState<Mood>(Mood.RAD)
+  const [mood, setMood] = useState<Mood>(entry?.mood ?? Mood.RAD)
   const [selectedActivityIds, setSelectedActivityIds] = useState<Set<string>>(
-    new Set(),
+    () => new Set(entry?.activityIds ?? []),
   )
   const localOffsetInput = useRef<HTMLInputElement>(null)
 
@@ -37,7 +61,7 @@ export function NewEntryForm({ activities }: { activities: ActivityOption[] }) {
   }
 
   function setBrowserOffset() {
-    if (localOffsetInput.current) {
+    if (!entry && localOffsetInput.current) {
       localOffsetInput.current.value = String(-new Date().getTimezoneOffset())
     }
   }
@@ -49,7 +73,12 @@ export function NewEntryForm({ activities }: { activities: ActivityOption[] }) {
       className="aero-glass flex flex-1 flex-col p-5"
     >
       <input type="hidden" name="mood" value={mood} />
-      <input ref={localOffsetInput} type="hidden" name="localOffset" defaultValue="0" />
+      <input
+        ref={localOffsetInput}
+        type="hidden"
+        name="localOffset"
+        defaultValue={entry?.localOffset ?? 0}
+      />
       {[...selectedActivityIds].map((activityId) => (
         <input key={activityId} type="hidden" name="activityId" value={activityId} />
       ))}
@@ -62,7 +91,7 @@ export function NewEntryForm({ activities }: { activities: ActivityOption[] }) {
           Cancel
         </Link>
         <span className="text-sm font-bold tracking-wide text-[#0a2f5c] drop-shadow-md">
-          New Entry
+          {entry ? 'Edit Entry' : 'New Entry'}
         </span>
         <AeroButton type="submit" disabled={pending} className="px-4 py-1 text-sm">
           {pending ? 'Saving…' : 'Save'}
@@ -103,6 +132,7 @@ export function NewEntryForm({ activities }: { activities: ActivityOption[] }) {
             className="aero-input min-h-48 w-full resize-y p-4 text-[15px] leading-relaxed"
             placeholder="What’s on your mind?"
             maxLength={20_000}
+            defaultValue={entry?.note}
             required
           />
 

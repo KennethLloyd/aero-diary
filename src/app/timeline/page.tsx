@@ -3,6 +3,7 @@ import { AeroDock } from '@/components/aero/AeroDock'
 import { AeroOrb } from '@/components/aero/AeroOrb'
 import { AeroTitle } from '@/components/aero/AeroTitle'
 import { AeroButton } from '@/components/aero/AeroButton'
+import Link from 'next/link'
 import { db } from '@/lib/db'
 import { verifySession } from '@/lib/dal'
 import type { Mood } from '@/generated/prisma/enums'
@@ -93,9 +94,10 @@ export default async function TimelinePage() {
         {entries.length > 0 ? (
           <div className="space-y-4">
             {entries.map((entry) => (
-              <article
+              <Link
                 key={entry.id}
-                className="aero-glass p-4 transition-transform duration-200 hover:scale-[1.02]"
+                href={`/timeline/${entry.id}`}
+                className="aero-glass block p-4 transition-transform duration-200 hover:scale-[1.02]"
               >
                 <div className="relative z-10 flex flex-row items-start gap-4">
                   <div className="flex flex-col items-center pt-1">
@@ -123,7 +125,7 @@ export default async function TimelinePage() {
                     ) : null}
                   </div>
                 </div>
-              </article>
+              </Link>
             ))}
           </div>
         ) : (

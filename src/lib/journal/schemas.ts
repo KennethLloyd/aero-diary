@@ -29,6 +29,12 @@ export const createEntrySchema = z.object({
 
 export type CreateEntryInput = z.infer<typeof createEntrySchema>
 
+export const entryIdSchema = z
+  .string({ error: 'Entry not found.' })
+  .trim()
+  .min(1, { error: 'Entry not found.' })
+  .max(100, { error: 'Entry not found.' })
+
 export const activitySchema = z.object({
   name: z
     .string({ error: 'Enter an activity name.' })
