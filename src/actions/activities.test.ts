@@ -18,7 +18,7 @@ import {
   createActivity,
   deleteActivity,
   updateActivity,
-} from '@/app/actions/activities'
+} from '@/actions/activities'
 
 function form(name = 'work', emoji = '💻'): FormData {
   const data = new FormData()

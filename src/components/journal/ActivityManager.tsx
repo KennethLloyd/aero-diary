@@ -6,20 +6,16 @@ import {
   deleteActivity,
   updateActivity,
   type ActivityState,
-} from '@/app/actions/activities'
+} from '@/actions/activities'
 import { AeroButton } from '@/components/aero/AeroButton'
 import type { ActivityOption } from '@/lib/journal/types'
 
 function ActionFeedback({ state }: { state: ActivityState }) {
   if (state?.error) {
-    return (
-      <p role="alert" className="basis-full text-sm font-semibold text-red-700">
-        {state.error}
-      </p>
-    )
+    return <p role="alert" className="col-span-full basis-full text-sm font-semibold text-red-700">{state.error}</p>
   }
   if (state?.success) {
-    return <p className="basis-full text-sm font-semibold text-green-800">{state.success}</p>
+    return <p className="col-span-full basis-full text-sm font-semibold text-green-800">{state.success}</p>
   }
   return null
 }
@@ -31,11 +27,14 @@ function ActivityEditor({ activity }: { activity: ActivityOption }) {
   )
 
   return (
-    <form action={formAction} className="flex flex-1 flex-wrap items-center gap-2">
+    <form
+      action={formAction}
+      className="grid min-w-0 flex-1 grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-2 sm:flex sm:flex-wrap"
+    >
       <input
         name="emoji"
         aria-label={`${activity.name} emoji`}
-        className="aero-input w-16 text-center"
+        className="aero-input w-full text-center sm:w-16"
         defaultValue={activity.emoji}
         maxLength={16}
         required
@@ -43,14 +42,24 @@ function ActivityEditor({ activity }: { activity: ActivityOption }) {
       <input
         name="name"
         aria-label={`${activity.name} name`}
-        className="aero-input min-w-40 flex-1"
+        className="aero-input min-w-0 flex-1 sm:min-w-40"
         defaultValue={activity.name}
         maxLength={50}
         required
       />
-      <AeroButton type="submit" disabled={pending} className="px-3 py-1 text-sm">
-        {pending ? 'Saving…' : 'Save'}
-      </AeroButton>
+      <div className="col-span-full flex justify-end gap-2 sm:contents">
+        <AeroButton type="submit" disabled={pending} className="px-3 py-1 text-sm">
+          {pending ? 'Saving…' : 'Save'}
+        </AeroButton>
+        <AeroButton
+          variant="red"
+          type="submit"
+          formAction={deleteActivity.bind(null, activity.id)}
+          className="px-3 py-1 text-sm"
+        >
+          Archive
+        </AeroButton>
+      </div>
       <ActionFeedback state={state} />
     </form>
   )
@@ -64,8 +73,11 @@ export function ActivityManager({ activities }: { activities: ActivityOption[] }
 
   return (
     <div className="space-y-5">
-      <form action={formAction} className="aero-glass flex flex-wrap items-end gap-3 p-4">
-        <div className="min-w-20 flex-1">
+      <form
+        action={formAction}
+        className="aero-glass grid grid-cols-[4.5rem_minmax(0,1fr)] items-end gap-3 p-4 sm:flex sm:flex-wrap"
+      >
+        <div className="min-w-0 flex-1 sm:min-w-20">
           <label htmlFor="activity-emoji" className="mb-1 block text-xs font-bold uppercase text-[#0a2f5c]">
             Emoji
           </label>
@@ -78,7 +90,7 @@ export function ActivityManager({ activities }: { activities: ActivityOption[] }
             required
           />
         </div>
-        <div className="min-w-48 flex-[3]">
+        <div className="min-w-0 flex-[3] sm:min-w-48">
           <label htmlFor="activity-name" className="mb-1 block text-xs font-bold uppercase text-[#0a2f5c]">
             Activity name
           </label>
@@ -91,7 +103,7 @@ export function ActivityManager({ activities }: { activities: ActivityOption[] }
             required
           />
         </div>
-        <AeroButton type="submit" disabled={pending} className="px-4 py-2">
+        <AeroButton type="submit" disabled={pending} className="col-span-full w-full px-4 py-2 sm:col-span-auto sm:w-auto">
           {pending ? 'Adding…' : 'Add activity'}
         </AeroButton>
         <ActionFeedback state={state} />
@@ -104,16 +116,11 @@ export function ActivityManager({ activities }: { activities: ActivityOption[] }
         {activities.length > 0 ? (
           <ul className="space-y-2">
             {activities.map((activity) => (
-              <li key={activity.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-white/60 bg-white/40 p-2">
+              <li key={activity.id} className="flex items-center gap-2 rounded-lg border border-white/60 bg-white/40 p-2">
                 <ActivityEditor
                   key={`${activity.id}-${activity.name}-${activity.emoji}`}
                   activity={activity}
                 />
-                <form action={deleteActivity.bind(null, activity.id)}>
-                  <AeroButton variant="red" type="submit" className="px-3 py-1 text-sm">
-                    Archive
-                  </AeroButton>
-                </form>
               </li>
             ))}
           </ul>

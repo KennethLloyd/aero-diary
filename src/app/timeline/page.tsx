@@ -3,6 +3,7 @@ import { AeroDock } from '@/components/aero/AeroDock'
 import { AeroOrb } from '@/components/aero/AeroOrb'
 import { AeroTitle } from '@/components/aero/AeroTitle'
 import { AeroButton } from '@/components/aero/AeroButton'
+import Link from 'next/link'
 import { db } from '@/lib/db'
 import { verifySession } from '@/lib/dal'
 import type { Mood } from '@/generated/prisma/enums'
@@ -34,7 +35,6 @@ function formatEntry(entry: DbEntry): TimelineEntry {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
-    year: 'numeric',
     timeZone: 'UTC',
   })
   const timeFormatter = new Intl.DateTimeFormat('en-US', {
@@ -73,7 +73,7 @@ export default async function TimelinePage() {
   return (
     <>
       <AeroBubbles />
-      <div className="relative z-10 mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 py-6 pb-32 md:py-10">
+      <div className="aero-page relative z-10 mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 py-6 pb-32 md:pt-10 md:pb-32">
         <header className="mb-2 flex items-end justify-between px-2">
           <div>
             <AeroTitle>Aero Diary</AeroTitle>
@@ -93,9 +93,10 @@ export default async function TimelinePage() {
         {entries.length > 0 ? (
           <div className="space-y-4">
             {entries.map((entry) => (
-              <article
+              <Link
                 key={entry.id}
-                className="aero-glass p-4 transition-transform duration-200 hover:scale-[1.02]"
+                href={`/timeline/${entry.id}`}
+                className="aero-glass block p-4 transition-transform duration-200 hover:scale-[1.02]"
               >
                 <div className="relative z-10 flex flex-row items-start gap-4">
                   <div className="flex flex-col items-center pt-1">
@@ -123,7 +124,7 @@ export default async function TimelinePage() {
                     ) : null}
                   </div>
                 </div>
-              </article>
+              </Link>
             ))}
           </div>
         ) : (
