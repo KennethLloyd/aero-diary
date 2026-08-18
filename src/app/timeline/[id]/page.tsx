@@ -19,14 +19,6 @@ const MOOD_LABEL: Record<Mood, string> = {
   RAD: 'Rad',
 }
 
-function formatOffset(minutes: number) {
-  const sign = minutes >= 0 ? '+' : '-'
-  const absolute = Math.abs(minutes)
-  const hours = String(Math.floor(absolute / 60)).padStart(2, '0')
-  const remainder = String(absolute % 60).padStart(2, '0')
-  return `UTC${sign}${hours}:${remainder}`
-}
-
 function formatEntryTimestamp(date: Date, localOffset: number) {
   const local = new Date(date.getTime() + localOffset * 60_000)
   const dateFormatter = new Intl.DateTimeFormat('en-US', {
@@ -41,7 +33,7 @@ function formatEntryTimestamp(date: Date, localOffset: number) {
     minute: '2-digit',
     timeZone: 'UTC',
   })
-  return `${dateFormatter.format(local)} · ${timeFormatter.format(local)} (${formatOffset(localOffset)})`
+  return `${dateFormatter.format(local)} · ${timeFormatter.format(local)}`
 }
 
 function entryTitle(note: string) {
@@ -81,7 +73,7 @@ export default async function EntryDetailPage({ params }: EntryDetailPageProps) 
   return (
     <>
       <AeroBubbles />
-      <main className="relative z-10 mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-4 px-4 py-6 pb-32 md:py-10">
+      <main className="relative z-10 mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-4 px-4 py-6 pb-32 md:pt-10 md:pb-32">
         <header className="mb-2 flex items-center justify-between px-2">
           <Link
             href="/timeline"

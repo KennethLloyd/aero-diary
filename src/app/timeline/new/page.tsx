@@ -14,7 +14,7 @@ export default async function NewEntryPage() {
   return (
     <>
       <AeroBubbles />
-      <main className="relative z-10 mx-auto flex min-h-screen w-full max-w-2xl flex-col px-4 py-6 pb-32 md:py-10">
+      <main className="relative z-10 mx-auto flex min-h-screen w-full max-w-2xl flex-col px-4 py-6 pb-32 md:pt-10 md:pb-32">
         <AeroTitle className="mb-4 px-2">Aero Diary</AeroTitle>
         <NewEntryForm activities={activities} />
       </main>
