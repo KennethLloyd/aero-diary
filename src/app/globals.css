@@ -339,7 +339,8 @@
     border-radius: 40px;
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    z-index: 100;
+    isolation: isolate;
+    z-index: 1000;
   }
 
   .dock-icon {

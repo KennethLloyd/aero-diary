@@ -35,7 +35,6 @@ function formatEntry(entry: DbEntry): TimelineEntry {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
-    year: 'numeric',
     timeZone: 'UTC',
   })
   const timeFormatter = new Intl.DateTimeFormat('en-US', {
@@ -74,7 +73,7 @@ export default async function TimelinePage() {
   return (
     <>
       <AeroBubbles />
-      <div className="relative z-10 mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 py-6 pb-32 md:py-10">
+      <div className="relative z-10 mx-auto flex w-full max-w-2xl flex-1 flex-col gap-5 px-4 py-6 pb-32 md:py-10">
         <header className="mb-2 flex items-end justify-between px-2">
           <div>
             <AeroTitle>Aero Diary</AeroTitle>
