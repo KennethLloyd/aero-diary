@@ -73,7 +73,7 @@ export default async function TimelinePage() {
   return (
     <>
       <AeroBubbles />
-      <div className="relative z-10 mx-auto flex w-full max-w-2xl flex-1 flex-col gap-5 px-4 py-6 pb-32 md:pt-10 md:pb-32">
+      <div className="aero-page relative z-10 mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 py-6 pb-32 md:pt-10 md:pb-32">
         <header className="mb-2 flex items-end justify-between px-2">
           <div>
             <AeroTitle>Aero Diary</AeroTitle>

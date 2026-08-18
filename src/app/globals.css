@@ -343,6 +343,24 @@
     z-index: 1000;
   }
 
+  .aero-detail-card {
+    flex: 1 0 auto;
+  }
+
+  .aero-page {
+    min-height: 0;
+    height: calc(100dvh - 94px);
+    max-height: calc(100dvh - 94px);
+    overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .aero-page::-webkit-scrollbar,
+  .aero-detail-card::-webkit-scrollbar {
+    display: none;
+  }
+
   .dock-icon {
     width: 48px;
     height: 48px;
