@@ -93,7 +93,7 @@ export default async function EntryDetailPage({ params }: EntryDetailPageProps) 
           </div>
         </header>
 
-        <article className="aero-glass aero-detail-card space-y-6 p-5">
+        <article className="aero-glass space-y-6 p-5">
           <div className="relative z-10">
             <section className="space-y-4 border-b border-white/50 pb-4" aria-labelledby="entry-mood-heading">
               <time
