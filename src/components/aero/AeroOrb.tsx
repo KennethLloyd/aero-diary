@@ -1,4 +1,4 @@
-import type { Mood } from '@/generated/prisma/enums'
+import type { Mood } from '@/generated/prisma/enums';
 
 const ORB_CLASS: Record<Mood, string> = {
   AWFUL: 'orb-awful',
@@ -6,7 +6,7 @@ const ORB_CLASS: Record<Mood, string> = {
   MEH: 'orb-meh',
   GOOD: 'orb-good',
   RAD: 'orb-rad',
-}
+};
 
 const ORB_EMOJI: Record<Mood, string> = {
   AWFUL: '😭',
@@ -14,7 +14,7 @@ const ORB_EMOJI: Record<Mood, string> = {
   MEH: '😐',
   GOOD: '😊',
   RAD: '😃',
-}
+};
 
 // Specular glossy mood orb (ADR-0009). `mini` renders the small calendar dot.
 export function AeroOrb({
@@ -34,5 +34,5 @@ export function AeroOrb({
     >
       {mini ? null : ORB_EMOJI[mood]}
     </div>
-  )
+  );
 }

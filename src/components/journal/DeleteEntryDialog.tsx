@@ -1,15 +1,15 @@
-'use client'
+'use client';
 
-import { useActionState, useState } from 'react'
-import { deleteEntry, type DeleteEntryState } from '@/actions/entries'
-import { AeroButton } from '@/components/aero/AeroButton'
+import { useActionState, useState } from 'react';
+import { deleteEntry, type DeleteEntryState } from '@/actions/entries';
+import { AeroButton } from '@/components/aero/AeroButton';
 
 export function DeleteEntryDialog({ entryId }: { entryId: string }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState<DeleteEntryState, FormData>(
     deleteEntry.bind(null, entryId),
     undefined,
-  )
+  );
 
   return (
     <>
@@ -81,5 +81,5 @@ export function DeleteEntryDialog({ entryId }: { entryId: string }) {
         </div>
       ) : null}
     </>
-  )
+  );
 }

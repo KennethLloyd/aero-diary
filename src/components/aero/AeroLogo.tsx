@@ -4,5 +4,5 @@ export function AeroLogo({ className = '' }: { className?: string }) {
     <div className={`aero-logo-orb ${className}`} aria-hidden="true">
       <div className="aero-swoosh" />
     </div>
-  )
+  );
 }

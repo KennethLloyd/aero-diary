@@ -1,11 +1,11 @@
-import { config } from 'dotenv'
-import { existsSync } from 'node:fs'
-import { defineConfig } from 'prisma/config'
+import { config } from 'dotenv';
+import { existsSync } from 'node:fs';
+import { defineConfig } from 'prisma/config';
 
 // The Prisma CLI does not load `.env.local` (that is a Next.js convention).
 // Load whichever env file exists: `.env.local` on Mac dev, `.env` on OCI prod.
-const envFile = existsSync('.env.local') ? '.env.local' : '.env'
-config({ path: envFile })
+const envFile = existsSync('.env.local') ? '.env.local' : '.env';
+config({ path: envFile });
 
 export default defineConfig({
   schema: 'prisma/schema.prisma',
@@ -17,4 +17,4 @@ export default defineConfig({
   datasource: {
     url: process.env.DATABASE_URL ?? '',
   },
-})
+});

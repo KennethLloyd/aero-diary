@@ -1,30 +1,30 @@
-'use client'
+'use client';
 
-import { useActionState } from 'react'
+import { useActionState } from 'react';
 import {
   createActivity,
   deleteActivity,
   updateActivity,
   type ActivityState,
-} from '@/actions/activities'
-import { AeroButton } from '@/components/aero/AeroButton'
-import type { ActivityOption } from '@/lib/journal/types'
+} from '@/actions/activities';
+import { AeroButton } from '@/components/aero/AeroButton';
+import type { ActivityOption } from '@/lib/journal/types';
 
 function ActionFeedback({ state }: { state: ActivityState }) {
   if (state?.error) {
-    return <p role="alert" className="col-span-full basis-full text-sm font-semibold text-red-700">{state.error}</p>
+    return <p role="alert" className="col-span-full basis-full text-sm font-semibold text-red-700">{state.error}</p>;
   }
   if (state?.success) {
-    return <p className="col-span-full basis-full text-sm font-semibold text-green-800">{state.success}</p>
+    return <p className="col-span-full basis-full text-sm font-semibold text-green-800">{state.success}</p>;
   }
-  return null
+  return null;
 }
 
 function ActivityEditor({ activity }: { activity: ActivityOption }) {
   const [state, formAction, pending] = useActionState<ActivityState, FormData>(
     updateActivity.bind(null, activity.id),
     undefined,
-  )
+  );
 
   return (
     <form
@@ -62,14 +62,14 @@ function ActivityEditor({ activity }: { activity: ActivityOption }) {
       </div>
       <ActionFeedback state={state} />
     </form>
-  )
+  );
 }
 
 export function ActivityManager({ activities }: { activities: ActivityOption[] }) {
   const [state, formAction, pending] = useActionState<ActivityState, FormData>(
     createActivity,
     undefined,
-  )
+  );
 
   return (
     <div className="space-y-5">
@@ -131,5 +131,5 @@ export function ActivityManager({ activities }: { activities: ActivityOption[] }
         )}
       </section>
     </div>
-  )
+  );
 }

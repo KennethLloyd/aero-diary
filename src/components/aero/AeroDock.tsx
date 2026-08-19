@@ -1,19 +1,18 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
-// Bottom Aero dock (ADR-0009). Calendar and insights remain future screens;
-// the timeline and activity routes are live.
+// Bottom Aero dock (ADR-0009).
 const DOCK_ITEMS = [
   { href: '/timeline', icon: '🗓️', tooltip: 'Timeline' },
   { href: '/calendar', icon: '📆', tooltip: 'Calendar' },
   { href: '/insights', icon: '📊', tooltip: 'Insights' },
   { href: '/activities', icon: '⚙️', tooltip: 'Activities' },
-]
+];
 
 export function AeroDock() {
-  const pathname = usePathname()
+  const pathname = usePathname();
 
   return (
     <nav className="aero-dock" aria-label="Main navigation">
@@ -28,5 +27,5 @@ export function AeroDock() {
         </Link>
       ))}
     </nav>
-  )
+  );
 }

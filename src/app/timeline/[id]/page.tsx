@@ -1,15 +1,15 @@
-import Link from 'next/link'
-import { notFound } from 'next/navigation'
-import { AeroBubbles } from '@/components/aero/AeroBubbles'
-import { AeroDock } from '@/components/aero/AeroDock'
-import { AeroOrb } from '@/components/aero/AeroOrb'
-import { DeleteEntryDialog } from '@/components/journal/DeleteEntryDialog'
-import { db } from '@/lib/db'
-import { verifySession } from '@/lib/dal'
-import { entryIdSchema } from '@/lib/journal/schemas'
-import type { Mood } from '@/generated/prisma/enums'
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { AeroBubbles } from '@/components/aero/AeroBubbles';
+import { AeroDock } from '@/components/aero/AeroDock';
+import { AeroOrb } from '@/components/aero/AeroOrb';
+import { DeleteEntryDialog } from '@/components/journal/DeleteEntryDialog';
+import { db } from '@/lib/db';
+import { verifySession } from '@/lib/dal';
+import { entryIdSchema } from '@/lib/journal/schemas';
+import type { Mood } from '@/generated/prisma/enums';
 
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic';
 
 const MOOD_LABEL: Record<Mood, string> = {
   AWFUL: 'Awful',
@@ -17,36 +17,36 @@ const MOOD_LABEL: Record<Mood, string> = {
   MEH: 'Meh',
   GOOD: 'Good',
   RAD: 'Rad',
-}
+};
 
 function formatEntryTimestamp(date: Date, localOffset: number) {
-  const local = new Date(date.getTime() + localOffset * 60_000)
+  const local = new Date(date.getTime() + localOffset * 60_000);
   const dateFormatter = new Intl.DateTimeFormat('en-US', {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
     year: 'numeric',
     timeZone: 'UTC',
-  })
+  });
   const timeFormatter = new Intl.DateTimeFormat('en-US', {
     hour: 'numeric',
     minute: '2-digit',
     timeZone: 'UTC',
-  })
-  return `${dateFormatter.format(local)} · ${timeFormatter.format(local)}`
+  });
+  return `${dateFormatter.format(local)} · ${timeFormatter.format(local)}`;
 }
 
 function entryTitle(note: string) {
-  const firstLine = note.split(/\r?\n/).map((line) => line.trim()).find(Boolean)
-  if (!firstLine) return 'Untitled memory'
-  return firstLine.length > 72 ? `${firstLine.slice(0, 69)}…` : firstLine
+  const firstLine = note.split(/\r?\n/).map((line) => line.trim()).find(Boolean);
+  if (!firstLine) return 'Untitled memory';
+  return firstLine.length > 72 ? `${firstLine.slice(0, 69)}…` : firstLine;
 }
 
 function entryParagraphs(note: string) {
   return note
     .split(/\r?\n\s*\r?\n/)
     .map((paragraph) => paragraph.trim())
-    .filter(Boolean)
+    .filter(Boolean);
 }
 
 type EntryDetailPageProps = {
@@ -54,10 +54,10 @@ type EntryDetailPageProps = {
 }
 
 export default async function EntryDetailPage({ params }: EntryDetailPageProps) {
-  const session = await verifySession()
-  const { id } = await params
-  const parsedId = entryIdSchema.safeParse(id)
-  if (!parsedId.success) notFound()
+  const session = await verifySession();
+  const { id } = await params;
+  const parsedId = entryIdSchema.safeParse(id);
+  if (!parsedId.success) notFound();
 
   const entry = await db.entry.findFirst({
     where: { id: parsedId.data, userId: session.userId },
@@ -65,10 +65,10 @@ export default async function EntryDetailPage({ params }: EntryDetailPageProps) 
       activities: { include: { activity: true } },
       photos: { orderBy: { createdAt: 'asc' } },
     },
-  })
-  if (!entry) notFound()
+  });
+  if (!entry) notFound();
 
-  const paragraphs = entryParagraphs(entry.note)
+  const paragraphs = entryParagraphs(entry.note);
 
   return (
     <>
@@ -162,5 +162,5 @@ export default async function EntryDetailPage({ params }: EntryDetailPageProps) 
       </main>
       <AeroDock />
     </>
-  )
+  );
 }
