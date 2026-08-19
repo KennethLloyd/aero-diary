@@ -35,6 +35,10 @@ export const entryIdSchema = z
   .min(1, { error: 'Entry not found.' })
   .max(100, { error: 'Entry not found.' })
 
+export const monthParamSchema = z
+  .string({ error: 'Invalid month.' })
+  .regex(/^\d{4}-(0[1-9]|1[0-2])$/, { error: 'Invalid month.' })
+
 export const activitySchema = z.object({
   name: z
     .string({ error: 'Enter an activity name.' })

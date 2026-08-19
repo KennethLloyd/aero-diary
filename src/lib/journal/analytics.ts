@@ -1,4 +1,5 @@
-import type { Mood } from '@/generated/prisma/enums'
+import { Mood } from '@/generated/prisma/enums'
+import { monthParamSchema } from '@/lib/journal/schemas'
 
 export type JournalEntry = {
   id: string
@@ -54,13 +55,7 @@ export const MOOD_PROGRESS_CLASS: Record<Mood, string> = {
   RAD: 'from-[#00a4b0] to-[#7bffff]',
 }
 
-const MOODS: readonly Mood[] = [
-  'AWFUL' as Mood,
-  'BAD' as Mood,
-  'MEH' as Mood,
-  'GOOD' as Mood,
-  'RAD' as Mood,
-]
+const MOODS: readonly Mood[] = [Mood.AWFUL, Mood.BAD, Mood.MEH, Mood.GOOD, Mood.RAD]
 
 function makeMonth(year: number, month: number): CalendarMonth {
   return {
@@ -74,20 +69,17 @@ function monthFromDate(date: Date): CalendarMonth {
   return makeMonth(date.getFullYear(), date.getMonth() + 1)
 }
 
-function firstMonthParam(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value
-}
-
 export function getMonthFromParam(
   value: string | string[] | undefined,
   now = new Date(),
 ): CalendarMonth {
-  const match = firstMonthParam(value)?.match(/^(\d{4})-(\d{2})$/)
-  if (!match) return monthFromDate(now)
+  const candidate = Array.isArray(value) ? value[0] : value
+  const parsed = monthParamSchema.safeParse(candidate)
+  if (!parsed.success) return monthFromDate(now)
 
-  const year = Number(match[1])
-  const month = Number(match[2])
-  if (year < 100 || month < 1 || month > 12) return monthFromDate(now)
+  const [yearString, monthString] = parsed.data.split('-')
+  const year = Number(yearString)
+  const month = Number(monthString)
 
   return makeMonth(year, month)
 }
