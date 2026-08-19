@@ -123,12 +123,13 @@ model EntryActivity {
 }
 
 model Photo {
-  id        String @id @default(cuid())
-  entryId   String
-  entry     Entry  @relation(fields: [entryId], references: [id], onDelete: Cascade)
-  drivePath String // e.g. "photos/<md5>.jpg" — relative to the AeroDiary Drive folder
-  mimeType  String
-  createdAt DateTime @default(now())
+  id          String @id @default(cuid())
+  entryId     String
+  entry       Entry  @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  drivePath   String // e.g. "photos/<md5>.jpg" — relative to the AeroDiary Drive folder
+  driveFileId String? // Drive file id for unambiguous new-upload reads/deletes
+  mimeType    String
+  createdAt   DateTime @default(now())
 }
 ```
 

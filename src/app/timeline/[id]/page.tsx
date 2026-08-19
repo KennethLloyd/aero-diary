@@ -3,7 +3,9 @@ import { notFound } from 'next/navigation';
 import { AeroBubbles } from '@/components/aero/AeroBubbles';
 import { AeroDock } from '@/components/aero/AeroDock';
 import { AeroOrb } from '@/components/aero/AeroOrb';
+import { DeletePhotoButton } from '@/components/journal/DeletePhotoButton';
 import { DeleteEntryDialog } from '@/components/journal/DeleteEntryDialog';
+import Image from 'next/image';
 import { db } from '@/lib/db';
 import { verifySession } from '@/lib/dal';
 import { entryIdSchema } from '@/lib/journal/schemas';
@@ -144,10 +146,18 @@ export default async function EntryDetailPage({ params }: EntryDetailPageProps) 
               <div className="aero-photo-strip no-scrollbar" aria-label="Polaroid photo strip">
                 {entry.photos.length > 0 ? entry.photos.map((photo, index) => (
                   <figure key={photo.id} className={`aero-polaroid ${index % 2 === 0 ? 'rotate-[-2deg]' : 'mt-2 rotate-[3deg]'}`}>
-                    <div className="aero-photo-placeholder" aria-label={`Photo ${index + 1} attached`}>
-                      <span aria-hidden="true">📷</span>
+                    <div className="aero-photo-placeholder relative overflow-hidden" aria-label={`Photo ${index + 1} attached`}>
+                      <Image
+                        src={`/photos/${photo.id}`}
+                        alt={`Photo ${index + 1} from this entry`}
+                        fill
+                        unoptimized
+                        sizes="200px"
+                        className="object-cover"
+                      />
                     </div>
                     <figcaption>Photo {index + 1}</figcaption>
+                    <DeletePhotoButton photoId={photo.id} />
                   </figure>
                 )) : (
                   <figure className="aero-polaroid aero-polaroid-empty">

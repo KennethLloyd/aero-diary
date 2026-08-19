@@ -7,6 +7,11 @@ const nextConfig: NextConfig = {
   // verified against Turbopack per ADR-0001.
   // The app is commonly checked over the Mac's tailnet/LAN IP during dev.
   allowedDevOrigins: ['192.168.1.13'],
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '25mb',
+    },
+  },
 };
 
 export default nextConfig;
