@@ -1,15 +1,15 @@
-import { AeroBubbles } from '@/components/aero/AeroBubbles'
-import { AeroDock } from '@/components/aero/AeroDock'
-import { AeroOrb } from '@/components/aero/AeroOrb'
-import { AeroTitle } from '@/components/aero/AeroTitle'
-import { AeroButton } from '@/components/aero/AeroButton'
-import Link from 'next/link'
-import { db } from '@/lib/db'
-import { verifySession } from '@/lib/dal'
-import type { Mood } from '@/generated/prisma/enums'
+import { AeroBubbles } from '@/components/aero/AeroBubbles';
+import { AeroDock } from '@/components/aero/AeroDock';
+import { AeroOrb } from '@/components/aero/AeroOrb';
+import { AeroTitle } from '@/components/aero/AeroTitle';
+import { AeroButton } from '@/components/aero/AeroButton';
+import Link from 'next/link';
+import { db } from '@/lib/db';
+import { verifySession } from '@/lib/dal';
+import type { Mood } from '@/generated/prisma/enums';
 
 // The timeline is inherently per-user and request-time rendered.
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic';
 
 type TimelineEntry = {
   id: string
@@ -30,18 +30,18 @@ type DbEntry = {
 }
 
 function formatEntry(entry: DbEntry): TimelineEntry {
-  const local = new Date(entry.date.getTime() + entry.localOffset * 60_000)
+  const local = new Date(entry.date.getTime() + entry.localOffset * 60_000);
   const dateFormatter = new Intl.DateTimeFormat('en-US', {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
     timeZone: 'UTC',
-  })
+  });
   const timeFormatter = new Intl.DateTimeFormat('en-US', {
     hour: 'numeric',
     minute: '2-digit',
     timeZone: 'UTC',
-  })
+  });
   return {
     id: entry.id,
     date: dateFormatter.format(local),
@@ -52,23 +52,23 @@ function formatEntry(entry: DbEntry): TimelineEntry {
       id: a.activityId,
       label: `${a.activity.emoji} ${a.activity.name}`,
     })),
-  }
+  };
 }
 
 export default async function TimelinePage() {
   // Auth gate (ADR-0002): every protected page/action starts with verifySession.
-  const session = await verifySession()
+  const session = await verifySession();
 
   const dbEntries = await db.entry.findMany({
     where: { userId: session.userId },
     orderBy: { date: 'desc' },
     include: { activities: { include: { activity: true } } },
-  })
-  const entries = dbEntries.map(formatEntry)
+  });
+  const entries = dbEntries.map(formatEntry);
   const currentMonth = new Intl.DateTimeFormat('en-US', {
     month: 'long',
     year: 'numeric',
-  }).format(new Date())
+  }).format(new Date());
 
   return (
     <>
@@ -138,5 +138,5 @@ export default async function TimelinePage() {
       </div>
       <AeroDock />
     </>
-  )
+  );
 }

@@ -1,10 +1,10 @@
-import Link from 'next/link'
+import Link from 'next/link';
 import {
   formatMonthLabel,
   getNextMonth,
   getPreviousMonth,
   type CalendarMonth,
-} from '@/lib/journal/analytics'
+} from '@/lib/journal/analytics';
 
 export function MonthNavigator({
   basePath,
@@ -13,8 +13,8 @@ export function MonthNavigator({
   basePath: string
   month: CalendarMonth
 }) {
-  const previousMonth = getPreviousMonth(month)
-  const nextMonth = getNextMonth(month)
+  const previousMonth = getPreviousMonth(month);
+  const nextMonth = getNextMonth(month);
 
   return (
     <div className="flex items-center justify-between rounded-full border border-white/60 bg-white/30 px-3 py-1.5 shadow-inner">
@@ -36,5 +36,5 @@ export function MonthNavigator({
         ›
       </Link>
     </div>
-  )
+  );
 }

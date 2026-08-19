@@ -1,5 +1,5 @@
-import { Mood } from '@/generated/prisma/enums'
-import { monthParamSchema } from '@/lib/journal/schemas'
+import { Mood } from '@/generated/prisma/enums';
+import { monthParamSchema } from '@/lib/journal/schemas';
 
 export type JournalEntry = {
   id: string
@@ -37,7 +37,7 @@ export const MOOD_LABEL: Record<Mood, string> = {
   MEH: 'Meh',
   GOOD: 'Good',
   RAD: 'Rad',
-}
+};
 
 export const MOOD_EMOJI: Record<Mood, string> = {
   AWFUL: '😭',
@@ -45,7 +45,7 @@ export const MOOD_EMOJI: Record<Mood, string> = {
   MEH: '😐',
   GOOD: '😊',
   RAD: '😃',
-}
+};
 
 export const MOOD_PROGRESS_CLASS: Record<Mood, string> = {
   AWFUL: 'from-[#d80000] to-[#ff7b7b]',
@@ -53,45 +53,45 @@ export const MOOD_PROGRESS_CLASS: Record<Mood, string> = {
   MEH: 'from-[#d8b400] to-[#fff48f]',
   GOOD: 'from-[#00b017] to-[#8fff9c]',
   RAD: 'from-[#00a4b0] to-[#7bffff]',
-}
+};
 
-const MOODS: readonly Mood[] = [Mood.AWFUL, Mood.BAD, Mood.MEH, Mood.GOOD, Mood.RAD]
+const MOODS: readonly Mood[] = [Mood.AWFUL, Mood.BAD, Mood.MEH, Mood.GOOD, Mood.RAD];
 
 function makeMonth(year: number, month: number): CalendarMonth {
   return {
     key: `${year}-${String(month).padStart(2, '0')}`,
     year,
     month,
-  }
+  };
 }
 
 function monthFromDate(date: Date): CalendarMonth {
-  return makeMonth(date.getFullYear(), date.getMonth() + 1)
+  return makeMonth(date.getFullYear(), date.getMonth() + 1);
 }
 
 export function getMonthFromParam(
   value: string | string[] | undefined,
   now = new Date(),
 ): CalendarMonth {
-  const candidate = Array.isArray(value) ? value[0] : value
-  const parsed = monthParamSchema.safeParse(candidate)
-  if (!parsed.success) return monthFromDate(now)
+  const candidate = Array.isArray(value) ? value[0] : value;
+  const parsed = monthParamSchema.safeParse(candidate);
+  if (!parsed.success) return monthFromDate(now);
 
-  const [yearString, monthString] = parsed.data.split('-')
-  const year = Number(yearString)
-  const month = Number(monthString)
+  const [yearString, monthString] = parsed.data.split('-');
+  const year = Number(yearString);
+  const month = Number(monthString);
 
-  return makeMonth(year, month)
+  return makeMonth(year, month);
 }
 
 export function getPreviousMonth(month: CalendarMonth): CalendarMonth {
-  const previous = new Date(Date.UTC(month.year, month.month - 2, 1))
-  return makeMonth(previous.getUTCFullYear(), previous.getUTCMonth() + 1)
+  const previous = new Date(Date.UTC(month.year, month.month - 2, 1));
+  return makeMonth(previous.getUTCFullYear(), previous.getUTCMonth() + 1);
 }
 
 export function getNextMonth(month: CalendarMonth): CalendarMonth {
-  const next = new Date(Date.UTC(month.year, month.month, 1))
-  return makeMonth(next.getUTCFullYear(), next.getUTCMonth() + 1)
+  const next = new Date(Date.UTC(month.year, month.month, 1));
+  return makeMonth(next.getUTCFullYear(), next.getUTCMonth() + 1);
 }
 
 export function formatMonthLabel(month: CalendarMonth): string {
@@ -99,19 +99,19 @@ export function formatMonthLabel(month: CalendarMonth): string {
     month: 'long',
     year: 'numeric',
     timeZone: 'UTC',
-  }).format(new Date(Date.UTC(month.year, month.month - 1, 1)))
+  }).format(new Date(Date.UTC(month.year, month.month - 1, 1)));
 }
 
 export function getDateKey(date: Date, localOffset: number): string {
-  return new Date(date.getTime() + localOffset * 60_000).toISOString().slice(0, 10)
+  return new Date(date.getTime() + localOffset * 60_000).toISOString().slice(0, 10);
 }
 
 export function getEntryDateKey(entry: Pick<JournalEntry, 'date' | 'localOffset'>): string {
-  return getDateKey(entry.date, entry.localOffset)
+  return getDateKey(entry.date, entry.localOffset);
 }
 
 export function getTodayDateKey(now = new Date()): string {
-  return getDateKey(now, -now.getTimezoneOffset())
+  return getDateKey(now, -now.getTimezoneOffset());
 }
 
 export function buildCalendarGrid(
@@ -119,69 +119,69 @@ export function buildCalendarGrid(
   month: CalendarMonth,
   today = getTodayDateKey(),
 ): (CalendarDay | null)[] {
-  const entriesByDate = new Map<string, { entryIds: string[]; moods: Mood[] }>()
+  const entriesByDate = new Map<string, { entryIds: string[]; moods: Mood[] }>();
 
   for (const entry of entries) {
-    const date = getEntryDateKey(entry)
-    if (!date.startsWith(`${month.key}-`)) continue
+    const date = getEntryDateKey(entry);
+    if (!date.startsWith(`${month.key}-`)) continue;
 
-    const current = entriesByDate.get(date) ?? { entryIds: [], moods: [] }
-    current.entryIds.push(entry.id)
-    current.moods.push(entry.mood)
-    entriesByDate.set(date, current)
+    const current = entriesByDate.get(date) ?? { entryIds: [], moods: [] };
+    current.entryIds.push(entry.id);
+    current.moods.push(entry.mood);
+    entriesByDate.set(date, current);
   }
 
-  const firstWeekday = new Date(Date.UTC(month.year, month.month - 1, 1)).getUTCDay()
-  const daysInMonth = new Date(Date.UTC(month.year, month.month, 0)).getUTCDate()
-  const cellCount = Math.ceil((firstWeekday + daysInMonth) / 7) * 7
+  const firstWeekday = new Date(Date.UTC(month.year, month.month - 1, 1)).getUTCDay();
+  const daysInMonth = new Date(Date.UTC(month.year, month.month, 0)).getUTCDate();
+  const cellCount = Math.ceil((firstWeekday + daysInMonth) / 7) * 7;
 
   return Array.from({ length: cellCount }, (_, index) => {
-    const day = index - firstWeekday + 1
-    if (day < 1 || day > daysInMonth) return null
+    const day = index - firstWeekday + 1;
+    if (day < 1 || day > daysInMonth) return null;
 
-    const date = `${month.key}-${String(day).padStart(2, '0')}`
-    const logged = entriesByDate.get(date)
+    const date = `${month.key}-${String(day).padStart(2, '0')}`;
+    const logged = entriesByDate.get(date);
     return {
       date,
       day,
       isToday: date === today,
       entryIds: logged?.entryIds ?? [],
       moods: logged?.moods ?? [],
-    }
-  })
+    };
+  });
 }
 
 export function summarizeInsights(entries: JournalEntry[]): InsightsSummary {
-  const moodCounts = new Map<Mood, number>(MOODS.map((mood) => [mood, 0]))
+  const moodCounts = new Map<Mood, number>(MOODS.map((mood) => [mood, 0]));
   const activityCounts = new Map<
     string,
     { activityId: string; name: string; emoji: string; count: number }
-  >()
+  >();
 
   for (const entry of entries) {
-    moodCounts.set(entry.mood, (moodCounts.get(entry.mood) ?? 0) + 1)
+    moodCounts.set(entry.mood, (moodCounts.get(entry.mood) ?? 0) + 1);
     for (const { activityId, activity } of entry.activities) {
-      const current = activityCounts.get(activityId)
+      const current = activityCounts.get(activityId);
       activityCounts.set(activityId, {
         activityId,
         name: activity.name,
         emoji: activity.emoji,
         count: (current?.count ?? 0) + 1,
-      })
+      });
     }
   }
 
   return {
     moods: MOODS.map((mood) => {
-      const count = moodCounts.get(mood) ?? 0
+      const count = moodCounts.get(mood) ?? 0;
       return {
         mood,
         count,
         percentage: entries.length === 0 ? 0 : Math.round((count / entries.length) * 100),
-      }
+      };
     }),
     activities: [...activityCounts.values()].sort(
       (a, b) => b.count - a.count || a.name.localeCompare(b.name),
     ),
-  }
+  };
 }

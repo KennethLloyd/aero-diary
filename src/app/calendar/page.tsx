@@ -1,27 +1,27 @@
-import { AeroBubbles } from '@/components/aero/AeroBubbles'
-import { AeroDock } from '@/components/aero/AeroDock'
-import { AeroTitle } from '@/components/aero/AeroTitle'
-import { CalendarGrid } from '@/components/journal/CalendarGrid'
-import { MonthNavigator } from '@/components/journal/MonthNavigator'
+import { AeroBubbles } from '@/components/aero/AeroBubbles';
+import { AeroDock } from '@/components/aero/AeroDock';
+import { AeroTitle } from '@/components/aero/AeroTitle';
+import { CalendarGrid } from '@/components/journal/CalendarGrid';
+import { MonthNavigator } from '@/components/journal/MonthNavigator';
 import {
   buildCalendarGrid,
   getMonthFromParam,
-} from '@/lib/journal/analytics'
-import { listEntriesForMonth } from '@/lib/journal/queries'
-import { verifySession } from '@/lib/dal'
+} from '@/lib/journal/analytics';
+import { listEntriesForMonth } from '@/lib/journal/queries';
+import { verifySession } from '@/lib/dal';
 
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic';
 
 type CalendarPageProps = {
   searchParams: Promise<{ month?: string | string[] | undefined }>
 }
 
 export default async function CalendarPage({ searchParams }: CalendarPageProps) {
-  await verifySession()
-  const { month: monthParam } = await searchParams
-  const month = getMonthFromParam(monthParam)
-  const entries = await listEntriesForMonth(month)
-  const days = buildCalendarGrid(entries, month)
+  await verifySession();
+  const { month: monthParam } = await searchParams;
+  const month = getMonthFromParam(monthParam);
+  const entries = await listEntriesForMonth(month);
+  const days = buildCalendarGrid(entries, month);
 
   return (
     <>
@@ -45,5 +45,5 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
       </main>
       <AeroDock />
     </>
-  )
+  );
 }

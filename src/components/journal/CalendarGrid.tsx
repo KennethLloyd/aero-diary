@@ -1,14 +1,14 @@
-import Link from 'next/link'
-import { AeroOrb } from '@/components/aero/AeroOrb'
-import type { CalendarDay } from '@/lib/journal/analytics'
+import Link from 'next/link';
+import { AeroOrb } from '@/components/aero/AeroOrb';
+import type { CalendarDay } from '@/lib/journal/analytics';
 
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function dayClassName(day: CalendarDay): string {
   const surface = day.isToday
     ? 'bg-white/80 border-[#4a9be6] shadow-[inset_0_0_10px_rgba(74,155,230,0.3)] ring-2 ring-[#4a9be6]'
-    : 'bg-white/40 border-white/60 shadow-sm hover:bg-white/70'
-  return `relative aspect-square rounded-lg border p-1.5 transition-colors ${surface}`
+    : 'bg-white/40 border-white/60 shadow-sm hover:bg-white/70';
+  return `relative aspect-square rounded-lg border p-1.5 transition-colors ${surface}`;
 }
 
 function DayCell({ day }: { day: CalendarDay }) {
@@ -25,14 +25,14 @@ function DayCell({ day }: { day: CalendarDay }) {
         </div>
       ) : null}
     </>
-  )
+  );
 
   if (day.entryIds.length === 0) {
     return (
       <div className={dayClassName(day)} aria-current={day.isToday ? 'date' : undefined}>
         {content}
       </div>
-    )
+    );
   }
 
   return (
@@ -44,7 +44,7 @@ function DayCell({ day }: { day: CalendarDay }) {
     >
       {content}
     </Link>
-  )
+  );
 }
 
 export function CalendarGrid({ days }: { days: (CalendarDay | null)[] }) {
@@ -65,5 +65,5 @@ export function CalendarGrid({ days }: { days: (CalendarDay | null)[] }) {
         ))}
       </div>
     </>
-  )
+  );
 }

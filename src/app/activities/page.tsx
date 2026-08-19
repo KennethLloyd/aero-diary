@@ -1,15 +1,15 @@
-import { AeroBubbles } from '@/components/aero/AeroBubbles'
-import { AeroDock } from '@/components/aero/AeroDock'
-import { AeroTitle } from '@/components/aero/AeroTitle'
-import { ActivityManager } from '@/components/journal/ActivityManager'
-import { verifySession } from '@/lib/dal'
-import { listActivities } from '@/lib/journal/queries'
+import { AeroBubbles } from '@/components/aero/AeroBubbles';
+import { AeroDock } from '@/components/aero/AeroDock';
+import { AeroTitle } from '@/components/aero/AeroTitle';
+import { ActivityManager } from '@/components/journal/ActivityManager';
+import { verifySession } from '@/lib/dal';
+import { listActivities } from '@/lib/journal/queries';
 
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic';
 
 export default async function ActivitiesPage() {
-  await verifySession()
-  const activities = await listActivities()
+  await verifySession();
+  const activities = await listActivities();
 
   return (
     <>
@@ -25,5 +25,5 @@ export default async function ActivitiesPage() {
       </main>
       <AeroDock />
     </>
-  )
+  );
 }

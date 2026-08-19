@@ -1,16 +1,16 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import { useActionState, useRef, useState } from 'react'
+import Link from 'next/link';
+import { useActionState, useRef, useState } from 'react';
 import {
   createEntry,
   updateEntry,
   type EntryActionState,
-} from '@/actions/entries'
-import { AeroButton } from '@/components/aero/AeroButton'
-import { AeroOrb } from '@/components/aero/AeroOrb'
-import { Mood } from '@/generated/prisma/enums'
-import type { ActivityOption } from '@/lib/journal/types'
+} from '@/actions/entries';
+import { AeroButton } from '@/components/aero/AeroButton';
+import { AeroOrb } from '@/components/aero/AeroOrb';
+import { Mood } from '@/generated/prisma/enums';
+import type { ActivityOption } from '@/lib/journal/types';
 
 const MOODS: { value: Mood; label: string }[] = [
   { value: Mood.AWFUL, label: 'Awful' },
@@ -18,7 +18,7 @@ const MOODS: { value: Mood; label: string }[] = [
   { value: Mood.MEH, label: 'Meh' },
   { value: Mood.GOOD, label: 'Good' },
   { value: Mood.RAD, label: 'Rad' },
-]
+];
 
 export type EditableEntry = {
   id: string
@@ -40,29 +40,29 @@ export function NewEntryForm({
     formData: FormData,
   ) => Promise<EntryActionState> = entry
     ? updateEntry.bind(null, entry.id)
-    : createEntry
+    : createEntry;
   const [state, formAction, pending] = useActionState<EntryActionState, FormData>(
     action,
     undefined,
-  )
-  const [mood, setMood] = useState<Mood>(entry?.mood ?? Mood.RAD)
+  );
+  const [mood, setMood] = useState<Mood>(entry?.mood ?? Mood.RAD);
   const [selectedActivityIds, setSelectedActivityIds] = useState<Set<string>>(
     () => new Set(entry?.activityIds ?? []),
-  )
-  const localOffsetInput = useRef<HTMLInputElement>(null)
+  );
+  const localOffsetInput = useRef<HTMLInputElement>(null);
 
   function toggleActivity(activityId: string) {
     setSelectedActivityIds((selected) => {
-      const next = new Set(selected)
-      if (next.has(activityId)) next.delete(activityId)
-      else next.add(activityId)
-      return next
-    })
+      const next = new Set(selected);
+      if (next.has(activityId)) next.delete(activityId);
+      else next.add(activityId);
+      return next;
+    });
   }
 
   function setBrowserOffset() {
     if (!entry && localOffsetInput.current) {
-      localOffsetInput.current.value = String(-new Date().getTimezoneOffset())
+      localOffsetInput.current.value = String(-new Date().getTimezoneOffset());
     }
   }
 
@@ -105,7 +105,7 @@ export function NewEntryForm({
           </h2>
           <div className="mx-auto flex w-fit justify-center gap-2 rounded-2xl border border-black/10 bg-black/5 p-3 shadow-inner sm:gap-4">
             {MOODS.map((option) => {
-              const selected = mood === option.value
+              const selected = mood === option.value;
               return (
                 <button
                   key={option.value}
@@ -117,7 +117,7 @@ export function NewEntryForm({
                 >
                   <AeroOrb mood={option.value} />
                 </button>
-              )
+              );
             })}
           </div>
         </section>
@@ -143,7 +143,7 @@ export function NewEntryForm({
             {activities.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {activities.map((activity) => {
-                  const selected = selectedActivityIds.has(activity.id)
+                  const selected = selectedActivityIds.has(activity.id);
                   return (
                     <button
                       key={activity.id}
@@ -154,7 +154,7 @@ export function NewEntryForm({
                     >
                       {activity.emoji} {activity.name}
                     </button>
-                  )
+                  );
                 })}
               </div>
             ) : (
@@ -172,5 +172,5 @@ export function NewEntryForm({
         </div>
       </div>
     </form>
-  )
+  );
 }

@@ -1,24 +1,24 @@
-import { notFound } from 'next/navigation'
-import { AeroBubbles } from '@/components/aero/AeroBubbles'
-import { AeroDock } from '@/components/aero/AeroDock'
-import { AeroTitle } from '@/components/aero/AeroTitle'
-import { NewEntryForm } from '@/components/journal/NewEntryForm'
-import { db } from '@/lib/db'
-import { verifySession } from '@/lib/dal'
-import { entryIdSchema } from '@/lib/journal/schemas'
-import { listActivities } from '@/lib/journal/queries'
+import { notFound } from 'next/navigation';
+import { AeroBubbles } from '@/components/aero/AeroBubbles';
+import { AeroDock } from '@/components/aero/AeroDock';
+import { AeroTitle } from '@/components/aero/AeroTitle';
+import { NewEntryForm } from '@/components/journal/NewEntryForm';
+import { db } from '@/lib/db';
+import { verifySession } from '@/lib/dal';
+import { entryIdSchema } from '@/lib/journal/schemas';
+import { listActivities } from '@/lib/journal/queries';
 
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic';
 
 type EditEntryPageProps = {
   params: Promise<{ id: string }>
 }
 
 export default async function EditEntryPage({ params }: EditEntryPageProps) {
-  const session = await verifySession()
-  const { id } = await params
-  const parsedId = entryIdSchema.safeParse(id)
-  if (!parsedId.success) notFound()
+  const session = await verifySession();
+  const { id } = await params;
+  const parsedId = entryIdSchema.safeParse(id);
+  if (!parsedId.success) notFound();
 
   const [entry, activities] = await Promise.all([
     db.entry.findFirst({
@@ -26,8 +26,8 @@ export default async function EditEntryPage({ params }: EditEntryPageProps) {
       include: { activities: { select: { activityId: true } } },
     }),
     listActivities(),
-  ])
-  if (!entry) notFound()
+  ]);
+  if (!entry) notFound();
 
   return (
     <>
@@ -47,5 +47,5 @@ export default async function EditEntryPage({ params }: EditEntryPageProps) {
       </main>
       <AeroDock />
     </>
-  )
+  );
 }

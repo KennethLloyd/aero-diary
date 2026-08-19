@@ -1,9 +1,9 @@
-import Link from 'next/link'
+import Link from 'next/link';
 import type {
   AnchorHTMLAttributes,
   ButtonHTMLAttributes,
   ReactNode,
-} from 'react'
+} from 'react';
 
 type Variant = 'blue' | 'white' | 'red'
 
@@ -11,7 +11,7 @@ const VARIANT_CLASSES: Record<Variant, string> = {
   blue: 'aero-btn',
   white: 'aero-btn aero-btn-white',
   red: 'aero-btn aero-btn-red',
-}
+};
 
 type AeroButtonProps = {
   variant?: Variant
@@ -33,7 +33,7 @@ export function AeroButton({
   children,
   ...rest
 }: AeroButtonProps) {
-  const classes = `${VARIANT_CLASSES[variant]} ${className}`
+  const classes = `${VARIANT_CLASSES[variant]} ${className}`;
 
   if (href) {
     return (
@@ -44,7 +44,7 @@ export function AeroButton({
       >
         {children}
       </Link>
-    )
+    );
   }
 
   return (
@@ -54,5 +54,5 @@ export function AeroButton({
     >
       {children}
     </button>
-  )
+  );
 }

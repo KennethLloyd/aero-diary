@@ -1,8 +1,8 @@
-'use client'
+'use client';
 
-import { useActionState } from 'react'
-import { login, loginDemo, type LoginState } from '@/actions/auth'
-import { AeroButton } from '@/components/aero/AeroButton'
+import { useActionState } from 'react';
+import { login, loginDemo, type LoginState } from '@/actions/auth';
+import { AeroButton } from '@/components/aero/AeroButton';
 
 // Aero login form (ADR-0009): email/password + "Try the demo". `useActionState`
 // wires the action's returned error state into the form.
@@ -10,7 +10,7 @@ export function LoginForm() {
   const [state, formAction, pending] = useActionState<LoginState, FormData>(
     login,
     undefined,
-  )
+  );
 
   return (
     <>
@@ -54,5 +54,5 @@ export function LoginForm() {
         </AeroButton>
       </form>
     </>
-  )
+  );
 }
