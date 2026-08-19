@@ -3,8 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-// Bottom Aero dock (ADR-0009). Calendar and insights remain future screens;
-// the timeline and activity routes are live.
+// Bottom Aero dock (ADR-0009).
 const DOCK_ITEMS = [
   { href: '/timeline', icon: '🗓️', tooltip: 'Timeline' },
   { href: '/calendar', icon: '📆', tooltip: 'Calendar' },
