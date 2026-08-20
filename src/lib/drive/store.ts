@@ -3,8 +3,10 @@ import 'server-only';
 import { createHash } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { google } from 'googleapis';
+import convertHeic from 'heic-convert';
 import type { drive_v3 } from 'googleapis';
 import { z } from 'zod';
+import { isHeifPhoto } from '@/lib/journal/photos';
 
 export const GOOGLE_DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive';
 const FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder';
@@ -86,6 +88,20 @@ function photoFileName(drivePath: string, rootPath: string) {
   return pathSegments[1];
 }
 
+async function normalizePhoto(file: File) {
+  if (!isHeifPhoto(file)) return file;
+
+  const jpeg = await convertHeic({
+    buffer: Buffer.from(await file.arrayBuffer()),
+    format: 'JPEG',
+    quality: 0.9,
+  });
+  const jpegBuffer = new ArrayBuffer(jpeg.byteLength);
+  new Uint8Array(jpegBuffer).set(jpeg);
+  const name = file.name.replace(/\.(heic|heif)$/i, '') || 'photo';
+  return new File([jpegBuffer], `${name}.jpg`, { type: 'image/jpeg' });
+}
+
 export function createPhotoStore(drive: DriveFilesApi, photosRoot: string): PhotoStore {
   const rootSegments = photosRoot.split('/').filter(Boolean);
   if (rootSegments.length === 0) {
@@ -141,7 +157,8 @@ export function createPhotoStore(drive: DriveFilesApi, photosRoot: string): Phot
 
   return {
     async upload(file) {
-      const bytes = Buffer.from(await file.arrayBuffer());
+      const normalizedFile = await normalizePhoto(file);
+      const bytes = Buffer.from(await normalizedFile.arrayBuffer());
       const hash = createHash('md5').update(bytes).digest('hex');
       const name = `${hash}.jpg`;
       const folderId = await getPhotosFolderId(true);
@@ -153,7 +170,7 @@ export function createPhotoStore(drive: DriveFilesApi, photosRoot: string): Phot
           body: Readable.from(bytes),
           mimeType: 'application/octet-stream',
         },
-        requestBody: { mimeType: file.type, name, parents: [folderId] },
+        requestBody: { mimeType: normalizedFile.type, name, parents: [folderId] },
         uploadType: 'multipart',
       });
       const uploadedFileId = fileId(response.data);
@@ -162,7 +179,7 @@ export function createPhotoStore(drive: DriveFilesApi, photosRoot: string): Phot
       return {
         drivePath: `${rootSegments.at(-1)}/${name}`,
         fileId: uploadedFileId,
-        mimeType: file.type,
+        mimeType: normalizedFile.type,
       };
     },
 

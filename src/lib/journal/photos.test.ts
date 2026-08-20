@@ -38,9 +38,26 @@ describe('parsePhotoFiles', () => {
     expect(result.data).toHaveLength(1);
   });
 
+  it('accepts iPhone HEIC and HEIF photos', () => {
+    const result = parsePhotoFiles(values(
+      new File(['heic-photo'], 'photo.heic', { type: 'image/heic' }),
+      new File(['heif-photo'], 'photo.heif', { type: 'image/heif' }),
+    ));
+
+    expect(result.data).toHaveLength(2);
+  });
+
+  it('accepts HEIC files when the browser only provides the file extension', () => {
+    const result = parsePhotoFiles(values(
+      new File(['heic-photo'], 'photo.HEIC', { type: 'application/octet-stream' }),
+    ));
+
+    expect(result.data).toHaveLength(1);
+  });
+
   it('rejects non-image files and oversized images', () => {
     expect(parsePhotoFiles(values(new File(['text'], 'notes.txt', { type: 'text/plain' })))).toEqual({
-      error: 'Photos must be JPEG or PNG images.',
+      error: 'Photos must be JPEG, PNG, HEIC, or HEIF images.',
     });
     expect(parsePhotoFiles(values(
       new File([new Uint8Array(MAX_PHOTO_SIZE_BYTES + 1)], 'large.jpg', { type: 'image/jpeg' }),

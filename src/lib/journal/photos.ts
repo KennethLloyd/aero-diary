@@ -4,7 +4,8 @@ export const MAX_PHOTO_COUNT = 10;
 export const MAX_PHOTO_SIZE_BYTES = 10 * 1024 * 1024;
 export const MAX_PHOTO_TOTAL_SIZE_BYTES = 20 * 1024 * 1024;
 const SUPPORTED_PHOTO_TYPES = new Set(['image/jpeg', 'image/png']);
-export const PHOTO_TYPE_ERROR = 'Photos must be JPEG or PNG images.';
+const HEIF_PHOTO_TYPES = new Set(['image/heic', 'image/heif']);
+export const PHOTO_TYPE_ERROR = 'Photos must be JPEG, PNG, HEIC, or HEIF images.';
 
 export const PHOTO_UPLOAD_ERROR = 'Unable to save your photos. Please try again.';
 export const PHOTO_COUNT_ERROR = `Attach ${MAX_PHOTO_COUNT} photos or fewer.`;
@@ -28,9 +29,26 @@ function isBlankFile(value: FormDataEntryValue) {
     && (value.name === '' || value.name === 'undefined');
 }
 
+function hasHeifExtension(file: File) {
+  return /\.(heic|heif)$/i.test(file.name);
+}
+
+export function isHeifPhoto(file: File) {
+  const type = file.type.toLowerCase();
+  return HEIF_PHOTO_TYPES.has(type)
+    || ((type === '' || type === 'application/octet-stream') && hasHeifExtension(file));
+}
+
+function isSupportedPhoto(file: File) {
+  const type = file.type.toLowerCase();
+  return SUPPORTED_PHOTO_TYPES.has(type)
+    || HEIF_PHOTO_TYPES.has(type)
+    || ((type === '' || type === 'application/octet-stream') && hasHeifExtension(file));
+}
+
 const photoFileSchema = z
   .custom<File>(isFile, { error: 'Choose an image file.' })
-  .refine((file) => SUPPORTED_PHOTO_TYPES.has(file.type), {
+  .refine(isSupportedPhoto, {
     error: PHOTO_TYPE_ERROR,
   })
   .refine((file) => file.size <= MAX_PHOTO_SIZE_BYTES, {

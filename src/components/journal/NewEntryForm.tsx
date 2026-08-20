@@ -145,13 +145,13 @@ export function NewEntryForm({
               id="entry-photos"
               name="photo"
               type="file"
-              accept="image/jpeg,image/png"
+              accept="image/jpeg,image/png,image/heic,image/heif,.heic,.heif"
               multiple
               className="block w-full text-sm font-semibold text-[#2b4c73] file:mr-3 file:rounded-md file:border file:border-[#7a9eae] file:bg-white file:px-3 file:py-1.5 file:font-bold file:text-[#144e9d]"
               onChange={(event) => setSelectedPhotoNames([...event.target.files ?? []].map((file) => file.name))}
             />
             <p className="text-xs font-semibold text-[#2b4c73]">
-              Up to 10 JPEG or PNG photos, 10 MB each (20 MB total).
+              Up to 10 JPEG, PNG, HEIC, or HEIF photos, 10 MB each (20 MB total).
             </p>
             {selectedPhotoNames.length > 0 ? (
               <p className="text-xs font-semibold text-[#0a2f5c]" aria-live="polite">

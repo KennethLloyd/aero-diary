@@ -2,6 +2,10 @@ import { Readable } from 'node:stream';
 import { describe, expect, it, vi } from 'vitest';
 import { createPhotoStore, type DriveFilesApi } from '@/lib/drive/store';
 
+const mocks = vi.hoisted(() => ({ convertHeic: vi.fn() }));
+
+vi.mock('heic-convert', () => ({ default: mocks.convertHeic }));
+
 function fakeDrive() {
   return {
     list: vi.fn(),
@@ -61,6 +65,32 @@ describe('Google Drive photo store', () => {
     expect(drive.create).toHaveBeenCalledWith(expect.objectContaining({
       requestBody: expect.objectContaining({ mimeType: 'image/png' }),
     }));
+  });
+
+  it('converts iPhone HEIC photos to JPEG before uploading', async () => {
+    const drive = fakeDrive();
+    folderAndFileResponses(drive);
+    vi.mocked(drive.create).mockResolvedValue({ data: { id: 'uploaded-heic-file' } } as never);
+    mocks.convertHeic.mockResolvedValue(Buffer.from('converted jpeg'));
+
+    const store = createPhotoStore(drive as unknown as DriveFilesApi, 'AeroDiary/photos');
+    const uploaded = await store.upload(new File(['heic bytes'], 'original.HEIC', { type: 'image/heic' }));
+
+    expect(uploaded.mimeType).toBe('image/jpeg');
+    expect(mocks.convertHeic).toHaveBeenCalledWith({
+      buffer: Buffer.from('heic bytes'),
+      format: 'JPEG',
+      quality: 0.9,
+    });
+
+    const request = vi.mocked(drive.create).mock.calls.at(-1)?.[0] as {
+      media: { body: Readable }
+      requestBody: { mimeType: string }
+    };
+    const chunks: Buffer[] = [];
+    for await (const chunk of request.media.body) chunks.push(Buffer.from(chunk));
+    expect(Buffer.concat(chunks)).toEqual(Buffer.from('converted jpeg'));
+    expect(request.requestBody.mimeType).toBe('image/jpeg');
   });
 
   it('streams a photo by resolving its Drive-relative path', async () => {
