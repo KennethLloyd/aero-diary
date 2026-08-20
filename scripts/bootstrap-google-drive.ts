@@ -1,35 +1,13 @@
+import { createServer } from 'node:http';
+import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { config } from 'dotenv';
-import { z } from 'zod';
+import { google } from 'googleapis';
 
 const envFile = existsSync('.env.local') ? '.env.local' : '.env';
 config({ path: envFile });
 
-const DEVICE_AUTH_ENDPOINT = 'https://oauth2.googleapis.com/device/code';
-const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive';
-const DEVICE_GRANT_TYPE = 'urn:ietf:params:oauth:grant-type:device_code';
-
-const deviceCodeResponseSchema = z.object({
-  device_code: z.string().min(1),
-  expires_in: z.number().int().positive(),
-  interval: z.number().int().positive().optional(),
-  user_code: z.string().min(1),
-  verification_uri: z.string().url().optional(),
-  verification_url: z.string().url().optional(),
-});
-
-const tokenResponseSchema = z.object({
-  access_token: z.string().min(1).optional(),
-  error: z.string().min(1).optional(),
-  error_description: z.string().min(1).optional(),
-  expires_in: z.number().int().positive().optional(),
-  refresh_token: z.string().min(1).optional(),
-  token_type: z.string().min(1).optional(),
-});
-
-type DeviceCodeResponse = z.infer<typeof deviceCodeResponseSchema>
-type TokenResponse = z.infer<typeof tokenResponseSchema>
 
 function requiredEnv(name: string) {
   const value = process.env[name]?.trim();
@@ -39,68 +17,79 @@ function requiredEnv(name: string) {
   return value;
 }
 
-async function postForm<T>(
-  endpoint: string,
-  values: Record<string, string>,
-  schema: z.ZodType<T>,
-  allowError = false,
-): Promise<T> {
-  const response = await fetch(endpoint, {
-    body: new URLSearchParams(values),
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    method: 'POST',
-  });
-  const body: unknown = await response.json();
-  if (!response.ok && !allowError) {
-    const error = tokenResponseSchema.parse(body);
-    throw new Error(`${endpoint} failed: ${error.error_description ?? error.error ?? response.statusText}`);
-  }
-  return schema.parse(body);
-}
-
-function sleep(milliseconds: number) {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
-}
-
 async function main() {
   const clientId = requiredEnv('GOOGLE_DRIVE_CLIENT_ID');
   const clientSecret = requiredEnv('GOOGLE_DRIVE_CLIENT_SECRET');
-  const device = await postForm(DEVICE_AUTH_ENDPOINT, {
-    client_id: clientId,
-    scope: DRIVE_SCOPE,
-  }, deviceCodeResponseSchema) as DeviceCodeResponse;
+  const state = randomBytes(32).toString('hex');
+  const server = createServer();
 
-  const verificationUrl = device.verification_url ?? device.verification_uri;
-  if (!verificationUrl) throw new Error('Google did not return a verification URL.');
-  console.log(`Open ${verificationUrl} and enter code ${device.user_code}.`);
-  console.log('Waiting for Google authorization…');
+  try {
+    const port = await new Promise<number>((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(0, '127.0.0.1', () => {
+        const address = server.address();
+        if (!address || typeof address === 'string') {
+          reject(new Error('Could not determine the local OAuth callback port.'));
+          return;
+        }
+        resolve(address.port);
+      });
+    });
 
-  const expiresAt = Date.now() + device.expires_in * 1_000;
-  let interval = Math.max(device.interval ?? 5, 5);
-  while (Date.now() < expiresAt) {
-    await sleep(interval * 1_000);
-    const token = await postForm(TOKEN_ENDPOINT, {
-      client_id: clientId,
-      client_secret: clientSecret,
-      device_code: device.device_code,
-      grant_type: DEVICE_GRANT_TYPE,
-    }, tokenResponseSchema, true) as TokenResponse;
+    const redirectUri = `http://127.0.0.1:${port}/oauth2callback`;
+    const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+    const authorizationUrl = oauth2Client.generateAuthUrl({
+      access_type: 'offline',
+      prompt: 'consent',
+      scope: [DRIVE_SCOPE],
+      state,
+    });
 
-    if (token.refresh_token) {
-      console.log('\nAdd this value to .env.local and the OCI environment:');
-      console.log(`GOOGLE_DRIVE_REFRESH_TOKEN=${token.refresh_token}`);
-      return;
-    }
+    console.log('Open this URL in your browser to authorize Aero Diary:');
+    console.log(authorizationUrl);
+    console.log('Waiting for Google authorization…');
 
-    if (token.error === 'authorization_pending') continue;
-    if (token.error === 'slow_down') {
-      interval += 5;
-      continue;
-    }
-    throw new Error(token.error_description ?? token.error ?? 'Google did not return a refresh token.');
+    const code = await new Promise<string>((resolve, reject) => {
+      server.on('request', (request, response) => {
+        const requestUrl = new URL(request.url ?? '/', redirectUri);
+        if (requestUrl.pathname !== '/oauth2callback') {
+          response.writeHead(404).end('Not found.');
+          return;
+        }
+
+        const returnedState = requestUrl.searchParams.get('state');
+        const error = requestUrl.searchParams.get('error');
+        if (returnedState !== state) {
+          response.writeHead(400).end('Invalid OAuth state. You can close this tab.');
+          reject(new Error('Google returned an invalid OAuth state.'));
+          return;
+        }
+        if (error) {
+          response.writeHead(400).end('Google authorization was denied. You can close this tab.');
+          reject(new Error(`Google authorization failed: ${error}.`));
+          return;
+        }
+
+        const authorizationCode = requestUrl.searchParams.get('code');
+        if (!authorizationCode) {
+          response.writeHead(400).end('Google did not return an authorization code. You can close this tab.');
+          reject(new Error('Google did not return an authorization code.'));
+          return;
+        }
+
+        response.writeHead(200).end('Aero Diary authorization complete. You can close this tab and return to the terminal.');
+        resolve(authorizationCode);
+      });
+    });
+
+    const { tokens } = await oauth2Client.getToken(code);
+    if (!tokens.refresh_token) throw new Error('Google did not return a refresh token. Try again.');
+
+    console.log('\nAdd this value to .env.local and the OCI environment:');
+    console.log(`GOOGLE_DRIVE_REFRESH_TOKEN=${tokens.refresh_token}`);
+  } finally {
+    server.close();
   }
-
-  throw new Error('The Google device code expired before authorization completed.');
 }
 
 main().catch((error: unknown) => {
