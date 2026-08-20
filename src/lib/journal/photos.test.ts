@@ -15,7 +15,7 @@ describe('parsePhotoFiles', () => {
   it('accepts image files and ignores an empty picker value', () => {
     const result = parsePhotoFiles(values(
       new File(['photo'], 'photo.jpg', { type: 'image/jpeg' }),
-      new File([], '', { type: 'application/octet-stream' }),
+      new File([], 'undefined', { type: 'application/octet-stream' }),
     ));
 
     expect(result.data).toHaveLength(1);
@@ -30,9 +30,17 @@ describe('parsePhotoFiles', () => {
     expect(parsePhotoFiles(values(...files)).data).toHaveLength(10);
   });
 
+  it('accepts PNG photos', () => {
+    const result = parsePhotoFiles(values(
+      new File(['png-photo'], 'photo.png', { type: 'image/png' }),
+    ));
+
+    expect(result.data).toHaveLength(1);
+  });
+
   it('rejects non-image files and oversized images', () => {
     expect(parsePhotoFiles(values(new File(['text'], 'notes.txt', { type: 'text/plain' })))).toEqual({
-      error: 'Photos must be JPEG images.',
+      error: 'Photos must be JPEG or PNG images.',
     });
     expect(parsePhotoFiles(values(
       new File([new Uint8Array(MAX_PHOTO_SIZE_BYTES + 1)], 'large.jpg', { type: 'image/jpeg' }),

@@ -81,7 +81,7 @@ describe('entry photo actions', () => {
       form(new File(['not an image'], 'notes.txt', { type: 'text/plain' })),
     );
 
-    expect(state).toEqual({ error: 'Photos must be JPEG images.' });
+    expect(state).toEqual({ error: 'Photos must be JPEG or PNG images.' });
     expect(mocks.upload).not.toHaveBeenCalled();
     expect(await testDb.entry.count()).toBe(0);
   });

@@ -3,7 +3,8 @@ import { z } from 'zod';
 export const MAX_PHOTO_COUNT = 10;
 export const MAX_PHOTO_SIZE_BYTES = 10 * 1024 * 1024;
 export const MAX_PHOTO_TOTAL_SIZE_BYTES = 20 * 1024 * 1024;
-const SUPPORTED_PHOTO_TYPES = new Set(['image/jpeg']);
+const SUPPORTED_PHOTO_TYPES = new Set(['image/jpeg', 'image/png']);
+export const PHOTO_TYPE_ERROR = 'Photos must be JPEG or PNG images.';
 
 export const PHOTO_UPLOAD_ERROR = 'Unable to save your photos. Please try again.';
 export const PHOTO_COUNT_ERROR = `Attach ${MAX_PHOTO_COUNT} photos or fewer.`;
@@ -21,13 +22,16 @@ function isFile(value: unknown): value is File {
 }
 
 function isBlankFile(value: FormDataEntryValue) {
-  return isFile(value) && value.size === 0 && value.name === '';
+  return isFile(value)
+    && value.size === 0
+    && value.type === 'application/octet-stream'
+    && (value.name === '' || value.name === 'undefined');
 }
 
 const photoFileSchema = z
   .custom<File>(isFile, { error: 'Choose an image file.' })
   .refine((file) => SUPPORTED_PHOTO_TYPES.has(file.type), {
-    error: 'Photos must be JPEG images.',
+    error: PHOTO_TYPE_ERROR,
   })
   .refine((file) => file.size <= MAX_PHOTO_SIZE_BYTES, {
     error: 'Each photo must be 10 MB or smaller.',

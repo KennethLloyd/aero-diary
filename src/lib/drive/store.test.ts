@@ -49,6 +49,20 @@ describe('Google Drive photo store', () => {
     }));
   });
 
+  it('preserves PNG metadata when uploading a PNG photo', async () => {
+    const drive = fakeDrive();
+    folderAndFileResponses(drive);
+    vi.mocked(drive.create).mockResolvedValue({ data: { id: 'uploaded-png-file' } } as never);
+
+    const store = createPhotoStore(drive as unknown as DriveFilesApi, 'AeroDiary/photos');
+    const uploaded = await store.upload(new File(['png bytes'], 'original.png', { type: 'image/png' }));
+
+    expect(uploaded.mimeType).toBe('image/png');
+    expect(drive.create).toHaveBeenCalledWith(expect.objectContaining({
+      requestBody: expect.objectContaining({ mimeType: 'image/png' }),
+    }));
+  });
+
   it('streams a photo by resolving its Drive-relative path', async () => {
     const drive = fakeDrive();
     folderAndFileResponses(drive);
