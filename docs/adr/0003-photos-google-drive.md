@@ -10,7 +10,7 @@
 
 Google Drive API v3, server-side only:
 
-- **Credential**: OAuth desktop-app client (reuse the `rclone-backup` GCP project's client; one-time device flow to mint a refresh token with `https://www.googleapis.com/auth/drive` scope). Refresh token lives in the app `.env` (Mac + OCI), never client-side. Access tokens (~1h) refreshed via `oauth2Client` on each call.
+- **Credential**: OAuth desktop-app client (reuse the `rclone-backup` GCP project's client; one-time local loopback flow to mint a refresh token with `https://www.googleapis.com/auth/drive` scope). Refresh token lives in the app `.env` (Mac + OCI), never client-side. Access tokens (~1h) refreshed via `oauth2Client` on each call.
 - **Layout**: all app photos under `AeroDiary/photos/`; filenames keep the legacy `<hash>.jpg` so `photoPaths` map 1:1 with zero renaming.
 - **Upload** (new photos): server action receives the file → `files.create` (multipart, `application/octet-stream`) → DB `Photo` row (`entryId`, `drivePath`, `mimeType`).
 - **Serve**: `GET /photos/[id]` route handler streams `files.get({ fileId, alt: 'media' })` through the server with the token; response cached (immutable — photos never change) so Drive isn't hit per view.

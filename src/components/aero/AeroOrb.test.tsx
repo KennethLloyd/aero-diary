@@ -6,7 +6,7 @@ import { Mood } from '@/generated/prisma/enums';
 describe('AeroOrb', () => {
   it('applies the correct orb variant class for each mood', () => {
     const { container } = render(<AeroOrb mood={Mood.RAD} />);
-    expect(container.querySelector('.aero-orb')).toHaveClass('orb-rad');
+    expect(container.querySelector('.aero-orb')).toHaveClass('orb-rad', 'flex-none');
   });
 
   it('shows the mood emoji on full-size orbs', () => {

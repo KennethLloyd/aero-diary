@@ -49,6 +49,7 @@ export function NewEntryForm({
   const [selectedActivityIds, setSelectedActivityIds] = useState<Set<string>>(
     () => new Set(entry?.activityIds ?? []),
   );
+  const [selectedPhotoNames, setSelectedPhotoNames] = useState<string[]>([]);
   const localOffsetInput = useRef<HTMLInputElement>(null);
 
   function toggleActivity(activityId: string) {
@@ -135,6 +136,29 @@ export function NewEntryForm({
             defaultValue={entry?.note}
             required
           />
+
+          <section className="space-y-2 rounded-lg border border-white/60 bg-white/40 p-3" aria-labelledby="photo-heading">
+            <label htmlFor="entry-photos" className="block text-xs font-bold uppercase text-[#0a2f5c]">
+              Photos
+            </label>
+            <input
+              id="entry-photos"
+              name="photo"
+              type="file"
+              accept="image/jpeg,image/png,image/heic,image/heif,.heic,.heif"
+              multiple
+              className="block w-full text-sm font-semibold text-[#2b4c73] file:mr-3 file:rounded-md file:border file:border-[#7a9eae] file:bg-white file:px-3 file:py-1.5 file:font-bold file:text-[#144e9d]"
+              onChange={(event) => setSelectedPhotoNames([...event.target.files ?? []].map((file) => file.name))}
+            />
+            <p className="text-xs font-semibold text-[#2b4c73]">
+              Up to 10 JPEG, PNG, HEIC, or HEIF photos, 10 MB each (20 MB total).
+            </p>
+            {selectedPhotoNames.length > 0 ? (
+              <p className="text-xs font-semibold text-[#0a2f5c]" aria-live="polite">
+                Selected: {selectedPhotoNames.join(', ')}
+              </p>
+            ) : null}
+          </section>
 
           <section className="space-y-2 rounded-lg border border-white/60 bg-white/40 p-3" aria-labelledby="activity-heading">
             <h2 id="activity-heading" className="text-xs font-bold uppercase text-[#0a2f5c]">
