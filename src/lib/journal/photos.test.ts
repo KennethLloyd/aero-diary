@@ -15,7 +15,7 @@ describe('parsePhotoFiles', () => {
   it('accepts image files and ignores an empty picker value', () => {
     const result = parsePhotoFiles(values(
       new File(['photo'], 'photo.jpg', { type: 'image/jpeg' }),
-      new File([], '', { type: '' }),
+      new File([], '', { type: 'application/octet-stream' }),
     ));
 
     expect(result.data).toHaveLength(1);

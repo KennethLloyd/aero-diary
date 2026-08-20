@@ -21,7 +21,7 @@ function isFile(value: unknown): value is File {
 }
 
 function isBlankFile(value: FormDataEntryValue) {
-  return isFile(value) && value.size === 0 && value.name === '' && value.type === '';
+  return isFile(value) && value.size === 0 && value.name === '';
 }
 
 const photoFileSchema = z
