@@ -15,16 +15,22 @@ export function DeletePhotoButton({ photoId }: { photoId: string }) {
       onSubmit={(event) => {
         if (!window.confirm('Remove this photo permanently?')) event.preventDefault();
       }}
-      className="mt-2 text-center"
+      className="absolute right-2 top-2 z-20"
     >
       <button
         type="submit"
-        className="text-xs font-bold text-red-700 hover:text-red-900"
+        className="aero-photo-delete flex h-10 w-10 items-center justify-center rounded-full text-2xl font-bold leading-none text-white focus:outline-none focus-visible:ring-4 focus-visible:ring-red-300 disabled:cursor-not-allowed disabled:opacity-60"
+        aria-label="Remove photo"
+        title="Remove photo"
         disabled={pending}
       >
-        {pending ? 'Removing…' : 'Remove photo'}
+        <span aria-hidden="true">×</span>
       </button>
-      {state?.error ? <p role="alert" className="mt-1 text-xs font-semibold text-red-700">{state.error}</p> : null}
+      {state?.error ? (
+        <p role="alert" className="absolute right-0 top-full mt-1 w-max max-w-48 rounded-md bg-red-50 px-2 py-1 text-xs font-semibold text-red-700 shadow-md">
+          {state.error}
+        </p>
+      ) : null}
     </form>
   );
 }

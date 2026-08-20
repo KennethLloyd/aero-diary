@@ -589,49 +589,92 @@
     background: linear-gradient(to bottom, #ffffff, #e5e7eb);
   }
 
-  /* ── Polaroid photo-strip shell ───────────────────────────────────── */
-  .aero-photo-strip {
-    cursor: grab;
-    display: flex;
-    gap: 1rem;
-    overflow-x: auto;
-    padding: 0.25rem 0.25rem 1rem;
-    touch-action: pan-y;
-    user-select: none;
+  /* ── Vista / Windows 7-inspired photo gallery ─────────────────────── */
+  .aero-photo-card {
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    background: linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.95) 0%,
+      rgba(198, 232, 249, 0.78) 48%,
+      rgba(255, 255, 255, 0.72) 100%
+    );
+    box-shadow:
+      0 5px 12px rgba(14, 60, 95, 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 1),
+      inset 0 0 12px rgba(255, 255, 255, 0.7);
+    transition: transform 0.2s, box-shadow 0.2s;
   }
-  .aero-photo-strip.is-dragging {
-    cursor: grabbing;
+  .aero-photo-card:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 8px 16px rgba(14, 60, 95, 0.32),
+      inset 0 1px 0 rgba(255, 255, 255, 1),
+      inset 0 0 14px rgba(255, 255, 255, 0.8);
   }
-  .aero-polaroid {
-    width: 12.5rem;
-    flex: none;
-    border: 1px solid #e5e7eb;
-    background: white;
-    padding: 0.5rem 0.5rem 1.5rem;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-    transition: transform 0.2s;
+  .aero-photo-thumb {
+    background: linear-gradient(135deg, rgba(155, 208, 245, 0.48), rgba(191, 232, 196, 0.72));
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
   }
-  .aero-polaroid:hover {
-    transform: rotate(0deg);
+  .aero-photo-delete,
+  .aero-photo-viewer-close {
+    border: 2px solid rgba(255, 255, 255, 0.95);
+    background: linear-gradient(
+      to bottom,
+      #ff7777 0%,
+      #ed343d 48%,
+      #b91c1c 50%,
+      #ef4444 100%
+    );
+    box-shadow:
+      0 2px 5px rgba(93, 9, 9, 0.42),
+      inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    transition: filter 0.2s, transform 0.2s;
   }
-  .aero-polaroid-empty {
-    transform: rotate(-2deg);
+  .aero-photo-delete:hover,
+  .aero-photo-viewer-close:hover {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
   }
-  .aero-photo-placeholder {
-    display: flex;
-    height: 8rem;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid #d1d5db;
-    background: linear-gradient(135deg, rgba(155, 208, 245, 0.45), rgba(191, 232, 196, 0.7));
-    color: #2b4c73;
-    font-size: 2rem;
+  .aero-photo-viewer {
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    background: linear-gradient(
+      135deg,
+      rgba(240, 251, 255, 0.96) 0%,
+      rgba(198, 232, 249, 0.92) 48%,
+      rgba(235, 250, 255, 0.96) 100%
+    );
+    box-shadow:
+      0 14px 35px rgba(0, 24, 55, 0.45),
+      inset 0 1px 0 rgba(255, 255, 255, 1),
+      inset 0 0 24px rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(12px);
   }
-  .aero-polaroid figcaption {
-    padding-top: 0.5rem;
-    text-align: center;
-    color: #4b5563;
-    font-size: 0.75rem;
-    font-weight: 600;
+  .aero-photo-viewer-bar {
+    background: linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.85),
+      rgba(183, 222, 244, 0.6) 49%,
+      rgba(255, 255, 255, 0.78) 50%,
+      rgba(215, 240, 252, 0.82)
+    );
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95);
   }
+  .aero-photo-viewer-stage {
+    background:
+      radial-gradient(circle at 50% 8%, rgba(255, 255, 255, 0.75), transparent 42%),
+      linear-gradient(135deg, rgba(150, 203, 238, 0.5), rgba(213, 242, 220, 0.6));
+  }
+  .aero-photo-nav {
+    border: 1px solid #146cc2;
+    background: var(--aero-btn-gradient);
+    box-shadow:
+      0 2px 4px rgba(0, 44, 91, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.75);
+    transition: filter 0.2s, transform 0.2s;
+  }
+  .aero-photo-nav:hover:not(:disabled) {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+  }
+
 }

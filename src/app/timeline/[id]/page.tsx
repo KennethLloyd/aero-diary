@@ -3,10 +3,8 @@ import { notFound } from 'next/navigation';
 import { AeroBubbles } from '@/components/aero/AeroBubbles';
 import { AeroDock } from '@/components/aero/AeroDock';
 import { AeroOrb } from '@/components/aero/AeroOrb';
-import { DeletePhotoButton } from '@/components/journal/DeletePhotoButton';
 import { DeleteEntryDialog } from '@/components/journal/DeleteEntryDialog';
-import { PhotoStrip } from '@/components/journal/PhotoStrip';
-import Image from 'next/image';
+import { PhotoGallery } from '@/components/journal/PhotoGallery';
 import { db } from '@/lib/db';
 import { verifySession } from '@/lib/dal';
 import { entryIdSchema } from '@/lib/journal/schemas';
@@ -133,34 +131,14 @@ export default async function EntryDetailPage({ params }: EntryDetailPageProps) 
               </div>
             </section>
 
-            <section className="pt-6" aria-labelledby="entry-photos-heading">
-              <h2 id="entry-photos-heading" className="mb-2 text-xs font-bold uppercase tracking-wide text-[#2b4c73]">
-                Photos
-              </h2>
-              <PhotoStrip>
-                {entry.photos.length > 0 ? entry.photos.map((photo, index) => (
-                  <figure key={photo.id} className={`aero-polaroid ${index % 2 === 0 ? 'rotate-[-2deg]' : 'mt-2 rotate-[3deg]'}`}>
-                    <div className="aero-photo-placeholder relative overflow-hidden" aria-label={`Photo ${index + 1} attached`}>
-                      <Image
-                        src={`/photos/${photo.id}`}
-                        alt={`Photo ${index + 1} from this entry`}
-                        fill
-                        unoptimized
-                        sizes="200px"
-                        className="object-cover"
-                      />
-                    </div>
-                    <figcaption>Photo {index + 1}</figcaption>
-                    <DeletePhotoButton photoId={photo.id} />
-                  </figure>
-                )) : (
-                  <figure className="aero-polaroid aero-polaroid-empty">
-                    <div className="aero-photo-placeholder" aria-hidden="true">📷</div>
-                    <figcaption>No photos attached yet.</figcaption>
-                  </figure>
-                )}
-              </PhotoStrip>
-            </section>
+            {entry.photos.length > 0 ? (
+              <section className="pt-6" aria-labelledby="entry-photos-heading">
+                <h2 id="entry-photos-heading" className="mb-2 text-xs font-bold uppercase tracking-wide text-[#2b4c73]">
+                  Photos
+                </h2>
+                <PhotoGallery photos={entry.photos.map(({ id }) => ({ id }))} />
+              </section>
+            ) : null}
           </div>
         </article>
       </main>
