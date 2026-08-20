@@ -21,6 +21,15 @@ describe('parsePhotoFiles', () => {
     expect(result.data).toHaveLength(1);
   });
 
+  it('accepts exactly ten photos', () => {
+    const files = Array.from(
+      { length: MAX_PHOTO_COUNT },
+      (_, index) => new File([String(index)], `${index}.jpg`, { type: 'image/jpeg' }),
+    );
+
+    expect(parsePhotoFiles(values(...files)).data).toHaveLength(10);
+  });
+
   it('rejects non-image files and oversized images', () => {
     expect(parsePhotoFiles(values(new File(['text'], 'notes.txt', { type: 'text/plain' })))).toEqual({
       error: 'Photos must be JPEG images.',

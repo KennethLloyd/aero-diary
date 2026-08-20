@@ -151,7 +151,7 @@ export function NewEntryForm({
               onChange={(event) => setSelectedPhotoNames([...event.target.files ?? []].map((file) => file.name))}
             />
             <p className="text-xs font-semibold text-[#2b4c73]">
-              Up to 8 JPEG photos, 10 MB each (20 MB total).
+              Up to 10 JPEG photos, 10 MB each (20 MB total).
             </p>
             {selectedPhotoNames.length > 0 ? (
               <p className="text-xs font-semibold text-[#0a2f5c]" aria-live="polite">

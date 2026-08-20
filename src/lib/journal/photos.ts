@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const MAX_PHOTO_COUNT = 8;
+export const MAX_PHOTO_COUNT = 10;
 export const MAX_PHOTO_SIZE_BYTES = 10 * 1024 * 1024;
 export const MAX_PHOTO_TOTAL_SIZE_BYTES = 20 * 1024 * 1024;
 const SUPPORTED_PHOTO_TYPES = new Set(['image/jpeg']);
