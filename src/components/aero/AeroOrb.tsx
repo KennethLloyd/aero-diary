@@ -28,7 +28,7 @@ export function AeroOrb({
 }) {
   return (
     <div
-      className={`aero-orb ${ORB_CLASS[mood]} ${mini ? 'mini-orb' : ''} ${className}`}
+      className={`aero-orb flex-none ${ORB_CLASS[mood]} ${mini ? 'mini-orb' : ''} ${className}`}
       role="img"
       aria-label={`Mood: ${mood}`}
     >

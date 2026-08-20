@@ -276,6 +276,7 @@
     border: 1px solid rgba(255, 255, 255, 0.8);
     position: relative;
     overflow: hidden;
+    flex: none;
     cursor: pointer;
     transition: transform 0.2s;
   }
@@ -590,10 +591,16 @@
 
   /* ── Polaroid photo-strip shell ───────────────────────────────────── */
   .aero-photo-strip {
+    cursor: grab;
     display: flex;
     gap: 1rem;
     overflow-x: auto;
     padding: 0.25rem 0.25rem 1rem;
+    touch-action: pan-y;
+    user-select: none;
+  }
+  .aero-photo-strip.is-dragging {
+    cursor: grabbing;
   }
   .aero-polaroid {
     width: 12.5rem;

@@ -5,6 +5,7 @@ import { AeroDock } from '@/components/aero/AeroDock';
 import { AeroOrb } from '@/components/aero/AeroOrb';
 import { DeletePhotoButton } from '@/components/journal/DeletePhotoButton';
 import { DeleteEntryDialog } from '@/components/journal/DeleteEntryDialog';
+import { PhotoStrip } from '@/components/journal/PhotoStrip';
 import Image from 'next/image';
 import { db } from '@/lib/db';
 import { verifySession } from '@/lib/dal';
@@ -36,12 +37,6 @@ function formatEntryTimestamp(date: Date, localOffset: number) {
     timeZone: 'UTC',
   });
   return `${dateFormatter.format(local)} · ${timeFormatter.format(local)}`;
-}
-
-function entryTitle(note: string) {
-  const firstLine = note.split(/\r?\n/).map((line) => line.trim()).find(Boolean);
-  if (!firstLine) return 'Untitled memory';
-  return firstLine.length > 72 ? `${firstLine.slice(0, 69)}…` : firstLine;
 }
 
 function entryParagraphs(note: string) {
@@ -114,7 +109,6 @@ export default async function EntryDetailPage({ params }: EntryDetailPageProps) 
                   <h1 id="entry-mood-heading" className="text-3xl font-bold tracking-tight text-[#0a2f5c] drop-shadow-md">
                     {MOOD_LABEL[entry.mood]}
                   </h1>
-                  <p className="mt-0.5 text-sm font-semibold text-[#1a2c42]">{entryTitle(entry.note)}</p>
                 </div>
               </div>
             </section>
@@ -143,7 +137,7 @@ export default async function EntryDetailPage({ params }: EntryDetailPageProps) 
               <h2 id="entry-photos-heading" className="mb-2 text-xs font-bold uppercase tracking-wide text-[#2b4c73]">
                 Photos
               </h2>
-              <div className="aero-photo-strip no-scrollbar" aria-label="Polaroid photo strip">
+              <PhotoStrip>
                 {entry.photos.length > 0 ? entry.photos.map((photo, index) => (
                   <figure key={photo.id} className={`aero-polaroid ${index % 2 === 0 ? 'rotate-[-2deg]' : 'mt-2 rotate-[3deg]'}`}>
                     <div className="aero-photo-placeholder relative overflow-hidden" aria-label={`Photo ${index + 1} attached`}>
@@ -165,7 +159,7 @@ export default async function EntryDetailPage({ params }: EntryDetailPageProps) 
                     <figcaption>No photos attached yet.</figcaption>
                   </figure>
                 )}
-              </div>
+              </PhotoStrip>
             </section>
           </div>
         </article>
