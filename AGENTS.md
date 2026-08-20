@@ -33,6 +33,18 @@ Single-context: one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agent
   document the architectural reason and keep it isolated and minimal.
 
 ## Verification
+
+### UI change verification and PR evidence
+
+Every UI pull request follows a browser-first, exhaustive verification pass before the PR is created or updated:
+
+1. Use the `control-in-app-browser` skill to exercise the changed flow end-to-end, then test the surrounding affected areas (including validation, loading/error states, edits, retrieval/rendering, downloads, and deletes when applicable). Re-snapshot after navigation or dynamic state changes.
+2. Verify responsive behavior at an iPhone 15-sized viewport (`393×852`) and a desktop viewport (`1280px` wide or larger). Cover every materially different page or state involved in the change.
+3. Capture PR screenshots from the in-app browser. Two screenshots are sufficient only when they each show a complete page and together cover the change; otherwise include additional screenshots for the other pages or states. The evidence must include both mobile and desktop views and visibly showcase the new behavior.
+4. Add a `What to expect` section to the PR description or a PR comment, written in simplified technical, product-facing English. It must explain the visible change, key interactions, responsive behavior, and any demo-data limitations.
+
+The UI verification step is complete only when the relevant browser scenarios pass, the necessary desktop/mobile screenshots are attached, and the PR includes the `What to expect` section. For destructive cloud actions, obtain confirmation at the moment of the action; if confirmation is unavailable, use safe checks and document the limitation.
+
 For UI work, prefer the `control-in-app-browser` skill when it is available:
 use it to inspect the rendered page, exercise the affected interactions, and
 spot responsive or visual UX regressions directly. Run the relevant
