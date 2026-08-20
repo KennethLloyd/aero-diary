@@ -1,4 +1,9 @@
+import { existsSync } from 'node:fs';
+import { config } from 'dotenv';
 import { z } from 'zod';
+
+const envFile = existsSync('.env.local') ? '.env.local' : '.env';
+config({ path: envFile });
 
 const DEVICE_AUTH_ENDPOINT = 'https://oauth2.googleapis.com/device/code';
 const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
@@ -27,7 +32,11 @@ type DeviceCodeResponse = z.infer<typeof deviceCodeResponseSchema>
 type TokenResponse = z.infer<typeof tokenResponseSchema>
 
 function requiredEnv(name: string) {
-  return z.string().min(1, `Missing ${name}.`).parse(process.env[name]);
+  const value = process.env[name]?.trim();
+  if (!value) {
+    throw new Error(`Missing ${name}. Add it to ${envFile} before running pnpm drive:bootstrap.`);
+  }
+  return value;
 }
 
 async function postForm<T>(
