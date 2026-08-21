@@ -19,8 +19,9 @@ application must not depend on a model provider's SDK, CLI, or native API.
   adapters or defaults.
 - **Local gateway**: ChatMock is the local development gateway. It is installed
   and authenticated outside the repository, then served at
-  `http://127.0.0.1:8000`. The repository only knows the OpenAI-compatible
-  contract.
+  `http://127.0.0.1:8000/v1` with legacy reasoning compatibility so reasoning
+  metadata is not mixed into journal text. The repository only knows the
+  OpenAI-compatible contract.
 - **Model**: `LLM_MODEL` is configured by environment. The local trial uses
   `gpt-5.6-luna` with `LLM_REASONING_EFFORT=medium`.
 - **Style standard**: `User.styleStandard` is seeded data. The real user's

@@ -23,8 +23,8 @@ describe('polishEntry action', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal('fetch', mocks.fetch);
-    process.env.LLM_BASE_URL = 'http://127.0.0.1:9090';
-    process.env.LLM_MODEL = 'openai/gpt-5.6-luna';
+    process.env.LLM_BASE_URL = 'http://llm.test/v1';
+    process.env.LLM_MODEL = 'gpt-5.6-luna';
     process.env.LLM_REASONING_EFFORT = 'medium';
     process.env.LLM_MAX_TOKENS = '16384';
     process.env.LLM_TIMEOUT_MS = '30000';
@@ -57,12 +57,12 @@ describe('polishEntry action', () => {
       select: { styleStandard: true },
     });
     expect(mocks.fetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:9090/v1/chat/completions',
+      'http://llm.test/v1/chat/completions',
       expect.objectContaining({ method: 'POST' }),
     );
     const [, request] = mocks.fetch.mock.calls[0] as [string, RequestInit];
     expect(JSON.parse(String(request.body))).toEqual({
-      model: 'openai/gpt-5.6-luna',
+      model: 'gpt-5.6-luna',
       messages: [
         {
           role: 'system',
