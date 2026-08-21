@@ -13,7 +13,8 @@ import {
   SESSION_COOKIE,
 } from '@/lib/auth/session';
 import { checkRateLimit, resetRateLimit } from '@/lib/auth/rate-limit';
-import { loginSchema, DEMO_EMAIL } from '@/lib/auth/schemas';
+import { getDemoCredentials } from '@/lib/auth/server-demo-config';
+import { loginSchema } from '@/lib/auth/schemas';
 
 // Same message for unknown email and wrong password (no user enumeration).
 const INVALID_CREDENTIALS = 'Invalid email or password.';
@@ -25,6 +26,17 @@ async function clientIp(): Promise<string> {
   const headerStore = await headers();
   const forwarded = (headerStore.get('x-forwarded-for') ?? '').split(',')[0];
   return forwarded?.trim() || 'unknown';
+}
+
+async function authenticateCredentials(email: string, password: string) {
+  const user = await db.user.findUnique({ where: { email } });
+
+  // Timing-uniform verify against a dummy hash for unknown emails.
+  const passwordOk = user
+    ? await verifyPassword(password, user.passwordHash)
+    : await verifyPassword(password, DUMMY_PASSWORD_HASH);
+
+  return user && passwordOk ? user : null;
 }
 
 export async function login(
@@ -48,14 +60,8 @@ export async function login(
     return { error: RATE_LIMITED };
   }
 
-  const user = await db.user.findUnique({ where: { email } });
-
-  // Timing-uniform verify against a dummy hash for unknown emails.
-  const passwordOk = user
-    ? await verifyPassword(password, user.passwordHash)
-    : await verifyPassword(password, DUMMY_PASSWORD_HASH);
-
-  if (!user || !passwordOk) {
+  const user = await authenticateCredentials(email, password);
+  if (!user) {
     return { error: INVALID_CREDENTIALS };
   }
 
@@ -80,15 +86,16 @@ async function createSession(userId: string): Promise<void> {
 
 // One-tap demo login (ADR-0006): same session path as a real login.
 export async function loginDemo(): Promise<void> {
-  // `isDemo` guard: the button must only open the seeded demo account — never
-  // a real account that happens to share the demo email (operator error).
-  const demo = await db.user.findFirst({
-    where: { email: DEMO_EMAIL, isDemo: true },
-  });
-  if (!demo) {
-    // Demo user not seeded yet — fall back to the login screen.
+  const credentials = getDemoCredentials();
+  if (!credentials) {
+    // Demo setup is optional; never guess an account when configuration is absent.
     redirect('/');
   }
+
+  // The configured account authenticates through the same credential verifier
+  // and session creator as a normal email/password login.
+  const demo = await authenticateCredentials(credentials.email, credentials.password);
+  if (!demo) redirect('/');
 
   await createSession(demo.id);
   redirect('/timeline');

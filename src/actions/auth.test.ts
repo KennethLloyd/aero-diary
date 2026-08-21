@@ -3,7 +3,6 @@ import { testDb, resetTestDb } from '@/test/test-db';
 import { hashPassword } from '@/lib/auth/password';
 import { hashToken } from '@/lib/auth/session';
 import { resetAllRateLimits } from '@/lib/auth/rate-limit';
-import { DEMO_EMAIL } from '@/lib/auth/schemas';
 
 const mocks = vi.hoisted(() => {
   const cookieStore = { get: vi.fn(), set: vi.fn(), delete: vi.fn() };
@@ -146,20 +145,27 @@ describe('loginDemo action', () => {
   beforeEach(async () => {
     await resetTestDb();
     vi.clearAllMocks();
+    process.env.DEMO_EMAIL = 'demo@example.com';
+    process.env.DEMO_PASSWORD = 'demo-password';
     mocks.redirect.mockImplementation(() => {
       throw new Error(NEXT_REDIRECT);
     });
   });
 
-  it('redirects to the login page when no demo user is seeded', async () => {
+  it('redirects to the login page when demo credentials are absent', async () => {
+    delete process.env.DEMO_EMAIL;
+    delete process.env.DEMO_PASSWORD;
     await expect(loginDemo()).rejects.toThrow(NEXT_REDIRECT);
     expect(mocks.redirect).toHaveBeenCalledWith('/');
     expect(await testDb.session.count()).toBe(0);
   });
 
-  it('opens a demo session when the demo user exists', async () => {
+  it('authenticates the configured account and opens a session', async () => {
     const demo = await testDb.user.create({
-      data: { email: DEMO_EMAIL, passwordHash: 'x', isDemo: true },
+      data: {
+        email: 'demo@example.com',
+        passwordHash: await hashPassword('demo-password'),
+      },
     });
     await expect(loginDemo()).rejects.toThrow(NEXT_REDIRECT);
     expect(mocks.redirect).toHaveBeenCalledWith('/timeline');
@@ -168,10 +174,12 @@ describe('loginDemo action', () => {
     expect(sessions[0].userId).toBe(demo.id);
   });
 
-  it('refuses to open a session for a non-demo account at the demo email', async () => {
-    // Operator error: an account exists at the demo email but isDemo=false.
+  it('refuses to open a session when configured credentials do not match', async () => {
     await testDb.user.create({
-      data: { email: DEMO_EMAIL, passwordHash: 'x', isDemo: false },
+      data: {
+        email: 'demo@example.com',
+        passwordHash: await hashPassword('a-real-password'),
+      },
     });
     await expect(loginDemo()).rejects.toThrow(NEXT_REDIRECT);
     expect(mocks.redirect).toHaveBeenCalledWith('/');

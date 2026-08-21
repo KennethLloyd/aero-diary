@@ -24,7 +24,6 @@ model User {
   passwordHash  String
   name          String?
   styleStandard String? // optional per-user polish rules; blank uses the concise default
-  isDemo        Boolean   @default(false)
   sessions      Session[]
   entries       Entry[]
   activities    Activity[]

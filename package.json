@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "create-user": "tsx scripts/create-user.ts",
+    "db:seed": "tsx scripts/seed.ts",
     "seed-style-standard": "tsx scripts/seed-style-standard.ts",
     "drive:bootstrap": "tsx scripts/bootstrap-google-drive.ts",
     "db:generate": "prisma generate",

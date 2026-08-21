@@ -29,10 +29,6 @@ export const createUserSchema = z.object({
     .min(8, { error: 'Password must be at least 8 characters.' })
     .max(256),
   name: z.string().trim().max(100).optional(),
-  isDemo: z.boolean().optional(),
 });
 
 export type CreateUserInput = z.infer<typeof createUserSchema>
-
-// Demo user email (ADR-0006); "Try the demo" opens a session for this account.
-export const DEMO_EMAIL = 'demo@aerodiary.local';
