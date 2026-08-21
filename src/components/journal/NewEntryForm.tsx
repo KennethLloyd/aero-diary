@@ -1,12 +1,19 @@
 'use client';
 
 import Link from 'next/link';
-import { useActionState, useRef, useState } from 'react';
+import {
+  startTransition,
+  useActionState,
+  useRef,
+  useState,
+  type MouseEvent,
+} from 'react';
 import {
   createEntry,
   updateEntry,
   type EntryActionState,
 } from '@/actions/entries';
+import { polishEntry, type PolishEntryState } from '@/actions/polish';
 import { AeroButton } from '@/components/aero/AeroButton';
 import { AeroOrb } from '@/components/aero/AeroOrb';
 import { Mood } from '@/generated/prisma/enums';
@@ -45,7 +52,15 @@ export function NewEntryForm({
     action,
     undefined,
   );
+  const [polishState, setPolishState] = useState<PolishEntryState>();
+  const [polishing, setPolishing] = useState(false);
   const [mood, setMood] = useState<Mood>(entry?.mood ?? Mood.RAD);
+  const [note, setNote] = useState(entry?.note ?? '');
+  const [polishSnapshot, setPolishSnapshot] = useState<{
+    original: string
+    polished: string
+  }>();
+  const [showingOriginal, setShowingOriginal] = useState(false);
   const [selectedActivityIds, setSelectedActivityIds] = useState<Set<string>>(
     () => new Set(entry?.activityIds ?? []),
   );
@@ -65,6 +80,42 @@ export function NewEntryForm({
     if (!entry && localOffsetInput.current) {
       localOffsetInput.current.value = String(-new Date().getTimezoneOffset());
     }
+  }
+
+  function toggleOriginal() {
+    if (!polishSnapshot) return;
+    const nextShowingOriginal = !showingOriginal;
+    setShowingOriginal(nextShowingOriginal);
+    setNote(nextShowingOriginal ? polishSnapshot.original : polishSnapshot.polished);
+  }
+
+  function undoPolish() {
+    if (!polishSnapshot) return;
+    setNote(polishSnapshot.original);
+    setPolishSnapshot(undefined);
+    setShowingOriginal(false);
+  }
+
+  function handlePolish(event: MouseEvent<HTMLButtonElement>) {
+    const formElement = event.currentTarget.form;
+    if (!formElement) return;
+    const originalNote = note;
+    setPolishing(true);
+    setPolishState(undefined);
+
+    startTransition(async () => {
+      try {
+        const result = await polishEntry(undefined, new FormData(formElement));
+        setPolishState(result);
+        if (result?.revisedText) {
+          setPolishSnapshot({ original: originalNote, polished: result.revisedText });
+          setShowingOriginal(false);
+          setNote(result.revisedText);
+        }
+      } finally {
+        setPolishing(false);
+      }
+    });
   }
 
   return (
@@ -133,9 +184,46 @@ export function NewEntryForm({
             className="aero-input min-h-48 w-full resize-y p-4 text-[15px] leading-relaxed"
             placeholder="What’s on your mind?"
             maxLength={20_000}
-            defaultValue={entry?.note}
+            value={note}
+            onChange={(event) => {
+              setNote(event.target.value);
+              if (polishSnapshot) {
+                setPolishSnapshot(
+                  showingOriginal
+                    ? { ...polishSnapshot, original: event.target.value }
+                    : { ...polishSnapshot, polished: event.target.value },
+                );
+              }
+            }}
             required
           />
+
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <AeroButton
+              type="button"
+              onClick={handlePolish}
+              disabled={pending || polishing || !note.trim()}
+              className="px-3 py-1 text-xs"
+            >
+              {polishing ? 'Polishing…' : 'Polish ✨'}
+            </AeroButton>
+            {polishSnapshot ? (
+              <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-[#144e9d]">
+                <button type="button" onClick={toggleOriginal} className="underline">
+                  {showingOriginal ? 'Show polished' : 'Show original'}
+                </button>
+                <button type="button" onClick={undoPolish} className="underline">
+                  Undo polish
+                </button>
+              </div>
+            ) : null}
+          </div>
+
+          {polishState?.error ? (
+            <p role="alert" className="rounded-md border border-amber-300 bg-amber-50/90 px-3 py-2 text-sm font-semibold text-amber-800">
+              {polishState.error}
+            </p>
+          ) : null}
 
           <section className="space-y-2 rounded-lg border border-white/60 bg-white/40 p-3" aria-labelledby="photo-heading">
             <label htmlFor="entry-photos" className="block text-xs font-bold uppercase text-[#0a2f5c]">

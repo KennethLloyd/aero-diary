@@ -8,7 +8,7 @@ Kenneth develops on his Mac (pnpm 11.17 / node 22.21.1); the app runs on his Ora
 
 ## Decision
 
-- **Dev**: Mac-first. Clone from GitHub origin, `pnpm dev` against a local SQLite file, local `opencode serve` for polish. `.env.local` carries the Drive refresh token + session secret + `LLM_BASE_URL=http://127.0.0.1:<port>`.
+- **Dev**: Mac-first. Clone from GitHub origin, `pnpm dev` against a local SQLite file, and run ChatMock locally for polish. `.env.local` carries the Drive refresh token + session secret + `LLM_BASE_URL=http://127.0.0.1:8000/v1`.
 - **Origin**: GitHub `KennethLloyd/aero-diary` (public) — the single source of truth; the OCI copy at `/home/ubuntu/Projects/aero-diary` is the deploy checkout.
 - **Deploy (OCI)**: `git pull` → `pnpm install` → `pnpm build` → systemd unit running the production server → tailscale serve (same pattern as hermes-webui). Own `.env` on OCI.
 - **No Docker**, anywhere in the stack.

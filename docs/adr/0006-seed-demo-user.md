@@ -20,4 +20,4 @@ Kenneth demos Aero Diary without logging into his real account and without expos
 
 - Demo is one click away, zero risk of leaking real entries.
 - Insights/calendar/stats look believable in a demo without 7 years of data.
-- The demo user exercises the same code paths as the real user (auth, entries, photos, polish with a generic standard).
+- The demo user exercises the same code paths as the real user (auth, entries, photos, polish with the concise default standard when no per-user standard is set).

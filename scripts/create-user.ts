@@ -59,6 +59,9 @@ async function main(): Promise<void> {
       // `?? undefined` = leave untouched on re-run (mirror `name`): omitting
       // --demo must never flip an existing demo user back to a real one.
       isDemo: validatedDemo ?? undefined,
+      // Demo users use the server-side default; clear any value left by the
+      // removed generic-standard provisioning path.
+      styleStandard: validatedDemo === true ? null : undefined,
     },
     create: {
       email: validatedEmail,
