@@ -27,6 +27,8 @@ export const createEntrySchema = z.object({
     .optional(),
 });
 
+export const polishEntrySchema = createEntrySchema.pick({ note: true });
+
 export type CreateEntryInput = z.infer<typeof createEntrySchema>
 
 export const entryIdSchema = z
