@@ -14,6 +14,7 @@
     "lint": "eslint .",
     "create-user": "tsx scripts/create-user.ts",
     "seed-style-standard": "tsx scripts/seed-style-standard.ts",
+    "seed-journal-standards": "tsx scripts/seed-journal-standards.ts",
     "drive:bootstrap": "tsx scripts/bootstrap-google-drive.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",

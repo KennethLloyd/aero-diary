@@ -26,7 +26,8 @@ application must not depend on a model provider's SDK, CLI, or native API.
   `gpt-5.6-luna` with `LLM_REASONING_EFFORT=medium`.
 - **Style standard**: `User.styleStandard` is seeded data. The real user's
   private standard comes from a private file; the generic demo standard lives
-  in the seed-data directory and is assigned when the demo user is provisioned.
+  in the seed-data directory. `pnpm seed-journal-standards <real-user-email>
+  <private-style-file>` writes both values in one transaction.
 
 ## Consequences
 
