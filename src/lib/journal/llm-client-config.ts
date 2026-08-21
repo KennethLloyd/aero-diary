@@ -1,6 +1,7 @@
 import 'server-only';
 
-import { OpenAiCompatibleLlmClient } from './llm-client';
+import type { LlmClient } from './llm-client';
+import { OpenAiCompatibleLlmAdapter } from './openai-compatible-llm-adapter';
 
 function requiredEnvironment(name: string): string {
   const value = process.env[name]?.trim();
@@ -16,21 +17,12 @@ function environmentNumber(name: string): number {
   return value;
 }
 
-export function configuredLlmClient(): OpenAiCompatibleLlmClient {
-  return new OpenAiCompatibleLlmClient({
+export function configuredLlmClient(): LlmClient {
+  return new OpenAiCompatibleLlmAdapter({
     baseUrl: requiredEnvironment('LLM_BASE_URL'),
-    timeoutMs: environmentNumber('LLM_TIMEOUT_MS'),
-  });
-}
-
-export function configuredLlmRequest(): {
-  model: string
-  reasoningEffort: string
-  maxTokens: number
-} {
-  return {
     model: requiredEnvironment('LLM_MODEL'),
     reasoningEffort: requiredEnvironment('LLM_REASONING_EFFORT'),
     maxTokens: environmentNumber('LLM_MAX_TOKENS'),
-  };
+    timeoutMs: environmentNumber('LLM_TIMEOUT_MS'),
+  });
 }

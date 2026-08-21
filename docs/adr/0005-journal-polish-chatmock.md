@@ -14,9 +14,11 @@ application must not depend on a model provider's SDK, CLI, or native API.
   revised text with show-original and undo controls. Save persists whatever is
   currently in the editor. Polish is never required; failures leave raw-save
   available.
-- **Transport**: `LLM_BASE_URL` points to an OpenAI-compatible gateway. The app
-  sends `POST /v1/chat/completions` and does not contain provider-specific
-  adapters or defaults.
+- **Transport**: `LLM_BASE_URL` points to an OpenAI-compatible gateway. The
+  `OpenAiCompatibleLlmAdapter` sends `POST /v1/chat/completions` and implements
+  the provider-neutral `LlmClient` interface. `llm-client-config.ts` is the
+  composition root; journal business logic receives only `LlmClient` and does
+  not know the adapter's wire format.
 - **Local gateway**: ChatMock is the local development gateway. It is installed
   and authenticated outside the repository, then served at
   `http://127.0.0.1:8000/v1` with legacy reasoning compatibility so reasoning

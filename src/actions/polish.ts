@@ -2,6 +2,7 @@
 
 import { db } from '@/lib/db';
 import { verifySession } from '@/lib/dal';
+import { configuredLlmClient } from '@/lib/journal/llm-client-config';
 import { requestPolishedEntry } from '@/lib/journal/polish';
 import { polishEntrySchema } from '@/lib/journal/schemas';
 
@@ -31,7 +32,7 @@ export async function polishEntry(
     const revisedText = await requestPolishedEntry({
       note: parsed.data.note,
       styleStandard,
-    });
+    }, configuredLlmClient());
     return { revisedText };
   } catch {
     return { error: POLISH_FAILED };

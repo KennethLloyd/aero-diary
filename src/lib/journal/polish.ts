@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { configuredLlmClient, configuredLlmRequest } from './llm-client-config';
+import type { LlmClient } from './llm-client';
 
 type PolishRequest = {
   note: string
@@ -19,15 +19,12 @@ function systemPrompt(styleStandard: string): string {
   ].join('\n');
 }
 
-export async function requestPolishedEntry({ note, styleStandard }: PolishRequest): Promise<string> {
-  const client = configuredLlmClient();
-  const request = configuredLlmRequest();
-
+export async function requestPolishedEntry(
+  { note, styleStandard }: PolishRequest,
+  client: LlmClient,
+): Promise<string> {
   return client.complete({
-    ...request,
-    messages: [
-      { role: 'system', content: systemPrompt(styleStandard) },
-      { role: 'user', content: note },
-    ],
+    systemPrompt: systemPrompt(styleStandard),
+    userPrompt: note,
   });
 }

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  fetch: vi.fn(),
+  complete: vi.fn(),
   findUnique: vi.fn(),
   verifySession: vi.fn(),
 }));
@@ -9,6 +9,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/lib/dal', () => ({ verifySession: mocks.verifySession }));
 vi.mock('@/lib/db', () => ({
   db: { user: { findUnique: mocks.findUnique } },
+}));
+vi.mock('@/lib/journal/llm-client-config', () => ({
+  configuredLlmClient: () => ({ complete: mocks.complete }),
 }));
 
 import { polishEntry } from '@/actions/polish';
@@ -22,12 +25,6 @@ function form(note = 'I walked beside the water and felt calmer.') {
 describe('polishEntry action', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.stubGlobal('fetch', mocks.fetch);
-    process.env.LLM_BASE_URL = 'http://llm.test/v1';
-    process.env.LLM_MODEL = 'gpt-5.6-luna';
-    process.env.LLM_REASONING_EFFORT = 'medium';
-    process.env.LLM_MAX_TOKENS = '16384';
-    process.env.LLM_TIMEOUT_MS = '30000';
   });
 
   it('rejects an anonymous request before reading the draft or calling the LLM', async () => {
@@ -35,18 +32,16 @@ describe('polishEntry action', () => {
 
     await expect(polishEntry(undefined, form())).rejects.toThrow('NEXT_REDIRECT');
     expect(mocks.findUnique).not.toHaveBeenCalled();
-    expect(mocks.fetch).not.toHaveBeenCalled();
+    expect(mocks.complete).not.toHaveBeenCalled();
   });
 
-  it('sends the draft and user style standard in the OpenAI-compatible payload', async () => {
+  it('sends the draft and user style standard through the LLM interface', async () => {
     mocks.verifySession.mockResolvedValue({ isAuth: true, userId: 'user-1' });
     mocks.findUnique.mockResolvedValue({
       isDemo: false,
       styleStandard: 'Keep the voice direct and reflective.\nUse concrete details.',
     });
-    mocks.fetch.mockResolvedValue(new Response(JSON.stringify({
-      choices: [{ message: { content: 'I walked beside the water, and the calm stayed with me.' } }],
-    }), { status: 200 }));
+    mocks.complete.mockResolvedValue('I walked beside the water, and the calm stayed with me.');
 
     await expect(polishEntry(undefined, form())).resolves.toEqual({
       revisedText: 'I walked beside the water, and the calm stayed with me.',
@@ -56,29 +51,16 @@ describe('polishEntry action', () => {
       where: { id: 'user-1' },
       select: { styleStandard: true },
     });
-    expect(mocks.fetch).toHaveBeenCalledWith(
-      'http://llm.test/v1/chat/completions',
-      expect.objectContaining({ method: 'POST' }),
-    );
-    const [, request] = mocks.fetch.mock.calls[0] as [string, RequestInit];
-    expect(JSON.parse(String(request.body))).toEqual({
-      model: 'gpt-5.6-luna',
-      messages: [
-        {
-          role: 'system',
-          content: expect.stringContaining('Keep the voice direct and reflective.'),
-        },
-        { role: 'user', content: 'I walked beside the water and felt calmer.' },
-      ],
-      reasoning_effort: 'medium',
-      max_tokens: 16384,
+    expect(mocks.complete).toHaveBeenCalledWith({
+      systemPrompt: expect.stringContaining('Keep the voice direct and reflective.'),
+      userPrompt: 'I walked beside the water and felt calmer.',
     });
   });
 
   it('returns a clear recoverable error when the LLM is down', async () => {
     mocks.verifySession.mockResolvedValue({ isAuth: true, userId: 'user-1' });
     mocks.findUnique.mockResolvedValue({ styleStandard: 'Keep the voice direct.' });
-    mocks.fetch.mockRejectedValue(new Error('connect ECONNREFUSED'));
+    mocks.complete.mockRejectedValue(new Error('LLM unavailable'));
 
     await expect(polishEntry(undefined, form())).resolves.toEqual({
       error: 'Polish is unavailable right now. Your entry can still be saved as written.',
@@ -88,30 +70,28 @@ describe('polishEntry action', () => {
   it('uses the concise default when the user has no style standard', async () => {
     mocks.verifySession.mockResolvedValue({ isAuth: true, userId: 'user-1' });
     mocks.findUnique.mockResolvedValue({ styleStandard: null });
-    mocks.fetch.mockResolvedValue(new Response(JSON.stringify({
-      choices: [{ message: { content: 'I walked beside the water and felt calmer.' } }],
-    }), { status: 200 }));
+    mocks.complete.mockResolvedValue('I walked beside the water and felt calmer.');
 
     await expect(polishEntry(undefined, form())).resolves.toEqual({
       revisedText: 'I walked beside the water and felt calmer.',
     });
-    const [, request] = mocks.fetch.mock.calls[0] as [string, RequestInit];
-    const body = JSON.parse(String(request.body));
-    expect(body.messages[0].content).toContain('concise, clear, natural language');
+    expect(mocks.complete).toHaveBeenCalledWith({
+      systemPrompt: expect.stringContaining('concise, clear, natural language'),
+      userPrompt: 'I walked beside the water and felt calmer.',
+    });
   });
 
   it('uses the concise default when the user standard is blank', async () => {
     mocks.verifySession.mockResolvedValue({ isAuth: true, userId: 'user-1' });
     mocks.findUnique.mockResolvedValue({ styleStandard: '   ' });
-    mocks.fetch.mockResolvedValue(new Response(JSON.stringify({
-      choices: [{ message: { content: 'I walked beside the water and felt calmer.' } }],
-    }), { status: 200 }));
+    mocks.complete.mockResolvedValue('I walked beside the water and felt calmer.');
 
     await expect(polishEntry(undefined, form())).resolves.toEqual({
       revisedText: 'I walked beside the water and felt calmer.',
     });
-    const [, request] = mocks.fetch.mock.calls[0] as [string, RequestInit];
-    const body = JSON.parse(String(request.body));
-    expect(body.messages[0].content).toContain('concise, clear, natural language');
+    expect(mocks.complete).toHaveBeenCalledWith({
+      systemPrompt: expect.stringContaining('concise, clear, natural language'),
+      userPrompt: 'I walked beside the water and felt calmer.',
+    });
   });
 });
