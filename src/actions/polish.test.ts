@@ -38,7 +38,6 @@ describe('polishEntry action', () => {
   it('sends the draft and user style standard through the LLM interface', async () => {
     mocks.verifySession.mockResolvedValue({ isAuth: true, userId: 'user-1' });
     mocks.findUnique.mockResolvedValue({
-      isDemo: false,
       styleStandard: 'Keep the voice direct and reflective.\nUse concrete details.',
     });
     mocks.complete.mockResolvedValue('I walked beside the water, and the calm stayed with me.');

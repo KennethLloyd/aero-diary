@@ -2,10 +2,12 @@ import { AeroBubbles } from '@/components/aero/AeroBubbles';
 import { AeroLogo } from '@/components/aero/AeroLogo';
 import { AeroTitle } from '@/components/aero/AeroTitle';
 import { LoginForm } from '@/components/auth/LoginForm';
+import { isDemoConfigured } from '@/lib/auth/server-demo-config';
 
-// Login screen (ADR-0009: the prototype's Google button becomes the aero
-// email/password form + "Try the demo"). Auth wiring lands in ticket #2.
+// Login screen (ADR-0009): email/password plus the optional configured demo.
 export default function LoginPage() {
+  const demoAvailable = isDemoConfigured();
+
   return (
     <>
       <AeroBubbles />
@@ -18,7 +20,7 @@ export default function LoginPage() {
             Your memories, vividly preserved.
           </p>
 
-          <LoginForm />
+          <LoginForm demoAvailable={demoAvailable} />
         </div>
       </main>
     </>

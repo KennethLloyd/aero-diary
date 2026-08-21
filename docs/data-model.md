@@ -70,7 +70,6 @@ model User {
   passwordHash  String
   name          String?
   styleStandard String?   // optional per-user polish rules; blank uses the concise default
-  isDemo        Boolean   @default(false)
   sessions      Session[]
   entries       Entry[]
   activities    Activity[]
@@ -137,7 +136,7 @@ Notes:
 - `sourceId` unique + nullable → idempotent import (upsert skips existing sourceIds).
 - `Session.tokenHash` stores only the hash — a DB leak never exposes live tokens (ADR-0002).
 - `isArchived` hides an activity from new entries while preserving its historical `EntryActivity` links.
-- `Activity` rows are user-owned; all activity reads, mutations, and entry attachments must use the authenticated user's id. Demo and imported real-user activities are separate rows.
+- `Activity` rows are user-owned; all activity reads, mutations, and entry attachments must use the authenticated user's id. Configured-demo and imported private-user activities are separate rows.
 - `@@unique([userId, name, emoji])` prevents per-user tag duplicates; ticket #9's legacy import must dedupe by lowercase name within the imported user.
 - Schema evolution follows ADR-0004; `isFavorite` intentionally has no UI in v1.
 
@@ -146,5 +145,5 @@ Notes:
 - Runs on OCI at the switchover (the JSON lives there); implemented against this doc — never by reading the file during development.
 - Idempotent via `sourceId`; validates total count (2,777) and reports a diff.
 - Resolves the 25 legacy activity names and curated emoji map into `Activity` rows for the imported real user; this is the only owner of legacy activity creation for imported data.
-- The demo seed in ticket #8 creates its own demo-user activity rows; it never creates global/shared activities.
+- The demo seed creates its own configured-demo activity rows; it never creates global/shared activities.
 - Photo mapping: `photoPaths` entries resolve to Drive paths under `AeroDiary/photos/` (ADR-0003); missing files are reported, not fatal.

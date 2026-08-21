@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { loginSchema, DEMO_EMAIL } from '@/lib/auth/schemas';
+import { loginSchema } from '@/lib/auth/schemas';
 
 describe('login schema', () => {
   it('accepts a valid email and password', () => {
@@ -44,7 +44,4 @@ describe('login schema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('exposes the demo email constant', () => {
-    expect(DEMO_EMAIL).toBe('demo@aerodiary.local');
-  });
 });

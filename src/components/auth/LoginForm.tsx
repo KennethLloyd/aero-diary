@@ -4,9 +4,9 @@ import { useActionState } from 'react';
 import { login, loginDemo, type LoginState } from '@/actions/auth';
 import { AeroButton } from '@/components/aero/AeroButton';
 
-// Aero login form (ADR-0009): email/password + "Try the demo". `useActionState`
-// wires the action's returned error state into the form.
-export function LoginForm() {
+// Aero login form (ADR-0009): email/password + configured "Try the demo".
+// `useActionState` wires the action's returned error state into the form.
+export function LoginForm({ demoAvailable }: { demoAvailable: boolean }) {
   const [state, formAction, pending] = useActionState<LoginState, FormData>(
     login,
     undefined,
@@ -44,15 +44,31 @@ export function LoginForm() {
         </AeroButton>
       </form>
 
-      <form action={loginDemo} className="mt-3 w-full">
-        <AeroButton
-          variant="white"
-          type="submit"
-          className="w-full py-3 text-lg"
-        >
-          Try the demo
-        </AeroButton>
-      </form>
+      {demoAvailable ? (
+        <form action={loginDemo} className="mt-3 w-full">
+          <AeroButton
+            variant="white"
+            type="submit"
+            className="w-full py-3 text-lg"
+          >
+            Try the demo
+          </AeroButton>
+        </form>
+      ) : (
+        <div className="mt-3 w-full space-y-2">
+          <AeroButton
+            variant="white"
+            type="button"
+            disabled
+            className="w-full py-3 text-lg"
+          >
+            Try the demo
+          </AeroButton>
+          <p className="text-center text-xs font-semibold text-[#2b4c73]" role="status">
+            Demo unavailable until the server is configured and seeded.
+          </p>
+        </div>
+      )}
     </>
   );
 }
