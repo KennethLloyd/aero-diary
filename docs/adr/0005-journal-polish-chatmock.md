@@ -24,10 +24,11 @@ application must not depend on a model provider's SDK, CLI, or native API.
   OpenAI-compatible contract.
 - **Model**: `LLM_MODEL` is configured by environment. The local trial uses
   `gpt-5.6-luna` with `LLM_REASONING_EFFORT=medium`.
-- **Style standard**: `User.styleStandard` is seeded data. The real user's
-  private standard comes from a private file; the generic demo standard lives
-  in the seed-data directory. `pnpm seed-journal-standards <real-user-email>
-  <private-style-file>` writes both values in one transaction.
+- **Style standard**: `User.styleStandard` is optional per-user data. A nonblank
+  value overrides the concise default defined by the polish server action. The
+  real user's private standard is seeded from a private file; users without one
+  use the default and are not blocked from polishing. Future UI may let users
+  edit or link their own value.
 
 ## Consequences
 

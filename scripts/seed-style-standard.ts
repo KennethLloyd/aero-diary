@@ -43,6 +43,15 @@ async function main(): Promise<void> {
   const db = new PrismaClient({ adapter });
 
   try {
+    const existingUser = await db.user.findUnique({
+      where: { email: emailResult.data },
+      select: { isDemo: true },
+    });
+    if (!existingUser) throw new Error(`User not found: ${emailResult.data}`);
+    if (existingUser.isDemo) {
+      throw new Error('Private style standards can only be seeded for a non-demo user.');
+    }
+
     const user = await db.user.update({
       where: { email: emailResult.data },
       data: { styleStandard },

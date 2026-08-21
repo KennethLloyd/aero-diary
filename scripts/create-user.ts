@@ -4,8 +4,7 @@
 //
 // Usage: pnpm create-user <email> <password> [--name "<Name>"] [--demo]
 import { config } from 'dotenv';
-import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync } from 'node:fs';
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
 import { PrismaClient } from '../src/generated/prisma/client';
 import { hashPassword } from '../src/lib/auth/password';
@@ -19,18 +18,6 @@ function usage(): never {
   console.error(
     'Usage: pnpm create-user <email> <password> [--name "<Name>"] [--demo]',
   );
-  process.exit(1);
-}
-
-function readGenericStyleStandard(): string {
-  const stylePath = resolve(process.cwd(), 'prisma/seed/generic-style-standard.txt');
-  try {
-    const styleStandard = readFileSync(stylePath, 'utf8').trim();
-    if (styleStandard) return styleStandard;
-  } catch {
-    // Fall through to the operator-facing error below.
-  }
-  console.error(`Could not read the generic demo style standard: ${stylePath}`);
   process.exit(1);
 }
 
@@ -64,7 +51,6 @@ async function main(): Promise<void> {
   const db = new PrismaClient({ adapter });
 
   const passwordHash = await hashPassword(validatedPassword);
-  const demoStyleStandard = validatedDemo ? readGenericStyleStandard() : undefined;
   const user = await db.user.upsert({
     where: { email: validatedEmail },
     update: {
@@ -73,14 +59,15 @@ async function main(): Promise<void> {
       // `?? undefined` = leave untouched on re-run (mirror `name`): omitting
       // --demo must never flip an existing demo user back to a real one.
       isDemo: validatedDemo ?? undefined,
-      styleStandard: demoStyleStandard,
+      // Demo users use the server-side default; clear any value left by the
+      // removed generic-standard provisioning path.
+      styleStandard: validatedDemo === true ? null : undefined,
     },
     create: {
       email: validatedEmail,
       passwordHash,
       name: validatedName ?? null,
       isDemo: validatedDemo ?? false,
-      styleStandard: demoStyleStandard ?? null,
     },
   });
 

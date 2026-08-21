@@ -85,13 +85,33 @@ describe('polishEntry action', () => {
     });
   });
 
-  it('does not call the LLM when the user has not been seeded a style standard', async () => {
+  it('uses the concise default when the user has no style standard', async () => {
     mocks.verifySession.mockResolvedValue({ isAuth: true, userId: 'user-1' });
     mocks.findUnique.mockResolvedValue({ styleStandard: null });
+    mocks.fetch.mockResolvedValue(new Response(JSON.stringify({
+      choices: [{ message: { content: 'I walked beside the water and felt calmer.' } }],
+    }), { status: 200 }));
 
     await expect(polishEntry(undefined, form())).resolves.toEqual({
-      error: 'Polish is unavailable right now. Your entry can still be saved as written.',
+      revisedText: 'I walked beside the water and felt calmer.',
     });
-    expect(mocks.fetch).not.toHaveBeenCalled();
+    const [, request] = mocks.fetch.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(String(request.body));
+    expect(body.messages[0].content).toContain('concise, clear, natural language');
+  });
+
+  it('uses the concise default when the user standard is blank', async () => {
+    mocks.verifySession.mockResolvedValue({ isAuth: true, userId: 'user-1' });
+    mocks.findUnique.mockResolvedValue({ styleStandard: '   ' });
+    mocks.fetch.mockResolvedValue(new Response(JSON.stringify({
+      choices: [{ message: { content: 'I walked beside the water and felt calmer.' } }],
+    }), { status: 200 }));
+
+    await expect(polishEntry(undefined, form())).resolves.toEqual({
+      revisedText: 'I walked beside the water and felt calmer.',
+    });
+    const [, request] = mocks.fetch.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(String(request.body));
+    expect(body.messages[0].content).toContain('concise, clear, natural language');
   });
 });

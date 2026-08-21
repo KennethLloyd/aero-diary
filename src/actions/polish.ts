@@ -6,6 +6,8 @@ import { requestPolishedEntry } from '@/lib/journal/polish';
 import { polishEntrySchema } from '@/lib/journal/schemas';
 
 const POLISH_FAILED = 'Polish is unavailable right now. Your entry can still be saved as written.';
+const DEFAULT_POLISH_STANDARD =
+  'Revise the entry for concise, clear, natural language while preserving the writer’s meaning, voice, facts, details, and emotional honesty. Return the complete entry only; do not add commentary or invent anything.';
 
 export type PolishEntryState = { revisedText?: string; error?: string } | undefined
 
@@ -23,12 +25,12 @@ export async function polishEntry(
     where: { id: session.userId },
     select: { styleStandard: true },
   });
-  if (!user?.styleStandard?.trim()) return { error: POLISH_FAILED };
+  const styleStandard = user?.styleStandard?.trim() || DEFAULT_POLISH_STANDARD;
 
   try {
     const revisedText = await requestPolishedEntry({
       note: parsed.data.note,
-      styleStandard: user.styleStandard,
+      styleStandard,
     });
     return { revisedText };
   } catch {

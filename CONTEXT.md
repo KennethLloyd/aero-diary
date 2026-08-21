@@ -10,7 +10,7 @@ A self-hosted mood journal ("your memories, vividly preserved") in the Frutiger 
 - **Photo** — an image attached to an entry. Canonical storage is **Google Drive** under `AeroDiary/photos/`; the DB row stores the Drive-relative path (`photos/<hash>.jpg`), mapping 1:1 to the legacy JSON's `photoPaths`. The OCI box is never the photo store.
 - **Session** — an opaque auth token row (User + Session tables); the `httpOnly` cookie holds only the token. Instant revocation via row deletion.
 - **Polish** — the synchronous LLM revision of an entry draft against the user's **style standard**, triggered by a "Polish ✨" button before save. Never required; never blocks saving.
-- **Style standard** — the per-user rules the polish uses; the real user's is seeded from Hermes' `style_summary` (the 11 journal-style rules), the demo user gets a generic one.
+- **Style standard** — optional per-user rules the polish uses; the real user's is seeded from Hermes' `style_summary` (the 11 journal-style rules), while users without one use the concise server-side default.
 - **Demo user** — the seeded fictional user owning 90 days of seed entries and its own demo activity vocabulary, reachable via a "Try the demo" button on login. Never mixed with real entries or activities (user-scoped).
 - **sourceId** — the legacy Daylio entry `id`, kept for idempotent JSON import (a sourceId already in the DB is skipped).
 - **Aero design system** — the locked Frutiger Aero visual language from the prototype: sky-to-grass gradient, floating bubbles, glass panels, glossy split-highlight buttons, specular mood orbs, bottom dock. Implemented as design tokens + component classes; the vibe is non-negotiable.
