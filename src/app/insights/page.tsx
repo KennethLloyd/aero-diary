@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { AeroBubbles } from '@/components/aero/AeroBubbles';
-import { AeroDock } from '@/components/aero/AeroDock';
+import { AeroScreen } from '@/components/aero/AeroScreen';
 import { AeroTitle } from '@/components/aero/AeroTitle';
 import { MonthNavigator } from '@/components/journal/MonthNavigator';
 import {
@@ -23,10 +23,11 @@ export default function InsightsPage({ searchParams }: InsightsPageProps) {
   return (
     <>
       <AeroBubbles />
-      <Suspense fallback={<InsightsLoading />}>
-        <InsightsContent searchParams={searchParams} />
-      </Suspense>
-      <AeroDock />
+      <AeroScreen>
+        <Suspense fallback={<InsightsLoading />}>
+          <InsightsContent searchParams={searchParams} />
+        </Suspense>
+      </AeroScreen>
     </>
   );
 }

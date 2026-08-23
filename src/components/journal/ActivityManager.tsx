@@ -4,6 +4,7 @@ import { useActionState, useState } from 'react';
 import {
   createActivity,
   deleteActivity,
+  restoreActivity,
   updateActivity,
   type ActivityState,
 } from '@/actions/activities';
@@ -30,6 +31,7 @@ function ActivityEditor({ activity }: { activity: ActivityOption }) {
   const [savedDraft, setSavedDraft] = useState({ name: activity.name, emoji: activity.emoji });
   const [archiveOpen, setArchiveOpen] = useState(false);
   const dirty = draft.name !== savedDraft.name || draft.emoji !== savedDraft.emoji || Boolean(state?.error);
+  const accessibleName = draft.name.trim() || activity.name;
 
   return (
     <>
@@ -40,7 +42,7 @@ function ActivityEditor({ activity }: { activity: ActivityOption }) {
       >
         <input
           name="emoji"
-          aria-label={`${activity.name} emoji`}
+          aria-label={`${accessibleName} emoji`}
           className="aero-input w-full text-center sm:w-16"
           value={draft.emoji}
           onChange={(event) => setDraft((current) => ({ ...current, emoji: event.target.value }))}
@@ -49,7 +51,7 @@ function ActivityEditor({ activity }: { activity: ActivityOption }) {
         />
         <input
           name="name"
-          aria-label={`${activity.name} name`}
+          aria-label={`${accessibleName} name`}
           className="aero-input min-w-0 flex-1 sm:min-w-40"
           value={draft.name}
           onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
@@ -94,7 +96,34 @@ function ActivityEditor({ activity }: { activity: ActivityOption }) {
   );
 }
 
-export function ActivityManager({ activities }: { activities: ActivityOption[] }) {
+function ArchivedActivityRow({ activity }: { activity: ActivityOption }) {
+  const [state, formAction, pending] = useActionState<ActivityState, FormData>(
+    restoreActivity.bind(null, activity.id),
+    undefined,
+  );
+
+  return (
+    <li className="flex items-center justify-between gap-3 rounded-lg border border-white/60 bg-white/30 p-3">
+      <span className="min-w-0 truncate text-sm font-bold text-[#2b4c73]">
+        {activity.emoji} {activity.name}
+      </span>
+      <form action={formAction} className="shrink-0">
+        <AeroButton variant="white" type="submit" disabled={pending} className="px-3 text-sm">
+          {pending ? 'Restoring…' : 'Restore'}
+        </AeroButton>
+        <ActionFeedback state={state} />
+      </form>
+    </li>
+  );
+}
+
+export function ActivityManager({
+  activities,
+  archivedActivities = [],
+}: {
+  activities: ActivityOption[]
+  archivedActivities?: ActivityOption[]
+}) {
   const [state, formAction, pending] = useActionState<ActivityState, FormData>(
     createActivity,
     undefined,
@@ -144,6 +173,19 @@ export function ActivityManager({ activities }: { activities: ActivityOption[] }
           </div>
         )}
       </section>
+      {archivedActivities.length > 0 ? (
+        <section className="aero-glass p-4" aria-labelledby="archived-activities-heading">
+          <div className="mb-3 border-b border-white/40 pb-2">
+            <h2 id="archived-activities-heading" className="text-lg font-bold text-[#0a2f5c]">Archived activities</h2>
+            <p className="mt-1 text-xs font-semibold text-[#2b4c73]">
+              Archived activities stay on older memories and can be restored for new entries.
+            </p>
+          </div>
+          <ul className="space-y-2">
+            {archivedActivities.map((activity) => <ArchivedActivityRow key={activity.id} activity={activity} />)}
+          </ul>
+        </section>
+      ) : null}
     </div>
   );
 }

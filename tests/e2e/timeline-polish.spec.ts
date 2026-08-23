@@ -57,6 +57,12 @@ async function verifyTimelineFlow(page: Page) {
   await loadOlder.click();
   await expect.poll(() => cards.count()).toBe(initialCount + 25);
 
+  await page.goto('/timeline?activity=not-a-real-activity');
+  await expect(page.getByText('No matching memories yet.')).toBeVisible();
+  await page.getByRole('link', { name: 'View all entries', exact: true }).click();
+  await expect(page).toHaveURL(/\/timeline$/);
+  await expect(cards.first()).toBeVisible();
+
   const iconHref = await page.locator('link[rel="icon"]').getAttribute('href');
   expect(iconHref).toBeTruthy();
   const iconResponse = await page.request.get(new URL(iconHref!, page.url()).toString());

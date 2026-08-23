@@ -150,6 +150,9 @@
     );
     pointer-events: none;
   }
+  .aero-calendar-panel {
+    overflow: visible;
+  }
 
   /* Glossy buttons. */
   .aero-btn {
@@ -341,11 +344,22 @@
   }
 
   /* Bottom navigation dock. */
+  .aero-screen {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    height: 100dvh;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+  .aero-screen-content {
+    min-width: 0;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
   .aero-dock {
-    position: fixed;
-    bottom: max(12px, env(safe-area-inset-bottom));
-    left: 50%;
-    transform: translateX(-50%);
+    position: relative;
+    align-self: center;
     display: flex;
     gap: 10px;
     min-height: var(--aero-dock-height);
@@ -365,6 +379,7 @@
     -webkit-backdrop-filter: blur(12px);
     isolation: isolate;
     z-index: 1000;
+    margin: 0 auto max(12px, env(safe-area-inset-bottom));
   }
 
   .dock-icon {

@@ -1,14 +1,14 @@
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { AeroBubbles } from '@/components/aero/AeroBubbles';
-import { AeroDock } from '@/components/aero/AeroDock';
+import { AeroScreen } from '@/components/aero/AeroScreen';
+import { AeroOrb } from '@/components/aero/AeroOrb';
 import { AeroTitle } from '@/components/aero/AeroTitle';
 import { CalendarGrid } from '@/components/journal/CalendarGrid';
 import { MonthNavigator } from '@/components/journal/MonthNavigator';
 import {
   buildCalendarGrid,
   getMonthFromParam,
-  MOOD_EMOJI,
   MOOD_LABEL,
 } from '@/lib/journal/analytics';
 import { Mood } from '@/generated/prisma/enums';
@@ -23,10 +23,11 @@ export default function CalendarPage({ searchParams }: CalendarPageProps) {
   return (
     <>
       <AeroBubbles />
-      <Suspense fallback={<CalendarLoading />}>
-        <CalendarContent searchParams={searchParams} />
-      </Suspense>
-      <AeroDock />
+      <AeroScreen>
+        <Suspense fallback={<CalendarLoading />}>
+          <CalendarContent searchParams={searchParams} />
+        </Suspense>
+      </AeroScreen>
     </>
   );
 }
@@ -47,7 +48,7 @@ async function CalendarContent({ searchParams }: CalendarPageProps) {
           </p>
         </header>
 
-        <section className="aero-glass flex flex-col gap-4 p-4" aria-labelledby="calendar-heading">
+        <section className="aero-glass aero-calendar-panel flex flex-col gap-4 p-4" aria-labelledby="calendar-heading">
           <h2 id="calendar-heading" className="sr-only">Calendar for selected month</h2>
           <MonthNavigator basePath="/calendar" month={month} />
           <CalendarGrid days={days} />
@@ -56,7 +57,7 @@ async function CalendarContent({ searchParams }: CalendarPageProps) {
             <div className="grid grid-cols-5 gap-1 text-center text-[10px] font-bold text-[#2b4c73] sm:text-xs">
               {[Mood.AWFUL, Mood.BAD, Mood.MEH, Mood.GOOD, Mood.RAD].map((mood) => (
                 <div key={mood} className="flex flex-col items-center gap-1">
-                  <span aria-hidden="true">{MOOD_EMOJI[mood]}</span>
+                  <AeroOrb mood={mood} mini className="cursor-default" />
                   <span>{MOOD_LABEL[mood]}</span>
                 </div>
               ))}

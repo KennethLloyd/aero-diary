@@ -7,8 +7,8 @@ export default function NotFound() {
       <AeroBubbles />
       <main className="relative z-10 flex min-h-screen items-center justify-center px-4">
         <RecoveryState
-          title="Memory not found"
-          message="That memory may have been removed, or the link may be out of date. Your timeline is still here."
+          title="Page not found"
+          message="That page does not exist or the link may be out of date. Your timeline is still here."
         />
       </main>
     </>

@@ -143,3 +143,29 @@ export async function deleteActivity(activityId: string): Promise<void> {
   revalidatePath('/timeline/new');
   revalidatePath('/timeline');
 }
+
+export async function restoreActivity(activityId: string): Promise<ActivityState> {
+  const session = await verifySession();
+  const parsedId = activityIdSchema.safeParse(activityId);
+  if (!parsedId.success) return { error: 'Activity not found.' };
+
+  const activity = await db.activity.findFirst({
+    where: { id: parsedId.data, userId: session.userId, isArchived: true },
+    select: { name: true },
+  });
+  if (!activity) return { error: 'Activity not found.' };
+
+  if (await hasNameConflict(session.userId, activity.name)) {
+    return { error: DUPLICATE_ACTIVITY };
+  }
+
+  await db.activity.update({
+    where: { id: parsedId.data },
+    data: { isArchived: false },
+  });
+
+  invalidateActivityReads(session.userId);
+  revalidatePath('/activities');
+  revalidatePath('/timeline/new');
+  return { success: 'Activity restored.' };
+}

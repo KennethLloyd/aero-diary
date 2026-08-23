@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { AeroBubbles } from '@/components/aero/AeroBubbles';
-import { AeroDock } from '@/components/aero/AeroDock';
+import { AeroScreen } from '@/components/aero/AeroScreen';
 import { AeroTitle } from '@/components/aero/AeroTitle';
 import { AeroButton } from '@/components/aero/AeroButton';
 import { TimelineList } from '@/components/journal/TimelineList';
@@ -16,10 +16,11 @@ export default function TimelinePage({ searchParams }: TimelinePageProps) {
   return (
     <>
       <AeroBubbles />
-      <Suspense fallback={<TimelineLoading />}>
-        <TimelineContent searchParams={searchParams} />
-      </Suspense>
-      <AeroDock />
+      <AeroScreen>
+        <Suspense fallback={<TimelineLoading />}>
+          <TimelineContent searchParams={searchParams} />
+        </Suspense>
+      </AeroScreen>
     </>
   );
 }
@@ -51,7 +52,11 @@ async function TimelineContent({ searchParams }: TimelinePageProps) {
         </AeroButton>
       </header>
 
-      <TimelineList initialPage={initialPage} filter={filter} />
+      <TimelineList
+        key={`${filter.mood ?? ''}:${filter.activityId ?? ''}`}
+        initialPage={initialPage}
+        filter={filter}
+      />
     </main>
   );
 }

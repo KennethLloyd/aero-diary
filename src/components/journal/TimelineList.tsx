@@ -37,12 +37,13 @@ export function TimelineList({
   useEffect(() => {
     const sentinel = sentinelRef.current;
     if (!sentinel || !nextCursor) return;
+    const scrollRoot = sentinel.closest<HTMLElement>('.aero-screen-content');
 
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry?.isIntersecting) loadMore();
       },
-      { rootMargin: '600px 0px' },
+      { root: scrollRoot, rootMargin: '600px 0px' },
     );
     observer.observe(sentinel);
     return () => observer.disconnect();

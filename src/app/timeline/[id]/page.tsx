@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { AeroBubbles } from '@/components/aero/AeroBubbles';
-import { AeroDock } from '@/components/aero/AeroDock';
+import { AeroScreen } from '@/components/aero/AeroScreen';
 import { AeroOrb } from '@/components/aero/AeroOrb';
 import { EntryBackButton } from '@/components/journal/EntryBackButton';
 import { DeleteEntryDialog } from '@/components/journal/DeleteEntryDialog';
@@ -47,10 +47,11 @@ export default function EntryDetailPage({ params }: EntryDetailPageProps) {
   return (
     <>
       <AeroBubbles />
-      <Suspense fallback={<EntryDetailLoading />}>
-        <EntryDetailContent params={params} />
-      </Suspense>
-      <AeroDock />
+      <AeroScreen>
+        <Suspense fallback={<EntryDetailLoading />}>
+          <EntryDetailContent params={params} />
+        </Suspense>
+      </AeroScreen>
     </>
   );
 }

@@ -51,7 +51,7 @@ function DayCell({ day }: { day: CalendarDay }) {
   return (
     <details className={`${dayClassName(day)} group`}>
       <summary
-        className="block h-full cursor-pointer list-none rounded-lg focus:outline-none"
+        className="block h-full cursor-pointer list-none rounded-lg focus:outline-none focus-visible:ring-4 focus-visible:ring-[#146cc2]/70"
         aria-label={`${day.entryIds.length} entries for ${day.date}`}
       >
         {content}
