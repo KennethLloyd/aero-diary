@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { AeroBubbles } from '@/components/aero/AeroBubbles';
 import { AeroDock } from '@/components/aero/AeroDock';
 import { AeroOrb } from '@/components/aero/AeroOrb';
+import { EntryBackButton } from '@/components/journal/EntryBackButton';
 import { DeleteEntryDialog } from '@/components/journal/DeleteEntryDialog';
 import { PhotoGallery } from '@/components/journal/PhotoGallery';
 import { db } from '@/lib/db';
@@ -64,13 +65,7 @@ export default async function EntryDetailPage({ params }: EntryDetailPageProps) 
       <AeroBubbles />
       <main className="aero-page relative z-10 mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-6 pb-32 md:pt-10 md:pb-32">
         <header className="mb-2 flex items-center justify-between px-2">
-          <Link
-            href="/timeline"
-            className="flex items-center gap-1 text-sm font-bold text-[#144e9d] drop-shadow-md hover:underline"
-          >
-            <span className="text-lg" aria-hidden="true">&lsaquo;</span>
-            <span>Back</span>
-          </Link>
+          <EntryBackButton />
           <div className="flex items-center gap-3">
             <Link
               href={`/timeline/${entry.id}/edit`}
