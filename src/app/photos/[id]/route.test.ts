@@ -10,8 +10,8 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/lib/dal', () => ({ verifySession: mocks.verifySession }));
 vi.mock('@/lib/drive/store', () => ({
   DrivePhotoNotFoundError: class DrivePhotoNotFoundError extends Error {},
-  getPhotoStore: mocks.getPhotoStore,
 }));
+vi.mock('@/lib/drive/server-store', () => ({ getPhotoStore: mocks.getPhotoStore }));
 vi.mock('@/lib/db', () => ({ db: { photo: { findFirst: mocks.photoFindFirst } } }));
 
 import { GET } from '@/app/photos/[id]/route';

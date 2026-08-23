@@ -1,4 +1,5 @@
 import { Readable } from 'node:stream';
+import { execFileSync } from 'node:child_process';
 import { describe, expect, it, vi } from 'vitest';
 import { createPhotoStore, type DriveFilesApi } from '@/lib/drive/store';
 
@@ -29,6 +30,16 @@ function folderAndFileResponses(drive: ReturnType<typeof fakeDrive>) {
 }
 
 describe('Google Drive photo store', () => {
+  it('loads from a standalone tsx process without a Next server context', () => {
+    const output = execFileSync(
+      'pnpm',
+      ['exec', 'tsx', '-e', "import { createPhotoStore } from './src/lib/drive/store.ts'; console.log(typeof createPhotoStore)"],
+      { cwd: process.cwd(), encoding: 'utf8' },
+    );
+
+    expect(output.trim()).toBe('function');
+  });
+
   it('uploads a photo as a hashed JPEG through multipart files.create', async () => {
     const drive = fakeDrive();
     folderAndFileResponses(drive);

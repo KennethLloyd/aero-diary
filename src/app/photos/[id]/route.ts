@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { verifySession } from '@/lib/dal';
-import { DrivePhotoNotFoundError, getPhotoStore } from '@/lib/drive/store';
+import { DrivePhotoNotFoundError } from '@/lib/drive/store';
+import { getPhotoStore } from '@/lib/drive/server-store';
 import { photoIdSchema } from '@/lib/journal/schemas';
 
 export const dynamic = 'force-dynamic';
