@@ -19,7 +19,7 @@ test('demo user can create, polish, view, and delete an entry', async ({ page })
   await expect(page.getByText('Aero Diary')).toBeVisible();
 
   await page.goto('/calendar');
-  await expect(page.getByText('Calendar')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Calendar', exact: true })).toBeVisible();
   await page.goto('/insights');
   await expect(page.getByText('Insights')).toBeVisible();
 
@@ -31,16 +31,23 @@ test('demo user can create, polish, view, and delete an entry', async ({ page })
     await expect(page.getByRole('button', { name: 'Show original' })).toBeVisible();
     await page.getByRole('button', { name: 'Save' }).click();
 
-    await expect(page).toHaveURL(/\/timeline\/.+/);
+    await expect(page).toHaveURL(/\/timeline$/);
+    const createdEntry = page.getByRole('link', { name: new RegExp(`Mood: RAD.*${marker}`) });
+    await expect(createdEntry).toBeVisible();
+    await createdEntry.click();
+    await expect(page).toHaveURL(/\/timeline\/(?!new$)[^/]+$/);
     detailUrl = page.url();
     await expect(page.getByRole('heading', { name: 'Rad' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Delete' })).toBeVisible();
   } finally {
     if (detailUrl) {
-      await page.getByRole('button', { name: 'Delete' }).click();
+      await page.goto(detailUrl);
+      const deleteButton = page.getByRole('button', { name: 'Delete', exact: true });
+      await expect(deleteButton).toBeVisible();
+      await deleteButton.click();
       const dialog = page.getByRole('dialog');
       await expect(dialog).toBeVisible();
-      await dialog.getByRole('button', { name: 'Delete' }).click();
+      await dialog.getByRole('button', { name: 'Delete', exact: true }).click();
       await expect(page).toHaveURL(/\/timeline$/);
     }
   }
