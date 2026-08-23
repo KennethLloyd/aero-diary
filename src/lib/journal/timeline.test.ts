@@ -1,8 +1,16 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { resetTestDb, testDb } from '@/test/test-db';
-import { listTimelinePage, TIMELINE_PAGE_SIZE } from '@/lib/journal/timeline';
+import { listTimelinePage, parseTimelineFilter, TIMELINE_PAGE_SIZE } from '@/lib/journal/timeline';
 
 describe('timeline pagination', () => {
+  it('parses safe mood and activity filters for actionable insight links', () => {
+    expect(parseTimelineFilter({ mood: 'GOOD', activity: 'activity-1' })).toEqual({
+      mood: 'GOOD',
+      activityId: 'activity-1',
+    });
+    expect(parseTimelineFilter({ mood: 'unknown', activity: ' ' })).toEqual({});
+  });
+
   beforeEach(async () => {
     await resetTestDb();
   });

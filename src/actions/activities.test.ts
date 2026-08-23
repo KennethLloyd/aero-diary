@@ -18,6 +18,7 @@ vi.mock('@/lib/db', async () => {
 import {
   createActivity,
   deleteActivity,
+  restoreActivity,
   updateActivity,
 } from '@/actions/activities';
 
@@ -90,6 +91,11 @@ describe('activity actions', () => {
     expect(await testDb.entryActivity.findUnique({
       where: { entryId_activityId: { entryId: entry.id, activityId: activity.id } },
     })).not.toBeNull();
+
+    expect(await restoreActivity(activity.id)).toEqual({ success: 'Activity restored.' });
+    expect(await testDb.activity.findUniqueOrThrow({ where: { id: activity.id } })).toMatchObject({
+      isArchived: false,
+    });
   });
 
   it('keeps activity vocabularies isolated between users', async () => {

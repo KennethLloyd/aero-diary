@@ -40,6 +40,19 @@ export async function getActivitiesForUser(userId: string): Promise<ActivityOpti
   return activities.map((activity) => ({ ...activity }));
 }
 
+export async function getArchivedActivitiesForUser(userId: string): Promise<ActivityOption[]> {
+  'use cache';
+  cacheLife('journal');
+  cacheTag(activityOptionsCacheTag(userId));
+
+  const activities = await db.activity.findMany({
+    where: { userId, isArchived: true },
+    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+    select: { id: true, name: true, emoji: true },
+  });
+  return activities.map((activity) => ({ ...activity }));
+}
+
 export async function listActivities(): Promise<ActivityOption[]> {
   const session = await verifySession();
   return getActivitiesForUser(session.userId);

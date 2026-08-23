@@ -9,6 +9,8 @@ const MOOD_VALUES = [
   Mood.RAD,
 ] as const;
 
+export const timelineMoodSchema = z.enum(MOOD_VALUES);
+
 export const createEntrySchema = z.object({
   mood: z.enum(MOOD_VALUES, { error: 'Choose a mood.' }),
   note: z

@@ -17,7 +17,7 @@ export function EntryBackButton() {
     <button
       type="button"
       onClick={goBack}
-      className="flex items-center gap-1 text-sm font-bold text-[#144e9d] drop-shadow-md hover:underline"
+      className="aero-link-control flex items-center gap-1 text-sm font-bold text-[#144e9d] drop-shadow-md hover:underline"
     >
       <span className="text-lg" aria-hidden="true">&lsaquo;</span>
       <span>Back</span>

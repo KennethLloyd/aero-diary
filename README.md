@@ -87,3 +87,7 @@ Run the production build with `pnpm build` and serve it with `pnpm start` behind
 ## Privacy and security
 
 Journal entries, activity vocabularies, photos, session tokens, style standards, and provider credentials are private data. Every protected read and mutation authenticates the caller, and user-scoped cached reads use the authenticated user ID as a cache key and tag namespace. Do not commit real `.env` files, SQLite databases, journal exports, Drive inventories or tokens, private style files, or machine-specific deployment configuration.
+
+## Design token boundary
+
+Shared control dimensions, focus rings, dock geometry, surface opacity, typography tiers, and reduced-motion behavior live in `src/app/globals.css`. Mood-specific gradients, photo-viewer surfaces, and one-off page compositions intentionally keep local values because those values encode the semantic visual treatment of that component rather than a reusable system token.
