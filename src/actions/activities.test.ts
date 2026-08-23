@@ -4,10 +4,11 @@ import { resetTestDb, testDb } from '@/test/test-db';
 
 const mocks = vi.hoisted(() => ({
   revalidatePath: vi.fn(),
+  updateTag: vi.fn(),
   verifySession: vi.fn(),
 }));
 
-vi.mock('next/cache', () => ({ revalidatePath: mocks.revalidatePath }));
+vi.mock('next/cache', () => ({ revalidatePath: mocks.revalidatePath, updateTag: mocks.updateTag }));
 vi.mock('@/lib/dal', () => ({ verifySession: mocks.verifySession }));
 vi.mock('@/lib/db', async () => {
   const { testDb } = await import('@/test/test-db');
@@ -51,16 +52,19 @@ describe('activity actions', () => {
     const state = await createActivity(undefined, form('   ', ''));
 
     expect(state).toEqual({ error: 'Enter an activity name.' });
+    expect(mocks.updateTag).not.toHaveBeenCalled();
     expect(await testDb.activity.count()).toBe(0);
   });
 
   it('creates, renames, and archives activities without removing historical links', async () => {
     const created = await createActivity(undefined, form());
     expect(created).toEqual({ success: 'Activity added.' });
+    expect(mocks.updateTag).toHaveBeenCalledWith(`journal:${currentUserId}:activities`);
 
     const activity = await testDb.activity.findFirstOrThrow();
     const updated = await updateActivity(activity.id, undefined, form('focus', '🎯'));
     expect(updated).toEqual({ success: 'Activity updated.' });
+    expect(mocks.updateTag).toHaveBeenCalledWith(`journal:${currentUserId}:activities`);
 
     expect(await testDb.activity.findUniqueOrThrow({ where: { id: activity.id } })).toMatchObject({
       name: 'focus',
@@ -79,6 +83,7 @@ describe('activity actions', () => {
     });
 
     await deleteActivity(activity.id);
+    expect(mocks.updateTag).toHaveBeenCalledWith(`journal:${currentUserId}:activities`);
     expect(await testDb.activity.findUniqueOrThrow({ where: { id: activity.id } })).toMatchObject({
       isArchived: true,
     });

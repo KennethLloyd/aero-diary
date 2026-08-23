@@ -1,4 +1,4 @@
-// Ambient floating Aero bubbles (ADR-0009). Sizes/positions mirror the prototype.
+// Ambient floating Aero bubbles.
 const BUBBLES = [
   { size: 60, left: '10%', duration: '18s', delay: '0s' },
   { size: 120, left: '75%', duration: '25s', delay: '-5s' },

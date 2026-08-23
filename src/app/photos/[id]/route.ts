@@ -4,9 +4,6 @@ import { DrivePhotoNotFoundError } from '@/lib/drive/store';
 import { getPhotoStore } from '@/lib/drive/server-store';
 import { photoIdSchema } from '@/lib/journal/schemas';
 
-export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
-
 type PhotoRouteContext = {
   params: Promise<{ id: string }>
 }

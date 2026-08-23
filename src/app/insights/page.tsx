@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { AeroBubbles } from '@/components/aero/AeroBubbles';
 import { AeroDock } from '@/components/aero/AeroDock';
 import { AeroTitle } from '@/components/aero/AeroTitle';
@@ -9,26 +10,34 @@ import {
   MOOD_PROGRESS_CLASS,
   summarizeInsights,
 } from '@/lib/journal/analytics';
-import { listEntriesForMonth } from '@/lib/journal/queries';
+import { getEntriesForMonthForUser } from '@/lib/journal/queries';
 import { verifySession } from '@/lib/dal';
-
-export const dynamic = 'force-dynamic';
 
 type InsightsPageProps = {
   searchParams: Promise<{ month?: string | string[] | undefined }>
 }
 
-export default async function InsightsPage({ searchParams }: InsightsPageProps) {
-  await verifySession();
-  const { month: monthParam } = await searchParams;
-  const month = getMonthFromParam(monthParam);
-  const entries = await listEntriesForMonth(month);
-  const insights = summarizeInsights(entries);
-
+export default function InsightsPage({ searchParams }: InsightsPageProps) {
   return (
     <>
       <AeroBubbles />
-      <main className="aero-page relative z-10 mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 py-6 pb-32 md:pt-10 md:pb-32">
+      <Suspense fallback={<InsightsLoading />}>
+        <InsightsContent searchParams={searchParams} />
+      </Suspense>
+      <AeroDock />
+    </>
+  );
+}
+
+async function InsightsContent({ searchParams }: InsightsPageProps) {
+  const session = await verifySession();
+  const { month: monthParam } = await searchParams;
+  const month = getMonthFromParam(monthParam);
+  const entries = await getEntriesForMonthForUser(session.userId, month);
+  const insights = summarizeInsights(entries);
+
+  return (
+    <main className="aero-page relative z-10 mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 py-6 pb-32 md:pt-10 md:pb-32">
         <header className="px-2">
           <AeroTitle>Insights</AeroTitle>
           <p className="mt-1 text-sm font-semibold text-[#2b4c73] drop-shadow">
@@ -103,8 +112,16 @@ export default async function InsightsPage({ searchParams }: InsightsPageProps) 
             </p>
           )}
         </section>
-      </main>
-      <AeroDock />
-    </>
+    </main>
+  );
+}
+
+function InsightsLoading() {
+  return (
+    <main className="aero-page relative z-10 mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 py-6 pb-32 md:pt-10 md:pb-32" aria-label="Loading insights">
+      <div className="h-12 w-40 animate-pulse rounded-xl bg-white/50" />
+      <div className="aero-glass h-64 animate-pulse p-5" />
+      <div className="aero-glass h-48 animate-pulse p-5" />
+    </main>
   );
 }

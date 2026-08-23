@@ -23,7 +23,7 @@ type AeroButtonProps = {
   | AnchorHTMLAttributes<HTMLAnchorElement>
 )
 
-// Glossy split-highlight button (ADR-0009). Renders a <button>, or a
+// Glossy split-highlight button. Renders a <button>, or a
 // <Link> when `href` is provided. The union type keeps both element
 // attribute sets valid; the casts narrow the union at each branch.
 export function AeroButton({

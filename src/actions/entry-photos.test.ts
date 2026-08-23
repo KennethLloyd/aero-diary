@@ -8,12 +8,13 @@ const mocks = vi.hoisted(() => ({
   getPhotoStore: vi.fn(),
   redirect: vi.fn(),
   revalidatePath: vi.fn(),
+  updateTag: vi.fn(),
   upload: vi.fn(),
   verifySession: vi.fn(),
 }));
 
 vi.mock('next/navigation', () => ({ redirect: mocks.redirect }));
-vi.mock('next/cache', () => ({ revalidatePath: mocks.revalidatePath }));
+vi.mock('next/cache', () => ({ revalidatePath: mocks.revalidatePath, updateTag: mocks.updateTag }));
 vi.mock('@/lib/dal', () => ({ verifySession: mocks.verifySession }));
 vi.mock('@/lib/drive/server-store', () => ({ getPhotoStore: mocks.getPhotoStore }));
 vi.mock('@/lib/db', async () => {
@@ -132,6 +133,7 @@ describe('entry photo actions', () => {
     expect(mocks.deletePhotoFile).toHaveBeenCalledWith('photos/hash.jpg');
     expect(await testDb.photo.findUnique({ where: { id: photo.id } })).toBeNull();
     expect(await testDb.entry.findUnique({ where: { id: entry.id } })).not.toBeNull();
+    expect(mocks.updateTag).toHaveBeenCalledWith(`journal:${user.id}:entry:${entry.id}`);
   });
 
   it('keeps the photo row when Drive deletion fails', async () => {
@@ -155,6 +157,7 @@ describe('entry photo actions', () => {
     const state = await deletePhoto(photo.id, undefined, new FormData());
 
     expect(state).toEqual({ error: 'Unable to delete your photo. Please try again.' });
+    expect(mocks.updateTag).not.toHaveBeenCalled();
     expect(await testDb.photo.findUnique({ where: { id: photo.id } })).not.toBeNull();
     expect(await testDb.entry.findUnique({ where: { id: entry.id } })).not.toBeNull();
   });

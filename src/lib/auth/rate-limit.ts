@@ -1,4 +1,4 @@
-// In-memory per-IP + per-email throttle with exponential backoff (ADR-0002).
+// In-memory per-IP and per-email throttle with exponential backoff.
 // Single-process SQLite server, so in-memory is sufficient. `now` injectable.
 
 export type RateLimitResult = {

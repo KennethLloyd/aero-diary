@@ -16,7 +16,7 @@ const ORB_EMOJI: Record<Mood, string> = {
   RAD: '😃',
 };
 
-// Specular glossy mood orb (ADR-0009). `mini` renders the small calendar dot.
+// Specular glossy mood orb; `mini` renders the small calendar dot.
 export function AeroOrb({
   mood,
   mini = false,

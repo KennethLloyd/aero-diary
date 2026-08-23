@@ -1,35 +1,31 @@
 @import 'tailwindcss';
 
-/* ════════════════════════════════════════════════════════════════════
-   Aero Diary — Frutiger Aero design system (ADR-0009)
-   The prototype (aero_diary.html) is the spec. This is a design-token
-   layer + aero component classes, not pixel-dusted one-offs.
-   ════════════════════════════════════════════════════════════════════ */
+/* Frutiger Aero design tokens and shared components. */
 
-/* ── Design tokens ─────────────────────────────────────────────────── */
+/* Design tokens. */
 @theme {
-  /* Humanist sans stack — matches the prototype typography */
+  /* Humanist sans stack. */
   --font-sans: 'Segoe UI', Frutiger, 'Frutiger Linotype', 'Dejavu Sans',
     'Helvetica Neue', Arial, sans-serif;
 
-  /* Sky → grass gradient stops */
+  /* Sky-to-grass gradient stops. */
   --color-aero-sky: #69a7e1;
   --color-aero-sky-light: #9bd0f5;
   --color-aero-grass: #76c77a;
   --color-aero-grass-light: #bfe8c4;
 
-  /* Ink / text */
+  /* Text colors. */
   --color-aero-ink: #0a2f5c;
   --color-aero-ink-soft: #2b4c73;
   --color-aero-body: #1a2c42;
 
-  /* Glossy button blues */
+  /* Glossy button colors. */
   --color-aero-blue: #4a9be6;
   --color-aero-blue-deep: #146cc2;
   --color-aero-blue-dark: #10427a;
 }
 
-/* ── Base ──────────────────────────────────────────────────────────── */
+/* Base styles. */
 @layer base {
   html {
     scrollbar-width: none;
@@ -42,7 +38,7 @@
 
   body {
     font-family: var(--font-sans);
-    /* Classic Aero sky and grass background */
+    /* Fixed sky-to-grass background. */
     background: linear-gradient(
       to bottom,
       #69a7e1 0%,
@@ -58,7 +54,7 @@
   }
 }
 
-/* Shared recipes (single source of truth for repeated glossy/glass values) */
+/* Shared glossy recipes. */
 :root {
   --aero-btn-gradient: linear-gradient(
     180deg,
@@ -76,7 +72,7 @@
   );
 }
 
-/* ── Floating Aero Bubbles ─────────────────────────────────────────── */
+/* Floating bubbles. */
 @keyframes float-up {
   0% {
     transform: translateY(110vh) scale(0.8);
@@ -113,7 +109,7 @@
     z-index: 0;
   }
 
-  /* ── Aero Glass Panel ─────────────────────────────────────────────── */
+  /* Glass panels. */
   .aero-glass {
     background: linear-gradient(
       135deg,
@@ -147,7 +143,7 @@
     pointer-events: none;
   }
 
-  /* ── Classic 2008 Glossy Button ───────────────────────────────────── */
+  /* Glossy buttons. */
   .aero-btn {
     display: inline-flex;
     align-items: center;
@@ -218,7 +214,7 @@
     );
   }
 
-  /* ── Inset well for inputs ────────────────────────────────────────── */
+  /* Input wells. */
   .aero-input {
     background: #ffffff;
     border: 1px solid #7a9eae;
@@ -260,7 +256,7 @@
     box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.6), 0 1px 2px rgba(0, 0, 0, 0.2);
   }
 
-  /* ── Glossy Mood Orbs (5 variants, red → cyan) ────────────────────── */
+  /* Glossy mood orbs. */
   .aero-orb {
     width: 48px;
     height: 48px;
@@ -327,7 +323,7 @@
     height: 45%;
   }
 
-  /* ── Frutiger Aero Bottom Dock ────────────────────────────────────── */
+  /* Bottom navigation dock. */
   .aero-dock {
     position: fixed;
     bottom: 24px;
@@ -372,7 +368,7 @@
     position: relative;
     transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   }
-  /* Tooltip */
+  /* Dock tooltips. */
   .dock-icon::before {
     content: attr(data-tooltip);
     position: absolute;
@@ -409,7 +405,7 @@
     transform: translateY(-4px);
   }
 
-  /* ── Pure CSS Aero Logo ───────────────────────────────────────────── */
+  /* Pure CSS Aero logo. */
   .aero-logo-orb {
     width: 120px;
     height: 120px;
@@ -455,7 +451,7 @@
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
   }
 
-  /* ── Progress Bars ────────────────────────────────────────────────── */
+  /* Progress bars. */
   .aero-progress-track {
     background: #e0e5e9;
     border: 1px solid #b3c2cc;
@@ -469,7 +465,7 @@
   .aero-progress-fill {
     height: 100%;
     border-radius: 8px;
-    /* Default rad-cyan fill; per-mood colors override via inline style/utilities */
+    /* Default rad-cyan fill. */
     background: linear-gradient(90deg, #00a4b0, #7bffff);
     box-shadow:
       inset 0 1px 2px rgba(255, 255, 255, 0.8),
@@ -490,7 +486,7 @@
     );
   }
 
-  /* ── Misc ─────────────────────────────────────────────────────────── */
+  /* Miscellaneous controls. */
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
@@ -499,7 +495,7 @@
     scrollbar-width: none;
   }
 
-  /* ── Vista-style entry deletion modal ─────────────────────────────── */
+  /* Entry deletion modal. */
   .aero-modal-backdrop {
     position: fixed;
     inset: 0;
@@ -589,7 +585,7 @@
     background: linear-gradient(to bottom, #ffffff, #e5e7eb);
   }
 
-  /* ── Vista / Windows 7-inspired photo gallery ─────────────────────── */
+  /* Photo gallery. */
   .aero-photo-card {
     border: 1px solid rgba(255, 255, 255, 0.95);
     background: linear-gradient(

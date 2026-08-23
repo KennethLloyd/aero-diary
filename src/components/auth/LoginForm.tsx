@@ -4,7 +4,7 @@ import { useActionState } from 'react';
 import { login, loginDemo, type LoginState } from '@/actions/auth';
 import { AeroButton } from '@/components/aero/AeroButton';
 
-// Aero login form (ADR-0009): email/password + configured "Try the demo".
+// Aero login form with email/password and an optional configured demo.
 // `useActionState` wires the action's returned error state into the form.
 export function LoginForm({ demoAvailable }: { demoAvailable: boolean }) {
   const [state, formAction, pending] = useActionState<LoginState, FormData>(

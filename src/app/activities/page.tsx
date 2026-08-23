@@ -1,16 +1,12 @@
+import { Suspense } from 'react';
 import { AeroBubbles } from '@/components/aero/AeroBubbles';
 import { AeroDock } from '@/components/aero/AeroDock';
 import { AeroTitle } from '@/components/aero/AeroTitle';
 import { ActivityManager } from '@/components/journal/ActivityManager';
 import { verifySession } from '@/lib/dal';
-import { listActivities } from '@/lib/journal/queries';
+import { getActivitiesForUser } from '@/lib/journal/queries';
 
-export const dynamic = 'force-dynamic';
-
-export default async function ActivitiesPage() {
-  await verifySession();
-  const activities = await listActivities();
-
+export default function ActivitiesPage() {
   return (
     <>
       <AeroBubbles />
@@ -21,9 +17,20 @@ export default async function ActivitiesPage() {
             Shape the tags that make your memories searchable.
           </p>
         </header>
-        <ActivityManager activities={activities} />
+        <Suspense fallback={<div className="aero-glass h-64 animate-pulse" aria-label="Loading activities" />}>
+          <ActivitiesContent />
+        </Suspense>
       </main>
       <AeroDock />
     </>
+  );
+}
+
+async function ActivitiesContent() {
+  const session = await verifySession();
+  const activities = await getActivitiesForUser(session.userId);
+
+  return (
+    <ActivityManager activities={activities} />
   );
 }

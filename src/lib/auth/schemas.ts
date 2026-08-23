@@ -1,7 +1,6 @@
 import { z } from 'zod';
 
-// Login input validation (ADR-0002). Format checks only — credential failures
-// return one generic message in the action (no user enumeration).
+// Login checks format only; the action returns one generic credential error.
 export const loginSchema = z.object({
   email: z
     .email({ error: 'Enter a valid email address.' })

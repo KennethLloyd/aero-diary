@@ -1,5 +1,5 @@
-// Aero Diary data model — single source of truth: docs/data-model.md.
-// Prisma 7: the datasource URL lives in prisma.config.ts (ADR-0001).
+// Aero Diary data model.
+// Prisma reads the datasource URL from prisma.config.ts.
 
 generator client {
   provider = "prisma-client"
@@ -41,11 +41,11 @@ model Session {
 
 model Entry {
   id          String    @id @default(cuid())
-  sourceId    Int?      @unique // import template id; null for new app-created entries
+  sourceId    Int?      @unique // optional external key retained for existing data
   userId      String
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   date        DateTime // stored UTC; local offset handled at the boundary
-  localOffset Int // minutes east of UTC, from the import ISO offset
+  localOffset Int // minutes east of UTC for the stored local time
   mood        Mood
   note        String
   isFavorite  Boolean   @default(false)

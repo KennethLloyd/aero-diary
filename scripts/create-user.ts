@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
-// Admin provisioning (ADR-0002): create/update a user with an argon2id hash.
-// Runs under plain Node via tsx — deliberately avoids `server-only` modules.
+// Provision or update a user with an Argon2id password hash.
+// Runs under plain Node and avoids `server-only` modules.
 //
 // Usage: pnpm create-user <email> <password> [--name "<Name>"]
 import { config } from 'dotenv';

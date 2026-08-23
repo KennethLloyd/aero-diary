@@ -31,14 +31,19 @@ describe('timeline pagination', () => {
 
     const firstPage = await listTimelinePage(testDb, user.id);
     const secondPage = await listTimelinePage(testDb, user.id, firstPage.nextCursor ?? undefined);
-    const ids = [...firstPage.entries, ...secondPage.entries].map((entry) => entry.id);
+    const thirdPage = await listTimelinePage(testDb, user.id, secondPage.nextCursor ?? undefined);
+    const ids = [...firstPage.entries, ...secondPage.entries, ...thirdPage.entries].map((entry) => entry.id);
 
     expect(firstPage.entries).toHaveLength(TIMELINE_PAGE_SIZE);
     expect(firstPage.nextCursor).toBeTruthy();
-    expect(secondPage.entries).toHaveLength(5);
-    expect(secondPage.nextCursor).toBeNull();
+    expect(secondPage.entries).toHaveLength(TIMELINE_PAGE_SIZE);
+    expect(secondPage.nextCursor).toBeTruthy();
+    expect(thirdPage.entries).toHaveLength(5);
+    expect(thirdPage.nextCursor).toBeNull();
     expect(new Set(ids).size).toBe(55);
-    expect(firstPage.entries.at(-1)?.note).toBe('Entry 6');
-    expect(secondPage.entries[0]?.note).toBe('Entry 5');
+    expect(firstPage.entries.at(-1)?.note).toBe('Entry 31');
+    expect(secondPage.entries[0]?.note).toBe('Entry 30');
+    expect(secondPage.entries.at(-1)?.note).toBe('Entry 6');
+    expect(thirdPage.entries[0]?.note).toBe('Entry 5');
   });
 });

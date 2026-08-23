@@ -1,10 +1,13 @@
 import 'server-only';
 
+import { cacheLife, cacheTag } from 'next/cache';
 import type { PrismaClient } from '@/generated/prisma/client';
 import type { Mood } from '@/generated/prisma/enums';
+import { db } from '@/lib/db';
+import { timelineCacheTag } from '@/lib/journal/cache-tags';
 import { normalizeJournalNote } from '@/lib/journal/notes';
 
-export const TIMELINE_PAGE_SIZE = 50;
+export const TIMELINE_PAGE_SIZE = 25;
 
 type TimelineDbEntry = {
   id: string
@@ -18,10 +21,11 @@ type TimelineDbEntry = {
 export type TimelineEntry = {
   id: string
   date: string
+  dateTime: string
   time: string
   mood: Mood
   note: string
-  tags: { id: string; label: string }[]
+  tags: { id: string; emoji: string; name: string }[]
 }
 
 export type TimelinePage = {
@@ -46,14 +50,26 @@ function formatEntry(entry: TimelineDbEntry): TimelineEntry {
   return {
     id: entry.id,
     date: dateFormatter.format(local),
+    dateTime: entry.date.toISOString(),
     time: timeFormatter.format(local),
     mood: entry.mood,
     note: normalizeJournalNote(entry.note),
     tags: entry.activities.map((activity) => ({
       id: activity.activityId,
-      label: `${activity.activity.emoji} ${activity.activity.name}`,
+      emoji: activity.activity.emoji,
+      name: activity.activity.name,
     })),
   };
+}
+
+export async function getCachedTimelinePage(
+  userId: string,
+  cursor?: string,
+): Promise<TimelinePage> {
+  'use cache';
+  cacheLife('journal');
+  cacheTag(timelineCacheTag(userId));
+  return listTimelinePage(db, userId, cursor);
 }
 
 export async function listTimelinePage(

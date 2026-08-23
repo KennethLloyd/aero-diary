@@ -16,7 +16,7 @@ test('demo user can create, polish, view, and delete an entry', async ({ page })
   await page.getByPlaceholder('Password').fill(demoPassword);
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page).toHaveURL(/\/timeline$/);
-  await expect(page.getByText('Aero Diary')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Aero Diary', exact: true }).first()).toBeVisible();
 
   await page.goto('/calendar');
   await expect(page.getByRole('heading', { name: 'Calendar', exact: true })).toBeVisible();

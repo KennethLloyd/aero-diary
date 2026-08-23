@@ -2,16 +2,23 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetTestDb, testDb } from '@/test/test-db';
 
 const mocks = vi.hoisted(() => ({
+  cacheLife: vi.fn(),
+  cacheTag: vi.fn(),
   verifySession: vi.fn(),
 }));
 
+vi.mock('next/cache', () => ({ cacheLife: mocks.cacheLife, cacheTag: mocks.cacheTag }));
 vi.mock('@/lib/dal', () => ({ verifySession: mocks.verifySession }));
 vi.mock('@/lib/db', async () => {
   const { testDb } = await import('@/test/test-db');
   return { db: testDb };
 });
 
-import { listActivities, listEntriesForMonth } from '@/lib/journal/queries';
+import {
+  getEntryDetailForUser,
+  listActivities,
+  listEntriesForMonth,
+} from '@/lib/journal/queries';
 
 describe('journal queries', () => {
   beforeEach(async () => {
@@ -70,6 +77,8 @@ describe('journal queries', () => {
     mocks.verifySession.mockResolvedValue({ isAuth: true, userId: user.id });
 
     const entries = await listEntriesForMonth(selectedMonth);
+    expect(mocks.cacheLife).toHaveBeenCalledWith('journal');
+    expect(mocks.cacheTag).toHaveBeenCalledWith(`journal:${user.id}:calendar`, `journal:${user.id}:insights`);
     expect(entries).toHaveLength(2);
     expect(entries).toEqual(
       expect.arrayContaining([
@@ -110,5 +119,28 @@ describe('journal queries', () => {
     await expect(listActivities()).resolves.toEqual([
       { id: expect.any(String), name: 'work', emoji: '💻' },
     ]);
+    expect(mocks.cacheLife).toHaveBeenCalledWith('journal');
+    expect(mocks.cacheTag).toHaveBeenCalledWith(`journal:${user.id}:activities`);
+  });
+
+  it('keeps cached entry details isolated by user id', async () => {
+    const user = await testDb.user.create({
+      data: { email: 'ken@example.com', passwordHash: 'x' },
+    });
+    const otherUser = await testDb.user.create({
+      data: { email: 'other@example.com', passwordHash: 'x' },
+    });
+    const entry = await testDb.entry.create({
+      data: {
+        userId: otherUser.id,
+        date: new Date('2026-08-18T10:00:00.000Z'),
+        localOffset: 480,
+        mood: 'RAD',
+        note: 'Private note.',
+      },
+    });
+
+    await expect(getEntryDetailForUser(user.id, entry.id)).resolves.toBeNull();
+    expect(mocks.cacheTag).toHaveBeenCalledWith(`journal:${user.id}:entry:${entry.id}`);
   });
 });

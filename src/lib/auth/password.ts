@@ -1,7 +1,7 @@
 import { hash, verify } from '@node-rs/argon2';
 
-// Argon2id hashing (ADR-0002), params pinned so a library default change can't
-// weaken stored hashes. Not `server-only`: shared with the create-user script.
+// Argon2id parameters stay explicit so library defaults cannot weaken hashes.
+// This module is shared with the user-provisioning script.
 const ARGON2_OPTIONS = {
   memoryCost: 19456, // 19 MiB per thread
   timeCost: 2,

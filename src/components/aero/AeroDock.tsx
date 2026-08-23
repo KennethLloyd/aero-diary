@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-// Bottom Aero dock (ADR-0009).
+// Bottom navigation for the journal screens.
 const DOCK_ITEMS = [
   { href: '/timeline', icon: '🗓️', tooltip: 'Timeline' },
   { href: '/calendar', icon: '📆', tooltip: 'Calendar' },
@@ -20,6 +20,8 @@ export function AeroDock() {
         <Link
           key={item.href}
           href={item.href}
+          aria-label={item.tooltip}
+          aria-current={pathname === item.href ? 'page' : undefined}
           data-tooltip={item.tooltip}
           className={`dock-icon ${pathname === item.href ? 'active' : ''}`}
         >
