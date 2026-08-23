@@ -1,4 +1,4 @@
-# ADR-0005: Journal polish — synchronous, ChatMock-backed
+# ADR-0005: Journal polish — synchronous, OpenAI-compatible adapter
 
 **Status:** Accepted (2026-08-21)
 
@@ -19,22 +19,15 @@ application must not depend on a model provider's SDK, CLI, or native API.
   the provider-neutral `LlmClient` interface. `llm-client-config.ts` is the
   composition root; journal business logic receives only `LlmClient` and does
   not know the adapter's wire format.
-- **Local gateway**: ChatMock is the local development gateway. It is installed
-  and authenticated outside the repository, then served at
-  `http://127.0.0.1:8000/v1` with legacy reasoning compatibility so reasoning
-  metadata is not mixed into journal text. The repository only knows the
-  OpenAI-compatible contract.
-- **Model**: `LLM_MODEL` is configured by environment. The local trial uses
-  `gpt-5.6-luna` with `LLM_REASONING_EFFORT=medium`.
+- **Model**: `LLM_MODEL` and `LLM_REASONING_EFFORT` are configured by environment.
 - **Style standard**: `User.styleStandard` is optional per-user data. A nonblank
   value overrides the concise default defined by the polish server action. The
-  real user's private standard is seeded from a private file; users without one
-  use the default and are not blocked from polishing. Future UI may let users
+  A user's style standard may be configured separately; users without one use the
+  default and are not blocked from polishing. Future UI may let users
   edit or link their own value.
 
 ## Consequences
 
 - The app can switch gateways without a code change.
 - Journal text leaves the server only through the configured gateway.
-- ChatMock login and server lifecycle are local development prerequisites, not
-  application runtime dependencies.
+- External gateway authentication and lifecycle are outside the application runtime.

@@ -10,7 +10,7 @@ import { PrismaClient } from '../src/generated/prisma/client';
 import { createUserSchema } from '../src/lib/auth/schemas';
 import { provisionUser } from '../src/lib/auth/provision-user';
 
-// Load env like prisma.config.ts: `.env.local` on dev, `.env` on OCI.
+// Load env like prisma.config.ts: `.env.local` locally or the host's env file.
 const envFile = existsSync('.env.local') ? '.env.local' : '.env';
 config({ path: envFile });
 

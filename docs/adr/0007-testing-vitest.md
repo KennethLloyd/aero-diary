@@ -1,6 +1,6 @@
 # ADR-0007: Testing — Vitest units in v1, Playwright after
 
-**Status:** Accepted (2026-08-16)
+**Status:** Accepted (2026-08-23)
 
 ## Context
 
@@ -13,9 +13,9 @@
   - lib/ logic: mood mapping (7→5), import idempotency (`sourceId` upsert, counts), Drive service (mocked HTTP), session DAL, argon2 verify.
   - Zod schemas.
 - **No component/DOM tests for async server components** in v1 (they throw by design in Vitest).
-- **Playwright E2E** (login → create entry → timeline → polish smoke) is scheduled **post-v1**, against the production build.
+- **Playwright E2E** covers the configured smoke (login → create → detail → polish → cleanup) against an operator-supplied `PLAYWRIGHT_BASE_URL`. Credentials are supplied through environment variables; fixtures contain no private journal content.
 
 ## Consequences
 
-- Fast pre-commit gate on the risky logic; the auth matrix catches the bugs that actually reach production (IDOR-shaped ones).
+- Fast pre-commit gate on the risky logic; the auth matrix catches the bugs that reach users (IDOR-shaped ones).
 - E2E scope deferred keeps v1 lean; the async-RSC boundary is respected instead of fought.

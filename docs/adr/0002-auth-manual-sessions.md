@@ -4,7 +4,7 @@
 
 ## Context
 
-Kenneth rejected Better Auth (black box: it owns the schema, the Prisma models, the flow — "I don't know how authentication works on my app"). Auth.js v5 never shipped stable (absorbed into Better Auth); Lucia is archived. The Next.js docs still document manual session management (jose / iron-session) as a sanctioned path, and the "use a library" guidance targets multi-user products with OAuth/2FA/password-resets. Aero Diary has one private account and one optional configured demo account, email+password only, tailnet-only deployment. Kenneth's #1 criterion: depth of understanding. His hard requirement: "fully secure and senior-level — the last thing I want is my journal entries getting hacked."
+The project rejected Better Auth (black box: it owns the schema, the Prisma models, the flow). Auth.js v5 never shipped stable (absorbed into Better Auth); Lucia is archived. The Next.js docs still document manual session management (jose / iron-session) as a sanctioned path, and the "use a library" guidance targets multi-user products with OAuth/2FA/password-resets. Aero Diary has one private account and one optional configured demo account, email+password only.
 
 ## Decision
 
@@ -21,7 +21,7 @@ Manual auth, every line owned:
 
 ## Consequences
 
-- Full transparency: Kenneth can read and reason about every auth path.
-- Security burden is ours — mitigated by tiny attack surface (2 users, tailnet-only, no OAuth, no third-party surface).
+- Full transparency: maintainers can read and reason about every auth path.
+- Security burden is ours — mitigated by a tiny account surface, no OAuth, and server-only secrets.
 - Password reset is a deliberate non-feature in v1 (single real user; reset = edit row via `pnpm` script).
 - Demo login ("Try the demo") creates a Session for the configured ordinary user — same credential and session path, no special casing.

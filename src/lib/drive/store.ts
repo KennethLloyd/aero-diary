@@ -27,8 +27,14 @@ export type UploadedPhoto = {
   mimeType: string
 }
 
+export type DrivePhotoResolution =
+  | { status: 'resolved'; drivePath: string; fileId: string; mimeType: string }
+  | { status: 'missing'; drivePath: string }
+  | { status: 'duplicate'; drivePath: string; fileIds: string[] }
+
 export interface PhotoStore {
   upload(file: File): Promise<UploadedPhoto>
+  resolve(drivePath: string): Promise<DrivePhotoResolution>
   download(drivePath: string, knownFileId?: string): Promise<ReadableStream<Uint8Array>>
   delete(drivePath: string, knownFileId?: string): Promise<void>
   deleteById(fileId: string): Promise<void>
@@ -48,6 +54,13 @@ export class DrivePhotoNotFoundError extends Error {
   }
 }
 
+export class DrivePhotoAmbiguousError extends Error {
+  constructor(drivePath: string) {
+    super(`Google Drive photo has duplicate filenames: ${drivePath}`);
+    this.name = 'DrivePhotoAmbiguousError';
+  }
+}
+
 function escapeDriveQueryValue(value: string) {
   return value.replaceAll('\\', '\\\\').replaceAll("'", "\\'");
 }
@@ -64,6 +77,7 @@ function queryForFolder(name: string, parentId: string) {
 function queryForFile(name: string, parentId: string) {
   return [
     `name = '${escapeDriveQueryValue(name)}'`,
+    `mimeType != '${FOLDER_MIME_TYPE}'`,
     'trashed = false',
     `'${parentId}' in parents`,
   ].join(' and ');
@@ -139,20 +153,43 @@ export function createPhotoStore(drive: DriveFilesApi, photosRoot: string): Phot
     return parentId;
   }
 
-  async function findFileId(drivePath: string) {
+  async function resolvePhoto(drivePath: string): Promise<DrivePhotoResolution> {
     const name = photoFileName(drivePath, photosRoot);
     const folderId = await getPhotosFolderId(false);
-    if (!folderId) throw new DrivePhotoNotFoundError(drivePath);
+    if (!folderId) return { status: 'missing', drivePath };
 
     const response = await drive.list({
       fields: 'files(id,name,mimeType)',
-      pageSize: 1,
+      pageSize: 1000,
       q: queryForFile(name, folderId),
       spaces: 'drive',
     });
-    const id = fileId(response.data.files?.[0]);
-    if (!id) throw new DrivePhotoNotFoundError(drivePath);
-    return id;
+    const files = response.data.files ?? [];
+    if (files.length === 0) return { status: 'missing', drivePath };
+    if (files.length > 1) {
+      return {
+        status: 'duplicate',
+        drivePath,
+        fileIds: files.map((file) => fileId(file)).filter((id): id is string => Boolean(id)),
+      };
+    }
+
+    const [file] = files;
+    const id = fileId(file);
+    if (!id) return { status: 'missing', drivePath };
+    return {
+      status: 'resolved',
+      drivePath,
+      fileId: id,
+      mimeType: file.mimeType ?? 'application/octet-stream',
+    };
+  }
+
+  async function requirePhotoId(drivePath: string): Promise<string> {
+    const resolution = await resolvePhoto(drivePath);
+    if (resolution.status === 'missing') throw new DrivePhotoNotFoundError(drivePath);
+    if (resolution.status === 'duplicate') throw new DrivePhotoAmbiguousError(drivePath);
+    return resolution.fileId;
   }
 
   return {
@@ -183,16 +220,18 @@ export function createPhotoStore(drive: DriveFilesApi, photosRoot: string): Phot
       };
     },
 
+    resolve: resolvePhoto,
+
     async download(drivePath, knownFileId) {
       const response = await drive.get(
-        { alt: 'media', fileId: knownFileId ?? await findFileId(drivePath) },
+        { alt: 'media', fileId: knownFileId ?? await requirePhotoId(drivePath) },
         { responseType: 'stream' },
       );
       return Readable.toWeb(response.data as Readable) as ReadableStream<Uint8Array>;
     },
 
     async delete(drivePath, knownFileId) {
-      await this.deleteById(knownFileId ?? await findFileId(drivePath));
+      await this.deleteById(knownFileId ?? await requirePhotoId(drivePath));
     },
 
     async deleteById(uploadedFileId) {

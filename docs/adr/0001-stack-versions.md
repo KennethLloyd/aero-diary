@@ -4,7 +4,7 @@
 
 ## Context
 
-Kenneth's standing requirement: use the latest stable packages, verified against the web — never assume a version is current. Verified live on 2026-08-16 via npm registry API + official docs (full citations in `vault/aero-diary-stack-verification-2026-08-16.md`).
+Use the latest stable packages, verified against the web — never assume a version is current. Verified live on 2026-08-16 via npm registry API + official docs (full citations in `vault/aero-diary-stack-verification-2026-08-16.md`).
 
 ## Decision
 
@@ -18,7 +18,7 @@ Kenneth's standing requirement: use the latest stable packages, verified against
 | tailwindcss | 4.3.3 | latest |
 | vitest | latest | unit tests (ADR-0007) |
 | jose | 6.2.9 | session cookie signing (ADR-0002) |
-| pnpm | match Kenneth's Mac (11.17) | server-side tooling version-matched to his Mac |
+| pnpm | 11.17 | server-side tooling version |
 
 Known Prisma 7 + Next 16 Turbopack gotchas (from live sources): the new `prisma-client` generator can break SSR module resolution; `new PrismaClient()` requires an adapter; datasource URLs move to `prisma.config.ts`. **Spike at scaffold time** to verify the generator + adapter combo on 7.9.1 before committing the pattern.
 
