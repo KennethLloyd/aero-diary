@@ -11,8 +11,8 @@ const timelineCards = (page: Page) => page.locator('main a[href^="/timeline/"]:n
 
 async function signIn(page: Page) {
   await page.goto('/');
-  await page.getByPlaceholder('Email').fill(demoEmail!);
-  await page.getByPlaceholder('Password').fill(demoPassword!);
+  await page.getByLabel('Email').fill(demoEmail!);
+  await page.getByLabel('Password').fill(demoPassword!);
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page).toHaveURL(/\/timeline$/);
 }
@@ -83,6 +83,34 @@ test.describe('timeline polish mobile', () => {
         new Set(pills.map((pill) => Math.round(pill.getBoundingClientRect().top))).size,
       );
       expect(tops).toBeLessThanOrEqual(2);
+    }
+
+    for (const width of [320, 360, 393, 412]) {
+      await page.setViewportSize({ width, height: 915 });
+      await page.goto('/timeline/new');
+      const form = page.locator('form.aero-entry-form');
+      await expect(form).toBeVisible();
+      await expect(page.getByRole('button', { name: /Select .* mood/ })).toHaveCount(5);
+
+      const metrics = await page.evaluate(() => {
+        const action = document.querySelector('.aero-action-bar')?.getBoundingClientRect();
+        const dock = document.querySelector('.aero-dock')?.getBoundingClientRect();
+        const moodButtons = [...document.querySelectorAll('section[aria-labelledby="mood-heading"] button')]
+          .map((button) => button.getBoundingClientRect());
+        return {
+          documentWidth: document.documentElement.scrollWidth,
+          viewportWidth: window.innerWidth,
+          actionBottom: action?.bottom ?? 0,
+          dockTop: dock?.top ?? window.innerHeight,
+          smallestMoodButton: Math.min(...moodButtons.map((button) => Math.min(button.width, button.height))),
+        };
+      });
+
+      expect(metrics.documentWidth).toBe(metrics.viewportWidth);
+      expect(metrics.smallestMoodButton).toBeGreaterThanOrEqual(44);
+      expect(metrics.actionBottom).toBeLessThanOrEqual(metrics.dockTop);
+      await page.getByRole('heading', { name: 'Activities', exact: true }).scrollIntoViewIfNeeded();
+      await expect(page.getByLabel('Entry actions')).toBeVisible();
     }
   });
 });

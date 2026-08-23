@@ -18,7 +18,7 @@ function DayCell({ day }: { day: CalendarDay }) {
         {day.day}
       </span>
       {day.moods.length > 0 ? (
-        <div className="absolute bottom-1 right-1 flex max-w-[calc(100%-0.5rem)] gap-0.5">
+        <div className="absolute bottom-1 right-1 flex max-w-[calc(100%-0.5rem)] gap-0.5 overflow-hidden">
           {day.moods.map((mood, index) => (
             <AeroOrb key={`${day.date}-${index}`} mood={mood} mini />
           ))}
@@ -35,15 +35,43 @@ function DayCell({ day }: { day: CalendarDay }) {
     );
   }
 
+  if (day.entryIds.length === 1) {
+    return (
+      <Link
+        href={`/timeline/${day.entryIds[0]}`}
+        className={`${dayClassName(day)} cursor-pointer`}
+        aria-current={day.isToday ? 'date' : undefined}
+        aria-label={`Open journal entry for ${day.date}`}
+      >
+        {content}
+      </Link>
+    );
+  }
+
   return (
-    <Link
-      href={`/timeline/${day.entryIds[0]}`}
-      className={`${dayClassName(day)} cursor-pointer`}
-      aria-current={day.isToday ? 'date' : undefined}
-      aria-label={`Open journal entry for ${day.date}`}
-    >
-      {content}
-    </Link>
+    <details className={`${dayClassName(day)} group`}>
+      <summary
+        className="block h-full cursor-pointer list-none rounded-lg focus:outline-none"
+        aria-label={`${day.entryIds.length} entries for ${day.date}`}
+      >
+        {content}
+      </summary>
+      <div className="absolute inset-x-1 top-full z-30 mt-1 min-w-36 rounded-lg border border-white bg-white/95 p-2 text-left shadow-xl">
+        <p className="mb-1 text-[11px] font-bold uppercase text-[#2b4c73]">{day.entryIds.length} entries</p>
+        <ul className="space-y-1">
+          {day.entryIds.map((entryId, index) => (
+            <li key={entryId}>
+              <Link
+                href={`/timeline/${entryId}`}
+                className="aero-link-control w-full justify-start px-2 py-1 text-xs font-bold text-[#144e9d]"
+              >
+                Entry {index + 1} · {day.moods[index] ?? day.moods[0]}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </details>
   );
 }
 

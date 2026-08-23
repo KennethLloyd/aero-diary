@@ -1,9 +1,16 @@
 'use server';
 
 import { verifySession } from '@/lib/dal';
-import { getCachedTimelinePage, type TimelinePage } from '@/lib/journal/timeline';
+import {
+  getCachedTimelinePage,
+  type TimelineFilter,
+  type TimelinePage,
+} from '@/lib/journal/timeline';
 
-export async function loadTimelinePage(cursor?: string): Promise<TimelinePage> {
+export async function loadTimelinePage(
+  cursor?: string,
+  filter: TimelineFilter = {},
+): Promise<TimelinePage> {
   const session = await verifySession();
-  return getCachedTimelinePage(session.userId, cursor);
+  return getCachedTimelinePage(session.userId, cursor, filter);
 }

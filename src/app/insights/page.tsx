@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Suspense } from 'react';
 import { AeroBubbles } from '@/components/aero/AeroBubbles';
 import { AeroDock } from '@/components/aero/AeroDock';
@@ -5,6 +6,7 @@ import { AeroTitle } from '@/components/aero/AeroTitle';
 import { MonthNavigator } from '@/components/journal/MonthNavigator';
 import {
   getMonthFromParam,
+  getPreviousMonth,
   MOOD_EMOJI,
   MOOD_LABEL,
   MOOD_PROGRESS_CLASS,
@@ -33,11 +35,16 @@ async function InsightsContent({ searchParams }: InsightsPageProps) {
   const session = await verifySession();
   const { month: monthParam } = await searchParams;
   const month = getMonthFromParam(monthParam);
-  const entries = await getEntriesForMonthForUser(session.userId, month);
+  const [entries, previousEntries] = await Promise.all([
+    getEntriesForMonthForUser(session.userId, month),
+    getEntriesForMonthForUser(session.userId, getPreviousMonth(month)),
+  ]);
   const insights = summarizeInsights(entries);
+  const mostCommonMood = insights.moods.reduce((best, mood) => mood.count > best.count ? mood : best, insights.moods[0]);
+  const entryDelta = entries.length - previousEntries.length;
 
   return (
-    <main className="aero-page relative z-10 mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 py-6 pb-32 md:pt-10 md:pb-32">
+    <main className="aero-page relative z-10 mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 py-6 md:pt-10">
         <header className="px-2">
           <AeroTitle>Insights</AeroTitle>
           <p className="mt-1 text-sm font-semibold text-[#2b4c73] drop-shadow">
@@ -49,6 +56,24 @@ async function InsightsContent({ searchParams }: InsightsPageProps) {
           <MonthNavigator basePath="/insights" month={month} />
         </section>
 
+        <section className="aero-glass grid gap-3 p-4 sm:grid-cols-2" aria-label="Monthly insight summary">
+          <div>
+            <p className="text-3xl font-bold text-[#0a2f5c]">{entries.length}</p>
+            <p className="text-sm font-semibold text-[#2b4c73]">entries this month</p>
+          </div>
+          <div className="rounded-lg border border-white/60 bg-white/35 p-3">
+            <p className="text-sm font-bold text-[#0a2f5c]">
+              {entryDelta === 0 ? 'No change' : `${entryDelta > 0 ? '+' : ''}${entryDelta} entries`}
+            </p>
+            <p className="text-xs font-semibold text-[#2b4c73]">compared with last month</p>
+          </div>
+          {entries.length > 0 && mostCommonMood ? (
+            <p className="sm:col-span-2 text-sm font-semibold text-[#2b4c73]">
+              Your most common mood was <strong className="text-[#0a2f5c]">{MOOD_LABEL[mostCommonMood.mood]}</strong> ({mostCommonMood.count} {mostCommonMood.count === 1 ? 'entry' : 'entries'}).
+            </p>
+          ) : null}
+        </section>
+
         <section className="aero-glass space-y-4 p-5" aria-labelledby="mood-distribution-heading">
           <h2 id="mood-distribution-heading" className="border-b border-white/40 pb-2 text-lg font-bold text-[#0a2f5c] drop-shadow-sm">
             Mood Distribution
@@ -56,11 +81,14 @@ async function InsightsContent({ searchParams }: InsightsPageProps) {
           <div className="space-y-3">
             {insights.moods.map(({ mood, count, percentage }) => (
               <div key={mood}>
-                <div className="mb-1.5 flex justify-between text-sm font-bold text-[#2b4c73]">
-                  <span className="drop-shadow-sm">
+                <div className="mb-1.5 flex items-center justify-between gap-3 text-sm font-bold text-[#2b4c73]">
+                  <Link
+                    href={`/timeline?mood=${mood}`}
+                    className="aero-link-control -ml-3 min-w-0 justify-start px-3 py-1 drop-shadow-sm hover:underline"
+                  >
                     {MOOD_LABEL[mood]} ({MOOD_EMOJI[mood]})
-                  </span>
-                  <span aria-label={`${count} entries`}>{percentage}%</span>
+                  </Link>
+                  <span className="shrink-0" aria-label={`${count} entries`}>{count} · {percentage}%</span>
                 </div>
                 <div
                   className="aero-progress-track"
@@ -79,9 +107,10 @@ async function InsightsContent({ searchParams }: InsightsPageProps) {
             ))}
           </div>
           {entries.length === 0 ? (
-            <p className="border-t border-white/40 pt-3 text-sm font-semibold text-[#2b4c73]">
-              No entries logged for this month yet.
-            </p>
+            <div className="border-t border-white/40 pt-3">
+              <p className="text-sm font-semibold text-[#2b4c73]">No entries logged for this month yet.</p>
+              <Link href="/timeline/new" className="aero-btn mt-3">Write an entry</Link>
+            </div>
           ) : null}
         </section>
 
@@ -92,9 +121,11 @@ async function InsightsContent({ searchParams }: InsightsPageProps) {
           {insights.activities.length > 0 ? (
             <div className="grid gap-3 sm:grid-cols-2">
               {insights.activities.map((activity) => (
-                <article
+                <Link
+                  href={`/timeline?activity=${activity.activityId}`}
                   key={activity.activityId}
-                  className="flex min-w-[140px] flex-1 items-center gap-3 rounded-lg border border-white/60 bg-white/40 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.8),_0_2px_4px_rgba(0,0,0,0.05)]"
+                  className="flex min-w-[140px] flex-1 items-center gap-3 rounded-lg border border-white/60 bg-white/40 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.8),_0_2px_4px_rgba(0,0,0,0.05)] hover:bg-white/65"
+                  aria-label={`View timeline entries tagged ${activity.name}`}
                 >
                   <div className="text-3xl drop-shadow-md" aria-hidden="true">{activity.emoji}</div>
                   <div>
@@ -103,13 +134,14 @@ async function InsightsContent({ searchParams }: InsightsPageProps) {
                       {activity.count} {activity.count === 1 ? 'entry' : 'entries'}
                     </p>
                   </div>
-                </article>
+                </Link>
               ))}
             </div>
           ) : (
-            <p className="text-sm font-semibold text-[#2b4c73]">
-              Activities will appear here as you tag your entries.
-            </p>
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-[#2b4c73]">Activities will appear here as you tag your entries.</p>
+              <Link href="/timeline/new" className="aero-btn">Write an entry</Link>
+            </div>
           )}
         </section>
     </main>
@@ -118,8 +150,8 @@ async function InsightsContent({ searchParams }: InsightsPageProps) {
 
 function InsightsLoading() {
   return (
-    <main className="aero-page relative z-10 mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 py-6 pb-32 md:pt-10 md:pb-32" aria-label="Loading insights">
-      <div className="h-12 w-40 animate-pulse rounded-xl bg-white/50" />
+    <main className="aero-page relative z-10 mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 py-6 md:pt-10" aria-label="Loading insights">
+      <p className="text-sm font-semibold text-[#2b4c73]">Loading insights…</p>
       <div className="aero-glass h-64 animate-pulse p-5" />
       <div className="aero-glass h-48 animate-pulse p-5" />
     </main>

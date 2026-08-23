@@ -15,22 +15,14 @@ export function LoginForm({ demoAvailable }: { demoAvailable: boolean }) {
   return (
     <>
       <form action={formAction} className="flex w-full flex-col gap-3">
-        <input
-          type="email"
-          name="email"
-          className="aero-input w-full"
-          placeholder="Email"
-          autoComplete="email"
-          required
-        />
-        <input
-          type="password"
-          name="password"
-          className="aero-input w-full"
-          placeholder="Password"
-          autoComplete="current-password"
-          required
-        />
+        <div>
+          <label htmlFor="login-email" className="mb-1 block text-sm font-bold text-[#0a2f5c]">Email</label>
+          <input id="login-email" type="email" name="email" className="aero-input w-full" placeholder="you@example.com" autoComplete="email" required />
+        </div>
+        <div>
+          <label htmlFor="login-password" className="mb-1 block text-sm font-bold text-[#0a2f5c]">Password</label>
+          <input id="login-password" type="password" name="password" className="aero-input w-full" placeholder="Your password" autoComplete="current-password" required />
+        </div>
         {state?.error ? (
           <p
             role="alert"

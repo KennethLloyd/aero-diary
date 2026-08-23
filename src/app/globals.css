@@ -56,6 +56,14 @@
 
 /* Shared glossy recipes. */
 :root {
+  --aero-control-min: 44px;
+  --aero-focus-ring: 0 0 0 4px rgba(20, 108, 194, 0.42);
+  --aero-dock-height: 70px;
+  --aero-dock-gap: 14px;
+  --aero-page-bottom: calc(var(--aero-dock-height) + var(--aero-dock-gap) + env(safe-area-inset-bottom));
+  --aero-surface-strong: rgba(255, 255, 255, 0.72);
+  --aero-surface-soft: rgba(255, 255, 255, 0.42);
+  --aero-ink-muted: #2b4c73;
   --aero-btn-gradient: linear-gradient(
     180deg,
     #93cefc 0%,
@@ -157,6 +165,8 @@
     text-shadow: 0 -1px 1px rgba(0, 0, 0, 0.6);
     border-radius: 20px;
     padding: 6px 16px;
+    min-height: var(--aero-control-min);
+    min-width: var(--aero-control-min);
     font-weight: bold;
     transition: all 0.1s;
     cursor: pointer;
@@ -224,6 +234,7 @@
     border-radius: 6px;
     color: #333;
     padding: 8px 12px;
+    min-height: var(--aero-control-min);
     transition: all 0.2s;
   }
   .aero-input:focus {
@@ -243,7 +254,8 @@
     cursor: pointer;
     font-size: 0.875rem;
     font-weight: 600;
-    padding: 0.3rem 0.75rem;
+    min-height: var(--aero-control-min);
+    padding: 0.45rem 0.75rem;
     transition: all 0.1s;
   }
   .activity-chip:hover {
@@ -278,6 +290,11 @@
   }
   .aero-orb:hover {
     transform: scale(1.1);
+  }
+  .aero-mood-orb {
+    width: clamp(40px, 13vw, 48px);
+    height: clamp(40px, 13vw, 48px);
+    font-size: clamp(19px, 6vw, 24px);
   }
   .aero-orb::after {
     content: '';
@@ -326,12 +343,13 @@
   /* Bottom navigation dock. */
   .aero-dock {
     position: fixed;
-    bottom: 24px;
+    bottom: max(12px, env(safe-area-inset-bottom));
     left: 50%;
     transform: translateX(-50%);
     display: flex;
-    gap: 12px;
-    padding: 10px 20px;
+    gap: 10px;
+    min-height: var(--aero-dock-height);
+    padding: 8px 14px;
     background: linear-gradient(
       to bottom,
       rgba(255, 255, 255, 0.7) 0%,
@@ -350,8 +368,8 @@
   }
 
   .dock-icon {
-    width: 48px;
-    height: 48px;
+    width: var(--aero-control-min);
+    height: var(--aero-control-min);
     border-radius: 50%;
     background: linear-gradient(
       180deg,
@@ -540,8 +558,8 @@
   }
   .aero-modal-close {
     display: flex;
-    width: 1.5rem;
-    height: 1.25rem;
+    width: var(--aero-control-min);
+    height: var(--aero-control-min);
     align-items: center;
     justify-content: center;
     border: 1px solid #a31b1b;
@@ -575,6 +593,7 @@
     border: 1px solid #9ca3af;
     border-radius: 0.25rem;
     background: linear-gradient(to bottom, #f3f4f6, #d1d5db);
+    min-height: var(--aero-control-min);
     padding: 0.375rem 1rem;
     color: #1f2937;
     font-size: 0.875rem;
@@ -667,10 +686,178 @@
       0 2px 4px rgba(0, 44, 91, 0.3),
       inset 0 1px 0 rgba(255, 255, 255, 0.75);
     transition: filter 0.2s, transform 0.2s;
+    min-height: var(--aero-control-min);
   }
   .aero-photo-nav:hover:not(:disabled) {
     filter: brightness(1.08);
     transform: translateY(-1px);
   }
 
+  .aero-page {
+    scroll-padding-bottom: var(--aero-page-bottom);
+  }
+
+  .aero-link-control {
+    display: inline-flex;
+    min-height: var(--aero-control-min);
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.45rem 0.75rem;
+  }
+
+  :where(a, button, input, textarea, select):focus-visible {
+    outline: none;
+    box-shadow: var(--aero-focus-ring);
+  }
+
+  :where(a, button, input, textarea, select) {
+    scroll-margin-bottom: var(--aero-page-bottom);
+  }
+
+  .aero-action-bar {
+    position: fixed;
+    left: 0.5rem;
+    right: 0.5rem;
+    z-index: 20;
+    bottom: calc(var(--aero-dock-height) + var(--aero-dock-gap) + env(safe-area-inset-bottom));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 0 auto;
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    border-radius: 1rem;
+    background: rgba(240, 251, 255, 0.94);
+    padding: 0.5rem;
+    box-shadow: 0 8px 20px rgba(0, 44, 91, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+
+  .timeline-entry-layout {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 1rem;
+  }
+
+  .timeline-entry-meta {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding-top: 0.25rem;
+  }
+
+  .timeline-entry-date-group {
+    min-width: 0;
+    text-align: center;
+  }
+
+  .timeline-entry-body {
+    min-width: 0;
+  }
+
+  .photo-media-loading {
+    background: linear-gradient(135deg, rgba(155, 208, 245, 0.65), rgba(191, 232, 196, 0.72));
+  }
+
+  .photo-media-fallback {
+    display: flex;
+    min-height: 100%;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(203, 231, 247, 0.92), rgba(220, 244, 223, 0.92));
+    color: var(--aero-ink-muted);
+    text-align: center;
+  }
+
+  .recovery-state {
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    background: var(--aero-surface-soft);
+  }
+
+}
+
+@media (max-width: 639px) {
+
+  .aero-dock {
+    gap: 8px;
+    padding-inline: 10px;
+  }
+
+  .timeline-entry-layout {
+    display: block;
+  }
+
+  .timeline-entry-meta {
+    flex-direction: row;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.55);
+    padding: 0 0 0.75rem;
+  }
+
+  .timeline-entry-date-group {
+    flex: 1;
+    text-align: left;
+  }
+
+  .timeline-entry-date-group time {
+    display: block;
+  }
+
+  .timeline-entry-body {
+    padding-top: 0.75rem;
+  }
+}
+
+@media (max-width: 359px) {
+  .aero-dock {
+    gap: 4px;
+    padding-inline: 6px;
+  }
+
+  .aero-mood-orb {
+    width: 40px;
+    height: 40px;
+    font-size: 19px;
+  }
+}
+
+@media (min-width: 640px) {
+  .aero-action-bar {
+    display: none;
+  }
+}
+
+@layer utilities {
+  .aero-page {
+    padding-bottom: var(--aero-page-bottom);
+  }
+
+  .aero-entry-form {
+    padding-bottom: var(--aero-page-bottom);
+  }
+}
+
+@media (max-width: 639px) {
+  .aero-entry-form {
+    padding-bottom: calc(var(--aero-page-bottom) + 4.5rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .bubble {
+    opacity: 0.35;
+  }
 }

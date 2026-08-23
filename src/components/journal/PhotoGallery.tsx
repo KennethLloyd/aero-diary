@@ -1,24 +1,87 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect, useRef, useState, type MouseEvent } from 'react';
+import { useEffect, useRef, useState, type MouseEvent, type RefObject } from 'react';
 import { DeletePhotoButton } from '@/components/journal/DeletePhotoButton';
 
 export type PhotoGalleryPhoto = {
   id: string
 }
 
-export function PhotoGallery({ photos }: { photos: PhotoGalleryPhoto[] }) {
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const activeIndexRef = useRef(activeIndex);
-  const photosRef = useRef(photos);
-  const viewerOpen = activeIndex !== null;
+const FOCUSABLE = 'button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
 
+function PhotoMedia({
+  photo,
+  alt,
+  sizes,
+  className,
+  priority = false,
+  containerClassName = '',
+  retryable = true,
+}: {
+  photo: PhotoGalleryPhoto
+  alt: string
+  sizes: string
+  className: string
+  priority?: boolean
+  containerClassName?: string
+  retryable?: boolean
+}) {
+  const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
+  const [retryCount, setRetryCount] = useState(0);
+
+  return (
+    <div className={`relative h-full w-full ${containerClassName}`}>
+      {status === 'loading' ? (
+        <div className="photo-media-loading absolute inset-0 flex items-center justify-center text-xs font-semibold text-[#2b4c73]" role="status">
+          Loading photo…
+        </div>
+      ) : null}
+      {status === 'error' ? (
+        <div className="photo-media-fallback absolute inset-0 flex-col gap-2 p-4" role="status">
+          <span className="text-2xl" aria-hidden="true">🖼️</span>
+          <span className="text-sm font-bold">Photo unavailable</span>
+          {retryable ? (
+            <button
+              type="button"
+              className="aero-link-control text-xs font-bold text-[#144e9d] underline"
+              onClick={() => {
+                setStatus('loading');
+                setRetryCount((count) => count + 1);
+              }}
+            >
+              Try again
+            </button>
+          ) : <span className="text-xs font-semibold">Open to retry</span>}
+        </div>
+      ) : null}
+      <Image
+        src={`/photos/${photo.id}?retry=${retryCount}`}
+        alt={alt}
+        fill
+        unoptimized
+        sizes={sizes}
+        priority={priority}
+        className={`${className} ${status === 'error' ? 'invisible' : ''}`}
+        onLoad={() => setStatus('loaded')}
+        onError={() => setStatus('error')}
+      />
+    </div>
+  );
+}
+
+function usePhotoViewerFocus(
+  viewerOpen: boolean,
+  dialogRef: RefObject<HTMLElement | null>,
+  close: () => void,
+  activeIndexRef: RefObject<number | null>,
+  photosRef: RefObject<PhotoGalleryPhoto[]>,
+  setActiveIndex: (update: number | ((current: number | null) => number | null)) => void,
+) {
+  const closeRef = useRef(close);
   useEffect(() => {
-    activeIndexRef.current = activeIndex;
-    photosRef.current = photos;
-  }, [activeIndex, photos]);
+    closeRef.current = close;
+  }, [close]);
 
   useEffect(() => {
     if (!viewerOpen) return;
@@ -27,16 +90,32 @@ export function PhotoGallery({ photos }: { photos: PhotoGalleryPhoto[] }) {
       ? document.activeElement
       : null;
     const previousBodyOverflow = document.body.style.overflow;
+    const dialog = dialogRef.current;
+    document.body.style.overflow = 'hidden';
+    dialog?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
 
     function handleKeyDown(event: KeyboardEvent) {
       const currentIndex = activeIndexRef.current;
       if (event.key === 'Escape') {
         event.preventDefault();
-        setActiveIndex(null);
+        closeRef.current();
         return;
       }
+      if (event.key === 'Tab' && dialog) {
+        const focusable = [...dialog.querySelectorAll<HTMLElement>(FOCUSABLE)];
+        const first = focusable[0];
+        const last = focusable.at(-1);
+        if (first && last) {
+          if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+          }
+        }
+      }
       if (currentIndex === null || photosRef.current.length < 2) return;
-
       if (event.key === 'ArrowLeft') {
         event.preventDefault();
         setActiveIndex((currentIndex - 1 + photosRef.current.length) % photosRef.current.length);
@@ -48,25 +127,37 @@ export function PhotoGallery({ photos }: { photos: PhotoGalleryPhoto[] }) {
     }
 
     document.addEventListener('keydown', handleKeyDown);
-    document.body.style.overflow = 'hidden';
-    closeButtonRef.current?.focus();
-
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = previousBodyOverflow;
-      previouslyFocused?.focus();
+      if (previouslyFocused?.isConnected) previouslyFocused.focus();
     };
-  }, [viewerOpen]);
+  }, [activeIndexRef, dialogRef, photosRef, setActiveIndex, viewerOpen]);
+}
+
+export function PhotoGallery({ photos }: { photos: PhotoGalleryPhoto[] }) {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const dialogRef = useRef<HTMLElement>(null);
+  const activeIndexRef = useRef(activeIndex);
+  const photosRef = useRef(photos);
+  const viewerOpen = activeIndex !== null;
+
+  useEffect(() => {
+    activeIndexRef.current = activeIndex;
+    photosRef.current = photos;
+  }, [activeIndex, photos]);
+
+  function closeViewer() {
+    setActiveIndex(null);
+  }
+
+  usePhotoViewerFocus(viewerOpen, dialogRef, closeViewer, activeIndexRef, photosRef, setActiveIndex);
 
   function changePhoto(direction: -1 | 1) {
     setActiveIndex((currentIndex) => {
       if (currentIndex === null || photos.length < 2) return currentIndex;
       return (currentIndex + direction + photos.length) % photos.length;
     });
-  }
-
-  function closeViewer() {
-    setActiveIndex(null);
   }
 
   function handleBackdropClick(event: MouseEvent<HTMLDivElement>) {
@@ -79,30 +170,21 @@ export function PhotoGallery({ photos }: { photos: PhotoGalleryPhoto[] }) {
 
   return (
     <>
-      <div
-        className="grid grid-cols-2 gap-2 sm:grid-cols-4"
-        aria-label="Entry photos"
-        role="list"
-      >
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Entry photos" role="list">
         {photos.map((photo, index) => (
-          <figure
-            key={photo.id}
-            className="aero-photo-card group relative aspect-square rounded-xl"
-            role="listitem"
-          >
+          <figure key={photo.id} className="aero-photo-card group relative aspect-square rounded-xl" role="listitem">
             <button
               type="button"
-              className="aero-photo-thumb relative z-0 block h-full w-full cursor-zoom-in overflow-hidden rounded-xl focus:outline-none focus-visible:ring-4 focus-visible:ring-[#146cc2]/70"
+              className="aero-photo-thumb relative z-0 block h-full w-full cursor-zoom-in overflow-hidden rounded-xl focus:outline-none"
               aria-label={`View photo ${index + 1}`}
               onClick={() => setActiveIndex(index)}
             >
-              <Image
-                src={`/photos/${photo.id}`}
+              <PhotoMedia
+                photo={photo}
                 alt={`Photo ${index + 1} from this entry`}
-                fill
-                unoptimized
                 sizes="(max-width: 639px) 50vw, 25vw"
                 className="object-cover transition duration-200 group-hover:scale-105"
+                retryable={false}
               />
             </button>
             <DeletePhotoButton photoId={photo.id} />
@@ -117,6 +199,7 @@ export function PhotoGallery({ photos }: { photos: PhotoGalleryPhoto[] }) {
           onClick={handleBackdropClick}
         >
           <section
+            ref={dialogRef}
             className="aero-photo-viewer flex max-h-[calc(100vh-1.5rem)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl sm:max-h-[calc(100vh-3rem)]"
             role="dialog"
             aria-modal="true"
@@ -127,9 +210,8 @@ export function PhotoGallery({ photos }: { photos: PhotoGalleryPhoto[] }) {
                 Photo {activeIndex + 1} of {photos.length}
               </h2>
               <button
-                ref={closeButtonRef}
                 type="button"
-                className="aero-photo-viewer-close flex h-10 w-10 items-center justify-center rounded-full text-2xl font-bold leading-none text-white focus:outline-none focus-visible:ring-4 focus-visible:ring-red-300"
+                className="aero-photo-viewer-close flex h-11 w-11 items-center justify-center rounded-full text-2xl font-bold leading-none text-white focus:outline-none"
                 aria-label="Close photo viewer"
                 onClick={closeViewer}
               >
@@ -139,11 +221,9 @@ export function PhotoGallery({ photos }: { photos: PhotoGalleryPhoto[] }) {
 
             <div className="aero-photo-viewer-stage relative flex min-h-0 items-center justify-center px-2 py-3 sm:px-6 sm:py-5">
               <div className="relative h-[min(70vh,75vw)] min-h-[220px] w-full">
-                <Image
-                  src={`/photos/${activePhoto.id}`}
+                <PhotoMedia
+                  photo={activePhoto}
                   alt={`Photo ${activeIndex + 1} from this entry, enlarged`}
-                  fill
-                  unoptimized
                   sizes="(max-width: 639px) 100vw, 80vw"
                   className="object-contain"
                   priority

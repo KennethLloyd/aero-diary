@@ -46,4 +46,15 @@ describe('PhotoGallery', () => {
 
     expect(container).toBeEmptyDOMElement();
   });
+
+  it('replaces a missing image with a deliberate fallback and retry control', () => {
+    render(<PhotoGallery photos={[{ id: 'missing-photo' }]} />);
+    const viewButtons = screen.getAllByRole('button', { name: 'View photo 1' });
+    fireEvent.click(viewButtons.at(-1)!);
+    const images = document.querySelectorAll('img');
+    fireEvent.error(images.item(images.length - 1)!);
+
+    expect(screen.getAllByRole('status').find((status) => status.textContent?.includes('Photo unavailable'))).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+  });
 });

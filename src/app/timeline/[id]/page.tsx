@@ -67,13 +67,13 @@ async function EntryDetailContent({ params }: EntryDetailPageProps) {
   const paragraphs = splitJournalNoteParagraphs(entry.note);
 
   return (
-    <main className="aero-page relative z-10 mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-6 pb-32 md:pt-10 md:pb-32">
+    <main className="aero-page relative z-10 mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-6 md:pt-10">
         <header className="mb-2 flex items-center justify-between px-2">
           <EntryBackButton />
           <div className="flex items-center gap-3">
             <Link
               href={`/timeline/${entry.id}/edit`}
-              className="text-sm font-bold text-[#144e9d] drop-shadow-md hover:text-[#0a2f5c]"
+              className="aero-link-control font-bold text-[#144e9d] drop-shadow-md hover:text-[#0a2f5c]"
             >
               Edit
             </Link>

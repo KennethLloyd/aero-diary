@@ -12,8 +12,8 @@ test('demo user can create, polish, view, and delete an entry', async ({ page })
   const marker = `Automated smoke entry ${Date.now()}`;
 
   await page.goto('/');
-  await page.getByPlaceholder('Email').fill(demoEmail);
-  await page.getByPlaceholder('Password').fill(demoPassword);
+  await page.getByLabel('Email').fill(demoEmail);
+  await page.getByLabel('Password').fill(demoPassword);
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page).toHaveURL(/\/timeline$/);
   await expect(page.getByRole('heading', { name: 'Aero Diary', exact: true }).first()).toBeVisible();
@@ -24,14 +24,14 @@ test('demo user can create, polish, view, and delete an entry', async ({ page })
   await page.goto('/calendar');
   await expect(page.getByRole('heading', { name: 'Calendar', exact: true })).toBeVisible();
   await page.goto('/insights');
-  await expect(page.getByText('Insights')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Insights', exact: true })).toBeVisible();
 
   try {
     await page.goto('/timeline/new');
     await page.getByRole('button', { name: 'Select Rad mood' }).click();
     await page.getByLabel('Note').fill(marker);
     await page.getByRole('button', { name: 'Polish ✨' }).click();
-    await expect(page.getByRole('button', { name: 'Show original' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Show original' })).toBeVisible({ timeout: 30_000 });
     await page.getByRole('button', { name: 'Save' }).click();
 
     await expect(page).toHaveURL(/\/timeline$/);

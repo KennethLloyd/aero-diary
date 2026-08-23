@@ -6,6 +6,7 @@ import type { Mood } from '@/generated/prisma/enums';
 import { db } from '@/lib/db';
 import { timelineCacheTag } from '@/lib/journal/cache-tags';
 import { normalizeJournalNote } from '@/lib/journal/notes';
+import { timelineMoodSchema } from '@/lib/journal/schemas';
 
 export const TIMELINE_PAGE_SIZE = 25;
 
@@ -31,6 +32,25 @@ export type TimelineEntry = {
 export type TimelinePage = {
   entries: TimelineEntry[]
   nextCursor: string | null
+}
+
+export type TimelineFilter = {
+  mood?: Mood
+  activityId?: string
+}
+
+export function parseTimelineFilter(
+  params: { mood?: string | string[]; activity?: string | string[] },
+): TimelineFilter {
+  const moodValue = Array.isArray(params.mood) ? params.mood[0] : params.mood;
+  const activityValue = Array.isArray(params.activity) ? params.activity[0] : params.activity;
+  const mood = timelineMoodSchema.safeParse(moodValue);
+  const activityId = activityValue?.trim().slice(0, 100);
+
+  return {
+    ...(mood.success ? { mood: mood.data } : {}),
+    ...(activityId ? { activityId } : {}),
+  };
 }
 
 function formatEntry(entry: TimelineDbEntry): TimelineEntry {
@@ -65,17 +85,19 @@ function formatEntry(entry: TimelineDbEntry): TimelineEntry {
 export async function getCachedTimelinePage(
   userId: string,
   cursor?: string,
+  filter: TimelineFilter = {},
 ): Promise<TimelinePage> {
   'use cache';
   cacheLife('journal');
   cacheTag(timelineCacheTag(userId));
-  return listTimelinePage(db, userId, cursor);
+  return listTimelinePage(db, userId, cursor, filter);
 }
 
 export async function listTimelinePage(
   database: PrismaClient,
   userId: string,
   cursor?: string,
+  filter: TimelineFilter = {},
 ): Promise<TimelinePage> {
   const cursorEntry = cursor
     ? await database.entry.findFirst({
@@ -89,6 +111,8 @@ export async function listTimelinePage(
   const entries = await database.entry.findMany({
     where: {
       userId,
+      ...(filter.mood ? { mood: filter.mood } : {}),
+      ...(filter.activityId ? { activities: { some: { activityId: filter.activityId } } } : {}),
       ...(cursorEntry
         ? {
           OR: [

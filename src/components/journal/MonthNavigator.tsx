@@ -20,7 +20,7 @@ export function MonthNavigator({
     <div className="flex items-center justify-between rounded-full border border-white/60 bg-white/30 px-3 py-1.5 shadow-inner">
       <Link
         href={`${basePath}?month=${previousMonth.key}`}
-        className="aero-btn flex h-8 w-8 items-center justify-center rounded-full p-0 text-lg"
+        className="aero-btn flex h-11 w-11 items-center justify-center rounded-full p-0 text-lg"
         aria-label="Previous month"
       >
         ‹
@@ -30,7 +30,7 @@ export function MonthNavigator({
       </span>
       <Link
         href={`${basePath}?month=${nextMonth.key}`}
-        className="aero-btn flex h-8 w-8 items-center justify-center rounded-full p-0 text-lg"
+        className="aero-btn flex h-11 w-11 items-center justify-center rounded-full p-0 text-lg"
         aria-label="Next month"
       >
         ›
