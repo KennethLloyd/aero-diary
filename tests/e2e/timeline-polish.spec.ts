@@ -20,6 +20,9 @@ async function signIn(page: Page) {
 async function verifyTimelineFlow(page: Page) {
   await signIn(page);
 
+  const expectedDockPosition = (page.viewportSize()?.width ?? 0) < 640 ? 'fixed' : 'relative';
+  await expect.poll(() => page.locator('.aero-dock').evaluate((dock) => getComputedStyle(dock).position)).toBe(expectedDockPosition);
+
   const cards = timelineCards(page);
   await expect(cards).toHaveCount(25);
   await expect(cards.first().locator('p').first()).toBeVisible();
