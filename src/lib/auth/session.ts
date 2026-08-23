@@ -2,11 +2,10 @@ import 'server-only';
 import { createHash, randomBytes } from 'node:crypto';
 import { cookies } from 'next/headers';
 
-// Opaque DB-backed sessions (ADR-0002): cookie holds the raw token, DB stores
-// only its SHA-256 hash; row removal = instant revoke.
+// The cookie holds the raw token; the database stores only its SHA-256 hash.
 export const SESSION_COOKIE = 'session';
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // ~30 days
-// Sliding renewal: a session is extended when it is past the halfway point.
+// Extend a session after it passes the halfway point of its lifetime.
 export const SESSION_RENEW_THRESHOLD_MS = SESSION_TTL_MS / 2;
 
 export function generateSessionToken(): string {

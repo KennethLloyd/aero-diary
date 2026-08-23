@@ -66,22 +66,29 @@ export function TimelineList({ initialPage }: { initialPage: TimelinePage }) {
               <div className="flex flex-col items-center pt-1">
                 <AeroOrb mood={entry.mood} className="text-white drop-shadow-md" />
               </div>
-              <div className="min-w-0 flex-1 space-y-1">
-                <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 border-b border-white/40 pb-1">
-                  <h3 className="text-lg font-bold text-[#0a2f5c]">{entry.date}</h3>
-                  <span className="text-xs font-bold text-[#2b4c73]">{entry.time}</span>
+              <div className="min-w-0 flex-1">
+                <div className="mb-2 flex flex-col gap-0.5 border-b border-white/40 pb-2 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
+                  <h3 className="text-lg font-bold leading-tight text-[#0a2f5c]">{entry.date}</h3>
+                  <time dateTime={entry.dateTime} className="shrink-0 text-xs font-bold text-[#2b4c73]">
+                    {entry.time}
+                  </time>
                 </div>
-                <p className="line-clamp-2 whitespace-pre-line text-sm font-medium leading-relaxed text-[#1a2c42]">
+                <p className="line-clamp-4 whitespace-pre-line text-sm font-medium leading-relaxed text-[#1a2c42]">
                   {entry.note}
                 </p>
                 {entry.tags.length > 0 ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
+                  <div className="mt-3 grid max-h-14 grid-flow-col grid-rows-2 auto-cols-max gap-1.5 overflow-hidden sm:flex sm:max-h-none sm:flex-wrap sm:gap-2" aria-label="Activities">
                     {entry.tags.map((tag) => (
                       <span
                         key={tag.id}
-                        className="rounded-full border border-white bg-white/60 px-2 py-0.5 text-xs font-bold text-[#0a2f5c] shadow-sm"
+                        role="img"
+                        aria-label={tag.name}
+                        title={tag.name}
+                        className="flex h-6 items-center justify-center rounded-full border border-white bg-white/60 px-2 py-0.5 text-base font-bold leading-none text-[#0a2f5c] shadow-sm sm:h-auto sm:text-xs"
                       >
-                        {tag.label}
+                        <span aria-hidden="true">{tag.emoji}</span>
+                        <span className="sr-only sm:hidden">{tag.name}</span>
+                        <span className="hidden sm:inline">&nbsp;{tag.name}</span>
                       </span>
                     ))}
                   </div>

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-// Shared Aero page title (ADR-0009 typography + ink color).
+// Shared Aero page title.
 export function AeroTitle({
   children,
   className = '',

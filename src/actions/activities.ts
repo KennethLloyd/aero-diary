@@ -1,8 +1,14 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, updateTag } from 'next/cache';
 import { db } from '@/lib/db';
 import { verifySession } from '@/lib/dal';
+import {
+  activityOptionsCacheTag,
+  calendarCacheTag,
+  insightsCacheTag,
+  timelineCacheTag,
+} from '@/lib/journal/cache-tags';
 import {
   activityIdSchema,
   activitySchema,
@@ -12,6 +18,13 @@ export type ActivityState = { error?: string; success?: string } | undefined
 
 const DUPLICATE_ACTIVITY = 'An activity with that name already exists.';
 const SAVE_FAILED = 'Unable to save that activity. Please try again.';
+
+function invalidateActivityReads(userId: string) {
+  updateTag(activityOptionsCacheTag(userId));
+  updateTag(timelineCacheTag(userId));
+  updateTag(calendarCacheTag(userId));
+  updateTag(insightsCacheTag(userId));
+}
 
 function activityFormData(formData: FormData) {
   return {
@@ -67,6 +80,7 @@ export async function createActivity(
     return { error: SAVE_FAILED };
   }
 
+  invalidateActivityReads(session.userId);
   revalidatePath('/activities');
   revalidatePath('/timeline/new');
   return { success: 'Activity added.' };
@@ -104,6 +118,7 @@ export async function updateActivity(
     return { error: SAVE_FAILED };
   }
 
+  invalidateActivityReads(session.userId);
   revalidatePath('/activities');
   revalidatePath('/timeline/new');
   revalidatePath('/timeline');
@@ -117,10 +132,13 @@ export async function deleteActivity(activityId: string): Promise<void> {
     return;
   }
 
-  await db.activity.updateMany({
+  const result = await db.activity.updateMany({
     where: { id: parsedId.data, userId: session.userId, isArchived: false },
     data: { isArchived: true },
   });
+  if (result.count === 0) return;
+
+  invalidateActivityReads(session.userId);
   revalidatePath('/activities');
   revalidatePath('/timeline/new');
   revalidatePath('/timeline');

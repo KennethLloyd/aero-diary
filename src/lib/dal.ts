@@ -16,8 +16,8 @@ export type SessionInfo = {
   userId: string
 }
 
-// The single auth gate (ADR-0002): called at the top of every protected action
-// and data read. Memoized per render pass via React's `cache()`.
+// The auth gate starts every protected action and data read.
+// React's `cache()` memoizes it within a render pass.
 export const verifySession = cache(async (): Promise<SessionInfo> => {
   const cookie = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!cookie) {

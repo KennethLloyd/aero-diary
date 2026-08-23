@@ -2,9 +2,7 @@ import 'server-only';
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
 import { PrismaClient } from '@/generated/prisma/client';
 
-// Server-only Prisma singleton (ADR-0002: no client ever sees the DB).
-// The better-sqlite3 driver adapter is the Prisma 7 + SQLite combo
-// verified against Turbopack at scaffold time (ADR-0001).
+// Server-only Prisma singleton; the database never reaches the client.
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 function createPrismaClient() {

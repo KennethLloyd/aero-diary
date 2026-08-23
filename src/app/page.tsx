@@ -4,7 +4,7 @@ import { AeroTitle } from '@/components/aero/AeroTitle';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { isDemoConfigured } from '@/lib/auth/server-demo-config';
 
-// Login screen (ADR-0009): email/password plus the optional configured demo.
+// Login screen with email/password and an optional configured demo.
 export default function LoginPage() {
   const demoAvailable = isDemoConfigured();
 

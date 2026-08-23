@@ -52,7 +52,7 @@ export async function login(
   }
   const { email, password } = parsed.data;
 
-  // Throttle per-IP and per-email before touching the DB (ADR-0002).
+  // Throttle per-IP and per-email before touching the database.
   const ip = await clientIp();
   const ipCheck = checkRateLimit('ip', ip);
   const emailCheck = checkRateLimit('email', email);
@@ -73,7 +73,7 @@ export async function login(
   redirect('/timeline');
 }
 
-// Mint a session (ADR-0002): opaque token, SHA-256 hash row, httpOnly cookie.
+// Mint an opaque session token, store its hash, and set the httpOnly cookie.
 async function createSession(userId: string): Promise<void> {
   const token = generateSessionToken();
   const expiresAt = sessionExpiry();
@@ -83,7 +83,7 @@ async function createSession(userId: string): Promise<void> {
   await setSessionCookie(token, expiresAt);
 }
 
-// One-tap demo login (ADR-0006): same session path as a real login.
+// One-tap demo login uses the same session path as normal login.
 export async function loginDemo(): Promise<void> {
   const credentials = getDemoCredentials();
   if (!credentials) {

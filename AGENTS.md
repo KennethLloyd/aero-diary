@@ -4,7 +4,7 @@
 
 ### Issue tracker
 
-Issues live as GitHub issues, driven through the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Issues live as GitHub issues, driven through the `gh` CLI.
 
 ### Issue workflow — branch + PR, never close early
 
@@ -17,11 +17,11 @@ Every issue ships through a pull request, never a direct commit to `main`:
 
 ### Triage labels
 
-Five canonical roles with default label names (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+Five canonical roles use these default label names: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix`.
 
 ### Domain docs
 
-Single-context: one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+Single-context: use `CONTEXT.md` at the repository root for domain vocabulary and constraints.
 
 ## Architecture and Idiomaticity
 

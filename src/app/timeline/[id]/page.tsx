@@ -1,18 +1,18 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { Suspense } from 'react';
 import { AeroBubbles } from '@/components/aero/AeroBubbles';
 import { AeroDock } from '@/components/aero/AeroDock';
 import { AeroOrb } from '@/components/aero/AeroOrb';
 import { EntryBackButton } from '@/components/journal/EntryBackButton';
 import { DeleteEntryDialog } from '@/components/journal/DeleteEntryDialog';
 import { PhotoGallery } from '@/components/journal/PhotoGallery';
-import { db } from '@/lib/db';
 import { verifySession } from '@/lib/dal';
 import { splitJournalNoteParagraphs } from '@/lib/journal/notes';
+import { getEntryDetailForUser } from '@/lib/journal/queries';
 import { entryIdSchema } from '@/lib/journal/schemas';
 import type { Mood } from '@/generated/prisma/enums';
-
-export const dynamic = 'force-dynamic';
+import EntryDetailLoading from './loading';
 
 const MOOD_LABEL: Record<Mood, string> = {
   AWFUL: 'Awful',
@@ -43,27 +43,31 @@ type EntryDetailPageProps = {
   params: Promise<{ id: string }>
 }
 
-export default async function EntryDetailPage({ params }: EntryDetailPageProps) {
+export default function EntryDetailPage({ params }: EntryDetailPageProps) {
+  return (
+    <>
+      <AeroBubbles />
+      <Suspense fallback={<EntryDetailLoading />}>
+        <EntryDetailContent params={params} />
+      </Suspense>
+      <AeroDock />
+    </>
+  );
+}
+
+async function EntryDetailContent({ params }: EntryDetailPageProps) {
   const session = await verifySession();
   const { id } = await params;
   const parsedId = entryIdSchema.safeParse(id);
   if (!parsedId.success) notFound();
 
-  const entry = await db.entry.findFirst({
-    where: { id: parsedId.data, userId: session.userId },
-    include: {
-      activities: { include: { activity: true } },
-      photos: { orderBy: { createdAt: 'asc' } },
-    },
-  });
+  const entry = await getEntryDetailForUser(session.userId, parsedId.data);
   if (!entry) notFound();
 
   const paragraphs = splitJournalNoteParagraphs(entry.note);
 
   return (
-    <>
-      <AeroBubbles />
-      <main className="aero-page relative z-10 mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-6 pb-32 md:pt-10 md:pb-32">
+    <main className="aero-page relative z-10 mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-6 pb-32 md:pt-10 md:pb-32">
         <header className="mb-2 flex items-center justify-between px-2">
           <EntryBackButton />
           <div className="flex items-center gap-3">
@@ -81,10 +85,10 @@ export default async function EntryDetailPage({ params }: EntryDetailPageProps) 
           <div className="relative z-10">
             <section className="space-y-4 border-b border-white/50 pb-4" aria-labelledby="entry-mood-heading">
               <time
-                dateTime={entry.date.toISOString()}
+                dateTime={entry.date}
                 className="text-xs font-bold uppercase tracking-wide text-[#2b4c73]"
               >
-                {formatEntryTimestamp(entry.date, entry.localOffset)}
+                {formatEntryTimestamp(new Date(entry.date), entry.localOffset)}
               </time>
 
               <div className="flex items-center gap-4 pt-1">
@@ -134,8 +138,6 @@ export default async function EntryDetailPage({ params }: EntryDetailPageProps) 
             ) : null}
           </div>
         </article>
-      </main>
-      <AeroDock />
-    </>
+    </main>
   );
 }
