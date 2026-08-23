@@ -29,7 +29,7 @@ test('demo user can create, polish, view, and delete an entry', async ({ page })
   try {
     await page.goto('/timeline/new');
     await page.getByRole('button', { name: 'Select Rad mood' }).click();
-    await page.getByLabel('Note').fill(marker);
+    await page.getByLabel('Journal note').fill(marker);
     await page.getByRole('button', { name: 'Polish ✨' }).click();
     await expect(page.getByRole('button', { name: 'Show original' })).toBeVisible({ timeout: 30_000 });
     await page.getByRole('button', { name: 'Save' }).click();
