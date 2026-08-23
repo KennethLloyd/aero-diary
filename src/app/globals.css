@@ -60,7 +60,8 @@
   --aero-focus-ring: 0 0 0 4px rgba(20, 108, 194, 0.42);
   --aero-dock-height: 70px;
   --aero-dock-gap: 14px;
-  --aero-page-bottom: calc(var(--aero-dock-height) + var(--aero-dock-gap) + env(safe-area-inset-bottom));
+  --aero-dock-bottom: max(12px, env(safe-area-inset-bottom));
+  --aero-page-bottom: calc(var(--aero-dock-height) + var(--aero-dock-gap) + var(--aero-dock-bottom));
   --aero-surface-strong: rgba(255, 255, 255, 0.72);
   --aero-surface-soft: rgba(255, 255, 255, 0.42);
   --aero-ink-muted: #2b4c73;
@@ -345,25 +346,29 @@
 
   /* Bottom navigation dock. */
   .aero-screen {
-    display: grid;
-    grid-template-rows: minmax(0, 1fr) auto;
-    height: 100dvh;
+    position: relative;
     min-height: 100vh;
+    height: 100dvh;
     overflow: hidden;
   }
   .aero-screen-content {
     min-width: 0;
     min-height: 0;
+    height: 100%;
     overflow-x: hidden;
     overflow-y: auto;
   }
   .aero-dock {
-    position: relative;
-    align-self: center;
+    position: fixed;
+    left: 50%;
+    bottom: var(--aero-dock-bottom);
     display: flex;
+    width: max-content;
+    max-width: calc(100vw - 1.5rem);
     gap: 10px;
     min-height: var(--aero-dock-height);
     padding: 8px 14px;
+    transform: translateX(-50%);
     background: linear-gradient(
       to bottom,
       rgba(255, 255, 255, 0.7) 0%,
@@ -379,7 +384,7 @@
     -webkit-backdrop-filter: blur(12px);
     isolation: isolate;
     z-index: 1000;
-    margin: 0 auto max(12px, env(safe-area-inset-bottom));
+    margin: 0;
   }
 
   .dock-icon {
@@ -708,6 +713,30 @@
     transform: translateY(-1px);
   }
 
+  .aero-entry-shell {
+    display: flex;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+  }
+
+  .aero-entry-form {
+    min-height: 0;
+  }
+
+  .aero-entry-form .aero-input::placeholder {
+    color: #64748b;
+    opacity: 1;
+  }
+
+  .aero-action-bar {
+    display: none;
+  }
+
+  .calendar-grid-scroll-hint {
+    display: none;
+  }
+
   .aero-page {
     scroll-padding-bottom: var(--aero-page-bottom);
   }
@@ -727,26 +756,6 @@
 
   :where(a, button, input, textarea, select) {
     scroll-margin-bottom: var(--aero-page-bottom);
-  }
-
-  .aero-action-bar {
-    position: fixed;
-    left: 0.5rem;
-    right: 0.5rem;
-    z-index: 20;
-    bottom: calc(var(--aero-dock-height) + var(--aero-dock-gap) + env(safe-area-inset-bottom));
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    margin: 0 auto;
-    border: 1px solid rgba(255, 255, 255, 0.95);
-    border-radius: 1rem;
-    background: rgba(240, 251, 255, 0.94);
-    padding: 0.5rem;
-    box-shadow: 0 8px 20px rgba(0, 44, 91, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
   }
 
 
@@ -827,6 +836,39 @@
   }
 }
 
+@media (max-width: 639px) {
+  .aero-entry-page {
+    min-height: 100%;
+    overflow: hidden;
+  }
+
+  .aero-entry-form {
+    overflow-y: auto;
+    padding-bottom: 1.5rem;
+  }
+
+  .aero-action-bar {
+    position: relative;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    z-index: 20;
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 0.75rem 0 0;
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    border-radius: 1rem;
+    background: rgba(240, 251, 255, 0.96);
+    padding: 0.5rem;
+    box-shadow: 0 8px 20px rgba(0, 44, 91, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+}
+
 @media (max-width: 359px) {
   .aero-dock {
     gap: 4px;
@@ -838,27 +880,15 @@
     height: 40px;
     font-size: 19px;
   }
-}
 
-@media (min-width: 640px) {
-  .aero-action-bar {
-    display: none;
+  .calendar-grid-scroll-hint {
+    display: block;
   }
 }
 
 @layer utilities {
   .aero-page {
     padding-bottom: var(--aero-page-bottom);
-  }
-
-  .aero-entry-form {
-    padding-bottom: var(--aero-page-bottom);
-  }
-}
-
-@media (max-width: 639px) {
-  .aero-entry-form {
-    padding-bottom: calc(var(--aero-page-bottom) + 4.5rem);
   }
 }
 

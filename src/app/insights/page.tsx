@@ -6,7 +6,6 @@ import { AeroTitle } from '@/components/aero/AeroTitle';
 import { MonthNavigator } from '@/components/journal/MonthNavigator';
 import {
   getMonthFromParam,
-  getPreviousMonth,
   MOOD_EMOJI,
   MOOD_LABEL,
   MOOD_PROGRESS_CLASS,
@@ -36,13 +35,9 @@ async function InsightsContent({ searchParams }: InsightsPageProps) {
   const session = await verifySession();
   const { month: monthParam } = await searchParams;
   const month = getMonthFromParam(monthParam);
-  const [entries, previousEntries] = await Promise.all([
-    getEntriesForMonthForUser(session.userId, month),
-    getEntriesForMonthForUser(session.userId, getPreviousMonth(month)),
-  ]);
+  const entries = await getEntriesForMonthForUser(session.userId, month);
   const insights = summarizeInsights(entries);
   const mostCommonMood = insights.moods.reduce((best, mood) => mood.count > best.count ? mood : best, insights.moods[0]);
-  const entryDelta = entries.length - previousEntries.length;
 
   return (
     <main className="aero-page relative z-10 mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 py-6 md:pt-10">
@@ -57,19 +52,13 @@ async function InsightsContent({ searchParams }: InsightsPageProps) {
           <MonthNavigator basePath="/insights" month={month} />
         </section>
 
-        <section className="aero-glass grid gap-3 p-4 sm:grid-cols-2" aria-label="Monthly insight summary">
+        <section className="aero-glass grid gap-3 p-4" aria-label="Monthly insight summary">
           <div>
             <p className="text-3xl font-bold text-[#0a2f5c]">{entries.length}</p>
             <p className="text-sm font-semibold text-[#2b4c73]">entries this month</p>
           </div>
-          <div className="rounded-lg border border-white/60 bg-white/35 p-3">
-            <p className="text-sm font-bold text-[#0a2f5c]">
-              {entryDelta === 0 ? 'No change' : `${entryDelta > 0 ? '+' : ''}${entryDelta} entries`}
-            </p>
-            <p className="text-xs font-semibold text-[#2b4c73]">compared with last month</p>
-          </div>
           {entries.length > 0 && mostCommonMood ? (
-            <p className="sm:col-span-2 text-sm font-semibold text-[#2b4c73]">
+            <p className="text-sm font-semibold text-[#2b4c73]">
               Your most common mood was <strong className="text-[#0a2f5c]">{MOOD_LABEL[mostCommonMood.mood]}</strong> ({mostCommonMood.count} {mostCommonMood.count === 1 ? 'entry' : 'entries'}).
             </p>
           ) : null}

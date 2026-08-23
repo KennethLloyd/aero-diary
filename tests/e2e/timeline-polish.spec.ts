@@ -97,17 +97,22 @@ test.describe('timeline polish mobile', () => {
       const form = page.locator('form.aero-entry-form');
       await expect(form).toBeVisible();
       await expect(page.getByRole('button', { name: /Select .* mood/ })).toHaveCount(5);
+      await expect(page.getByRole('button', { name: 'Select Rad mood' })).toHaveAttribute('aria-pressed', 'true');
+      await expect(page.getByText('Journal note', { exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Save', exact: true })).toHaveCount(1);
 
       const metrics = await page.evaluate(() => {
         const action = document.querySelector('.aero-action-bar')?.getBoundingClientRect();
-        const dock = document.querySelector('.aero-dock')?.getBoundingClientRect();
+        const dock = document.querySelector('.aero-dock');
+        const dockRect = dock?.getBoundingClientRect();
         const moodButtons = [...document.querySelectorAll('section[aria-labelledby="mood-heading"] button')]
           .map((button) => button.getBoundingClientRect());
         return {
           documentWidth: document.documentElement.scrollWidth,
           viewportWidth: window.innerWidth,
           actionBottom: action?.bottom ?? 0,
-          dockTop: dock?.top ?? window.innerHeight,
+          dockTop: dockRect?.top ?? window.innerHeight,
+          dockPosition: dock ? getComputedStyle(dock).position : null,
           smallestMoodButton: Math.min(...moodButtons.map((button) => Math.min(button.width, button.height))),
         };
       });
@@ -115,8 +120,59 @@ test.describe('timeline polish mobile', () => {
       expect(metrics.documentWidth).toBe(metrics.viewportWidth);
       expect(metrics.smallestMoodButton).toBeGreaterThanOrEqual(44);
       expect(metrics.actionBottom).toBeLessThanOrEqual(metrics.dockTop);
+      expect(metrics.dockPosition).toBe('fixed');
       await page.getByRole('heading', { name: 'Activities', exact: true }).scrollIntoViewIfNeeded();
       await expect(page.getByLabel('Entry actions')).toBeVisible();
+    }
+
+    for (const width of [393, 412]) {
+      await page.setViewportSize({ width, height: 915 });
+      await page.goto('/calendar');
+      const calendarMetrics = await page.evaluate(() => {
+        const scroll = document.querySelector('.calendar-grid-scroll');
+        const inner = document.querySelector('.calendar-grid-inner');
+        const saturday = document.querySelector('.calendar-grid-inner > .grid:last-child > :nth-child(7)');
+        if (!scroll || !inner || !saturday) return null;
+        const scrollRect = scroll.getBoundingClientRect();
+        const innerRect = inner.getBoundingClientRect();
+        const saturdayRect = saturday.getBoundingClientRect();
+        return {
+          documentWidth: document.documentElement.scrollWidth,
+          viewportWidth: window.innerWidth,
+          innerWidth: innerRect.width,
+          scrollWidth: scroll.scrollWidth,
+          scrollClientWidth: scroll.clientWidth,
+          saturdayVisible: saturdayRect.left >= scrollRect.left && saturdayRect.right <= scrollRect.right,
+        };
+      });
+      expect(calendarMetrics).not.toBeNull();
+      expect(calendarMetrics?.documentWidth).toBe(calendarMetrics?.viewportWidth);
+      expect(calendarMetrics?.innerWidth).toBeLessThanOrEqual(calendarMetrics?.scrollClientWidth ?? 0);
+      expect(calendarMetrics?.scrollWidth).toBe(calendarMetrics?.scrollClientWidth);
+      expect(calendarMetrics?.saturdayVisible).toBe(true);
+    }
+
+    await page.setViewportSize({ width: 393, height: 852 });
+    await page.goto('/insights');
+    await expect(page.getByText('entries this month', { exact: true })).toBeVisible();
+    await expect(page.getByText('compared with last month', { exact: true })).toHaveCount(0);
+
+    for (const [route, selector] of [
+      ['/timeline', 'main a[href^="/timeline/"]:not([href="/timeline/new"])'],
+      ['/insights', 'section[aria-labelledby="top-activities-heading"]'],
+      ['/activities', 'section[aria-labelledby="activities-list-heading"]'],
+    ] as const) {
+      await page.goto(route);
+      const safeAtScrollEnd = await page.evaluate((targetSelector) => {
+        const root = document.querySelector('.aero-screen-content');
+        const dock = document.querySelector('.aero-dock');
+        const target = document.querySelector(targetSelector);
+        if (!root || !dock || !target) return false;
+        root.scrollTop = root.scrollHeight;
+        const dockRect = dock.getBoundingClientRect();
+        return target.getBoundingClientRect().bottom <= dockRect.top;
+      }, selector);
+      expect(safeAtScrollEnd).toBe(true);
     }
   });
 });

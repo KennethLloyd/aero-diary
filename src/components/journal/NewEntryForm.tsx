@@ -119,11 +119,13 @@ export function NewEntryForm({
   }
 
   return (
-    <form
-      action={formAction}
-      onSubmit={setBrowserOffset}
-      className="aero-entry-form aero-glass flex flex-1 flex-col p-5"
-    >
+    <div className="aero-entry-shell">
+      <form
+        id="entry-form"
+        action={formAction}
+        onSubmit={setBrowserOffset}
+        className="aero-entry-form aero-glass flex min-h-0 flex-1 flex-col p-5"
+      >
       <input type="hidden" name="mood" value={mood} />
       <input
         ref={localOffsetInput}
@@ -135,17 +137,21 @@ export function NewEntryForm({
         <input key={activityId} type="hidden" name="activityId" value={activityId} />
       ))}
 
-      <header className="relative z-10 mb-6 flex items-center justify-between border-b border-white/50 pb-3">
+      <header className="relative z-10 mb-6 flex min-h-11 items-center justify-between border-b border-white/50 pb-3">
         <Link
           href="/timeline"
-          className="aero-link-control text-sm font-bold text-[#144e9d] drop-shadow-md hover:underline"
+          className="aero-entry-header-cancel aero-link-control hidden text-sm font-bold text-[#144e9d] drop-shadow-md hover:underline sm:inline-flex"
         >
           Cancel
         </Link>
-        <span className="text-sm font-bold tracking-wide text-[#0a2f5c] drop-shadow-md">
+        <span className="absolute left-1/2 -translate-x-1/2 text-sm font-bold tracking-wide text-[#0a2f5c] drop-shadow-md">
           {entry ? 'Edit Entry' : 'New Entry'}
         </span>
-        <AeroButton type="submit" disabled={pending} className="px-4 py-1 text-sm">
+        <AeroButton
+          type="submit"
+          disabled={pending}
+          className="aero-entry-header-save hidden px-4 py-1 text-sm sm:inline-flex"
+        >
           {pending ? 'Saving…' : 'Save'}
         </AeroButton>
       </header>
@@ -175,8 +181,8 @@ export function NewEntryForm({
         </section>
 
         <div className="flex flex-1 flex-col gap-4">
-          <label htmlFor="entry-note" className="sr-only">
-            Note
+          <label htmlFor="entry-note" className="block text-sm font-bold text-[#0a2f5c] drop-shadow-sm">
+            Journal note
           </label>
           <textarea
             id="entry-note"
@@ -291,17 +297,23 @@ export function NewEntryForm({
               {state.error}
             </p>
           ) : null}
-
-          <div className="aero-action-bar" aria-label="Entry actions">
-            <Link href="/timeline" className="aero-link-control font-bold text-[#144e9d]">
-              Cancel
-            </Link>
-            <AeroButton type="submit" disabled={pending} className="px-5 text-sm">
-              {pending ? 'Saving…' : 'Save'}
-            </AeroButton>
-          </div>
         </div>
       </div>
-    </form>
+      </form>
+
+      <div className="aero-action-bar" aria-label="Entry actions">
+        <Link href="/timeline" className="aero-link-control font-bold text-[#144e9d]">
+          Cancel
+        </Link>
+        <AeroButton
+          type="submit"
+          form="entry-form"
+          disabled={pending}
+          className="px-5 text-sm"
+        >
+          {pending ? 'Saving…' : 'Save'}
+        </AeroButton>
+      </div>
+    </div>
   );
 }
