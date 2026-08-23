@@ -9,6 +9,7 @@ import {
   type JournalImportMoodDefinition,
   type JournalImportTemplate,
 } from '@/lib/journal/import-template';
+import { normalizeJournalNote } from '@/lib/journal/notes';
 
 export type NormalizedJournalEntry = {
   sourceId: number
@@ -153,7 +154,7 @@ function normalizeEntry(
     date,
     localOffset,
     mood,
-    note: entry.note,
+    note: normalizeJournalNote(entry.note),
     isFavorite: entry.isFavorite,
     activities,
     photos,

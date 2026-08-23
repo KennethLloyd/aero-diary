@@ -16,6 +16,7 @@
     "db:seed": "tsx scripts/seed.ts",
     "db:import": "tsx scripts/import-journal.ts",
     "db:photos:preflight": "tsx scripts/preflight-journal-photos.ts",
+    "db:normalize-notes": "tsx scripts/normalize-journal-notes.ts",
     "seed-style-standard": "tsx scripts/seed-style-standard.ts",
     "drive:bootstrap": "tsx scripts/bootstrap-google-drive.ts",
     "db:generate": "prisma generate",

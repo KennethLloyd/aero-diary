@@ -6,6 +6,7 @@ import { AeroButton } from '@/components/aero/AeroButton';
 import Link from 'next/link';
 import { db } from '@/lib/db';
 import { verifySession } from '@/lib/dal';
+import { normalizeJournalNote } from '@/lib/journal/notes';
 import type { Mood } from '@/generated/prisma/enums';
 
 // The timeline is inherently per-user and request-time rendered.
@@ -47,7 +48,7 @@ function formatEntry(entry: DbEntry): TimelineEntry {
     date: dateFormatter.format(local),
     time: timeFormatter.format(local),
     mood: entry.mood,
-    note: entry.note,
+    note: normalizeJournalNote(entry.note),
     tags: entry.activities.map((a) => ({
       id: a.activityId,
       label: `${a.activity.emoji} ${a.activity.name}`,
@@ -107,7 +108,7 @@ export default async function TimelinePage() {
                       <h3 className="text-lg font-bold text-[#0a2f5c]">{entry.date}</h3>
                       <span className="text-xs font-bold text-[#2b4c73]">{entry.time}</span>
                     </div>
-                    <p className="line-clamp-2 text-sm font-medium leading-relaxed text-[#1a2c42]">
+                    <p className="line-clamp-2 whitespace-pre-line text-sm font-medium leading-relaxed text-[#1a2c42]">
                       {entry.note}
                     </p>
                     {entry.tags.length > 0 ? (
