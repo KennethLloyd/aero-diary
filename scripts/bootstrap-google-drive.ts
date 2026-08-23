@@ -85,7 +85,7 @@ async function main() {
     const { tokens } = await oauth2Client.getToken(code);
     if (!tokens.refresh_token) throw new Error('Google did not return a refresh token. Try again.');
 
-    console.log('\nAdd this value to .env.local and the OCI environment:');
+    console.log('\nAdd this value to the host environment:');
     console.log(`GOOGLE_DRIVE_REFRESH_TOKEN=${tokens.refresh_token}`);
   } finally {
     server.close();

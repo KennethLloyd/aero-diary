@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { defineConfig } from 'prisma/config';
 
 // The Prisma CLI does not load `.env.local` (that is a Next.js convention).
-// Load whichever env file exists: `.env.local` on Mac dev, `.env` on OCI prod.
+// Load whichever environment file exists: `.env.local` locally or `.env` on a host.
 const envFile = existsSync('.env.local') ? '.env.local' : '.env';
 config({ path: envFile });
 

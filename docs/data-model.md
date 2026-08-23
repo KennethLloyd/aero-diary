@@ -134,7 +134,7 @@ Notes:
 
 ## Import contract (ticket #9)
 
-- Runs wherever the operator chooses; implemented against this doc — never by reading a real input file during development.
+- The importer receives a configured database and input file; implemented against this doc — never by reading a real input file during development.
 - Idempotent via `sourceId`; validates the complete parsed source, records its SHA-256 fingerprint, reconciles the dynamic source count, and reports a diff without deleting rows absent from the source.
 - Resolves the activity definitions supplied by `schema.tags` into `Activity` rows for the selected user; this is the only owner of import-time activity creation.
 - The demo seed creates its own configured-demo activity rows; it never creates global/shared activities.

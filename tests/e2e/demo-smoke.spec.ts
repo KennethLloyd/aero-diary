@@ -4,7 +4,7 @@ const demoEmail = process.env.PLAYWRIGHT_DEMO_EMAIL;
 const demoPassword = process.env.PLAYWRIGHT_DEMO_PASSWORD;
 
 if (!demoEmail || !demoPassword) {
-  throw new Error('PLAYWRIGHT_DEMO_EMAIL and PLAYWRIGHT_DEMO_PASSWORD are required for the production smoke suite.');
+  throw new Error('PLAYWRIGHT_DEMO_EMAIL and PLAYWRIGHT_DEMO_PASSWORD are required for the configured smoke suite.');
 }
 
 test('demo user can create, polish, view, and delete an entry', async ({ page }) => {
