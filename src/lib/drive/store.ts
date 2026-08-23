@@ -130,25 +130,39 @@ export function createPhotoStore(drive: DriveFilesApi, photosRoot: string): Phot
     return fileId(response.data.files?.[0]);
   }
 
+  let photosFolderId: string | undefined;
+  let photosFolderLookup: Promise<string | undefined> | undefined;
+
   async function getPhotosFolderId(createMissing: boolean) {
-    let parentId = 'root';
-    for (const segment of rootSegments) {
-      let folderId = await findFolderId(segment, parentId);
-      if (!folderId && createMissing) {
-        const response = await drive.create({
-          fields: 'id',
-          requestBody: {
-            name: segment,
-            mimeType: FOLDER_MIME_TYPE,
-            parents: [parentId],
-          },
-        });
-        folderId = fileId(response.data);
+    if (!createMissing && photosFolderLookup) return photosFolderLookup;
+    if (!createMissing && photosFolderId) return photosFolderId;
+
+    const lookup = (async () => {
+      let parentId = 'root';
+      for (const segment of rootSegments) {
+        let folderId = await findFolderId(segment, parentId);
+        if (!folderId && createMissing) {
+          const response = await drive.create({
+            fields: 'id',
+            requestBody: {
+              name: segment,
+              mimeType: FOLDER_MIME_TYPE,
+              parents: [parentId],
+            },
+          });
+          folderId = fileId(response.data);
+        }
+        if (!folderId) return undefined;
+        parentId = folderId;
       }
-      if (!folderId) return undefined;
-      parentId = folderId;
+      photosFolderId = parentId;
+      return photosFolderId;
+    })();
+
+    if (!createMissing) {
+      photosFolderLookup = lookup;
     }
-    return parentId;
+    return lookup;
   }
 
   async function resolvePhoto(drivePath: string): Promise<DrivePhotoResolution> {

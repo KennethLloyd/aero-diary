@@ -145,6 +145,17 @@ describe('Google Drive photo store', () => {
     expect(drive.delete).toHaveBeenCalledWith({ fileId: 'known-file' });
   });
 
+  it('caches the photo folder lookup across resolutions', async () => {
+    const drive = fakeDrive();
+    folderAndFileResponses(drive);
+
+    const store = createPhotoStore(drive as unknown as DriveFilesApi, 'AeroDiary/photos');
+    await store.resolve('photos/first.jpg');
+    await store.resolve('photos/second.jpg');
+
+    expect(drive.list).toHaveBeenCalledTimes(4);
+  });
+
   it('reports duplicate filenames instead of choosing an arbitrary Drive file', async () => {
     const drive = fakeDrive();
     drive.list.mockImplementation(async ({ q }) => {
