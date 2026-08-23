@@ -134,8 +134,8 @@ export function createPhotoStore(drive: DriveFilesApi, photosRoot: string): Phot
   let photosFolderLookup: Promise<string | undefined> | undefined;
 
   async function getPhotosFolderId(createMissing: boolean) {
-    if (!createMissing && photosFolderLookup) return photosFolderLookup;
     if (!createMissing && photosFolderId) return photosFolderId;
+    if (!createMissing && photosFolderLookup) return photosFolderLookup;
 
     const lookup = (async () => {
       let parentId = 'root';
