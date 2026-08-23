@@ -16,13 +16,9 @@ export type SessionInfo = {
   userId: string
 }
 
-// The auth gate starts every protected action and data read.
-// React's `cache()` memoizes it within a render pass.
-export const verifySession = cache(async (): Promise<SessionInfo> => {
+async function readSession(): Promise<SessionInfo | null> {
   const cookie = (await cookies()).get(SESSION_COOKIE)?.value;
-  if (!cookie) {
-    redirect('/');
-  }
+  if (!cookie) return null;
 
   const tokenHash = hashToken(cookie);
   const session = await db.session.findUnique({ where: { tokenHash } });
@@ -31,7 +27,7 @@ export const verifySession = cache(async (): Promise<SessionInfo> => {
     if (session) {
       await db.session.delete({ where: { id: session.id } });
     }
-    redirect('/');
+    return null;
   }
 
   if (session.expiresAt.getTime() - Date.now() < SESSION_RENEW_THRESHOLD_MS) {
@@ -44,4 +40,14 @@ export const verifySession = cache(async (): Promise<SessionInfo> => {
   }
 
   return { isAuth: true, userId: session.userId };
+}
+
+export const getOptionalSession = cache(readSession);
+
+// The auth gate starts every protected action and data read.
+// React's `cache()` memoizes it within a render pass.
+export const verifySession = cache(async (): Promise<SessionInfo> => {
+  const session = await getOptionalSession();
+  if (!session) redirect('/');
+  return session;
 });

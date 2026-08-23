@@ -18,6 +18,9 @@ test('demo user can create, polish, view, and delete an entry', async ({ page })
   await expect(page).toHaveURL(/\/timeline$/);
   await expect(page.getByRole('heading', { name: 'Aero Diary', exact: true }).first()).toBeVisible();
 
+  await page.goto('/');
+  await expect(page).toHaveURL(/\/timeline$/);
+
   await page.goto('/calendar');
   await expect(page.getByRole('heading', { name: 'Calendar', exact: true })).toBeVisible();
   await page.goto('/insights');
