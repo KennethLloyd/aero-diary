@@ -7,6 +7,7 @@ import { DeleteEntryDialog } from '@/components/journal/DeleteEntryDialog';
 import { PhotoGallery } from '@/components/journal/PhotoGallery';
 import { db } from '@/lib/db';
 import { verifySession } from '@/lib/dal';
+import { splitJournalNoteParagraphs } from '@/lib/journal/notes';
 import { entryIdSchema } from '@/lib/journal/schemas';
 import type { Mood } from '@/generated/prisma/enums';
 
@@ -37,13 +38,6 @@ function formatEntryTimestamp(date: Date, localOffset: number) {
   return `${dateFormatter.format(local)} · ${timeFormatter.format(local)}`;
 }
 
-function entryParagraphs(note: string) {
-  return note
-    .split(/\r?\n\s*\r?\n/)
-    .map((paragraph) => paragraph.trim())
-    .filter(Boolean);
-}
-
 type EntryDetailPageProps = {
   params: Promise<{ id: string }>
 }
@@ -63,7 +57,7 @@ export default async function EntryDetailPage({ params }: EntryDetailPageProps) 
   });
   if (!entry) notFound();
 
-  const paragraphs = entryParagraphs(entry.note);
+  const paragraphs = splitJournalNoteParagraphs(entry.note);
 
   return (
     <>
@@ -127,7 +121,11 @@ export default async function EntryDetailPage({ params }: EntryDetailPageProps) 
             <section className="pt-6" aria-labelledby="entry-article-heading">
               <h2 id="entry-article-heading" className="sr-only">Journal entry</h2>
               <div className="space-y-4 text-[15px] font-medium leading-relaxed text-[#111]">
-                {paragraphs.map((paragraph, index) => <p key={`${entry.id}-paragraph-${index}`}>{paragraph}</p>)}
+                {paragraphs.map((paragraph, index) => (
+                  <p className="whitespace-pre-wrap" key={`${entry.id}-paragraph-${index}`}>
+                    {paragraph}
+                  </p>
+                ))}
               </div>
             </section>
 

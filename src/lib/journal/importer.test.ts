@@ -37,11 +37,15 @@ describe('JournalImportTemplate parsing and import', () => {
   });
 
   it('parses the template shape, applies defaults, and normalizes import values', () => {
-    const parsed = parseJournalImportTemplate(template([entry({ photoPaths: ['photos/example.jpg'] })]));
+    const parsed = parseJournalImportTemplate(template([entry({
+      note: 'First<br>Second',
+      photoPaths: ['photos/example.jpg'],
+    })]));
 
     expect(parsed.entries[0]).toMatchObject({
       sourceId: 1,
       mood: 'RAD',
+      note: 'First\nSecond',
       localOffset: 480,
       isFavorite: false,
       activities: [
