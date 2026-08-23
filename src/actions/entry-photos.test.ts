@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('next/navigation', () => ({ redirect: mocks.redirect }));
 vi.mock('next/cache', () => ({ revalidatePath: mocks.revalidatePath }));
 vi.mock('@/lib/dal', () => ({ verifySession: mocks.verifySession }));
-vi.mock('@/lib/drive/store', () => ({ getPhotoStore: mocks.getPhotoStore }));
+vi.mock('@/lib/drive/server-store', () => ({ getPhotoStore: mocks.getPhotoStore }));
 vi.mock('@/lib/db', async () => {
   const { testDb } = await import('@/test/test-db');
   return { db: testDb };

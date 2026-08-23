@@ -4,7 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 import { verifySession } from '@/lib/dal';
-import { getPhotoStore, type PhotoStore, type UploadedPhoto } from '@/lib/drive/store';
+import { getPhotoStore } from '@/lib/drive/server-store';
+import type { PhotoStore, UploadedPhoto } from '@/lib/drive/store';
 import { parsePhotoFiles, PHOTO_UPLOAD_ERROR } from '@/lib/journal/photos';
 import { createEntrySchema, entryIdSchema, photoIdSchema } from '@/lib/journal/schemas';
 

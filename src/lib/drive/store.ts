@@ -1,5 +1,3 @@
-import 'server-only';
-
 import { createHash } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { google } from 'googleapis';
