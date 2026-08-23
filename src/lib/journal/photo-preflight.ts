@@ -20,6 +20,8 @@ export class PhotoPreflightError extends Error {
   }
 }
 
+const RESOLUTION_CONCURRENCY = 8;
+
 export async function preflightJournalPhotos(
   database: PrismaClient,
   userId: string,
@@ -38,9 +40,14 @@ export async function preflightJournalPhotos(
   });
 
   const resolutions = new Map<string, DrivePhotoResolution>();
-  for (const photo of photos) {
-    if (!resolutions.has(photo.drivePath)) {
-      resolutions.set(photo.drivePath, await resolver.resolve(photo.drivePath));
+  const uniqueDrivePaths = [...new Set(photos.map((photo) => photo.drivePath))];
+  for (let index = 0; index < uniqueDrivePaths.length; index += RESOLUTION_CONCURRENCY) {
+    const batch = uniqueDrivePaths.slice(index, index + RESOLUTION_CONCURRENCY);
+    const batchResolutions = await Promise.all(
+      batch.map(async (drivePath) => [drivePath, await resolver.resolve(drivePath)] as const),
+    );
+    for (const [drivePath, resolution] of batchResolutions) {
+      resolutions.set(drivePath, resolution);
     }
   }
 
