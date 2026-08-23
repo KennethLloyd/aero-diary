@@ -21,7 +21,7 @@ application must not depend on a model provider's SDK, CLI, or native API.
   not know the adapter's wire format.
 - **Local gateway**: ChatMock is the local development gateway. It is installed
   and authenticated outside the repository, then served at
-  `http://127.0.0.1:8000/v1` with legacy reasoning compatibility so reasoning
+  `http://127.0.0.1:8000/v1` with reasoning compatibility enabled so reasoning
   metadata is not mixed into journal text. The repository only knows the
   OpenAI-compatible contract.
 - **Model**: `LLM_MODEL` is configured by environment. The local trial uses
@@ -36,5 +36,5 @@ application must not depend on a model provider's SDK, CLI, or native API.
 
 - The app can switch gateways without a code change.
 - Journal text leaves the server only through the configured gateway.
-- ChatMock login and server lifecycle are local development prerequisites, not
+- The gateway's authentication and server lifecycle are operator-managed prerequisites, not
   application runtime dependencies.

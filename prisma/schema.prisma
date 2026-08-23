@@ -41,11 +41,11 @@ model Session {
 
 model Entry {
   id          String    @id @default(cuid())
-  sourceId    Int?      @unique // legacy Daylio id; null for new app-created entries
+  sourceId    Int?      @unique // import template id; null for new app-created entries
   userId      String
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   date        DateTime // stored UTC; local offset handled at the boundary
-  localOffset Int // minutes east of UTC, from the legacy ISO offset
+  localOffset Int // minutes east of UTC, from the import ISO offset
   mood        Mood
   note        String
   isFavorite  Boolean   @default(false)

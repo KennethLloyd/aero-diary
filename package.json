@@ -2,7 +2,7 @@
   "name": "aero-diary",
   "version": "0.1.0",
   "private": true,
-  "description": "A self-hosted mood journal in the Frutiger Aero aesthetic — a Daylio alternative.",
+  "description": "A self-hosted mood journal in the Frutiger Aero aesthetic.",
   "scripts": {
     "postinstall": "prisma generate",
     "dev": "next dev",
@@ -14,11 +14,14 @@
     "lint": "eslint .",
     "create-user": "tsx scripts/create-user.ts",
     "db:seed": "tsx scripts/seed.ts",
+    "db:import": "tsx scripts/import-journal.ts",
+    "db:photos:preflight": "tsx scripts/preflight-journal-photos.ts",
     "seed-style-standard": "tsx scripts/seed-style-standard.ts",
     "drive:bootstrap": "tsx scripts/bootstrap-google-drive.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@node-rs/argon2": "2.1.0",
@@ -28,12 +31,14 @@
     "googleapis": "176.0.0",
     "heic-convert": "2.1.0",
     "next": "16.3.1",
+    "node-emoji": "2.2.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "server-only": "0.0.1",
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "4.3.3",
     "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "16.3.2",

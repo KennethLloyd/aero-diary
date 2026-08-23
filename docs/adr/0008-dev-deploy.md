@@ -1,22 +1,22 @@
-# ADR-0008: Dev workflow & deployment — Mac-first, no Docker
+# ADR-0008: Dev workflow & deployment — standalone app, OCI profile
 
-**Status:** Accepted (2026-08-16)
+**Status:** Accepted (2026-08-23)
 
 ## Context
 
-Kenneth develops on his Mac (pnpm 11.17 / node 22.21.1); the app runs on his Oracle Cloud ARM box (tailnet-only via tailscale serve, systemd conventions from hermes-webui/api_server). SQLite is a single file — Docker solves multi-service version coupling this app doesn't have, and would add an ARM image, a volume, and a UFW-bypassing container to the security surface.
+Aero Diary is a normal Next.js application and must remain deployable to any compatible web server or hosting platform. The chosen production environment is an Oracle Cloud ARM box with a private network posture, but that infrastructure preference must not become an application dependency.
 
 ## Decision
 
-- **Dev**: Mac-first. Clone from GitHub origin, apply migrations, set `DEMO_EMAIL` and `DEMO_PASSWORD` in `.env.local`, run `pnpm db:seed` against a local SQLite file, then `pnpm dev`. ChatMock runs locally for polish; `.env.local` carries the Drive refresh token + session secret + `LLM_BASE_URL=http://127.0.0.1:8000/v1`.
-- **Origin**: GitHub `KennethLloyd/aero-diary` (public) — the single source of truth; the OCI copy at `/home/ubuntu/Projects/aero-diary` is the deploy checkout.
-- **Deploy (OCI)**: `git pull` → `pnpm install` → apply migrations → set `DEMO_EMAIL` and `DEMO_PASSWORD` in the private `.env` → `pnpm db:seed` → `pnpm build` → systemd unit running the production server → tailscale serve (same pattern as hermes-webui). Own `.env` on OCI.
-- **Clean local verification**: use an explicitly disposable path, never the production `.env`: `DATABASE_URL="file:./data/aero-diary-clean.db" pnpm prisma migrate reset --force`, followed by `DATABASE_URL="file:./data/aero-diary-clean.db" DEMO_EMAIL="demo@example.com" DEMO_PASSWORD="a-local-demo-password" pnpm db:seed`. Delete only that named disposable file after verification.
-- **No Docker**, anywhere in the stack.
-- **Backups**: the SQLite file is one file — extend the existing nightly `hermes-backup.timer` rclone flow to include it (post-v1 ticket, alongside the DB the Drive photos are already backed up by Drive itself).
+- **Portable application contract:** build with `pnpm build` and run with `pnpm start`. The app requires only its documented environment variables, Node/pnpm compatibility, database, and configured OpenAI-compatible LLM endpoint.
+- **Dev:** Mac-first. Clone from GitHub origin, apply migrations, configure a disposable/local SQLite file, run `pnpm db:seed`, and use `pnpm dev`.
+- **OCI profile:** the checkout is `/home/ubuntu/Projects/aero-diary`; deploy uses fast-forward Git pull, frozen dependency install, production migrations, build, and restart of an `aero-diary.service` systemd unit. The app listens on its configured local port and may be placed behind any reverse proxy.
+- **Tailscale:** Tailscale serve is the chosen OCI exposure and access preference only. It is documented in the OCI operations profile and is not required by application code, dependencies, environment validation, generic deployment instructions, or tests.
+- **ChatMock:** ChatMock is installed, authenticated, and managed by the OCI operator. Aero Diary only uses the OpenAI-compatible `LLM_BASE_URL` contract; no ChatMock package, service unit, installer, or runtime code belongs in this repository.
+- **Backups:** the SQLite database is added to the existing OCI backup flow. The deployment runbook records the database path, backup verification, and application/database rollback procedure.
 
 ## Consequences
 
-- One command from repo to prod; the deploy path is boring and familiar.
-- SQLite file must be treated as a backup citizen (ticket exists).
-- Public repo means secrets live only in local `.env*` files (gitignored), never committed.
+- A standard web server, reverse proxy, cloud host, or private network can run the standalone app without Tailscale.
+- OCI operations are explicit and reproducible without coupling the product to OCI-specific binaries.
+- Secrets, ChatMock setup, reverse-proxy setup, and backup credentials remain operator-managed.

@@ -4,13 +4,13 @@ import { loginSchema } from '@/lib/auth/schemas';
 describe('login schema', () => {
   it('accepts a valid email and password', () => {
     const result = loginSchema.safeParse({
-      email: 'Kenneth@Example.com',
+      email: 'TestUser@Example.com',
       password: 'hunter2',
     });
     expect(result.success).toBe(true);
     if (result.success) {
       // Normalized: trimmed + lowercased.
-      expect(result.data.email).toBe('kenneth@example.com');
+      expect(result.data.email).toBe('testuser@example.com');
       expect(result.data.password).toBe('hunter2');
     }
   });

@@ -4,17 +4,17 @@
 
 ## Context
 
-868 of 2,777 legacy journal entries carry photos (`photos/<hash>.jpg`), stored on Kenneth's Mac — not on OCI. Requirement: Drive is the canonical photo store; the app must fetch existing photos and store new uploads, working identically in Mac dev and OCI prod. rclone is rejected for the app itself (no rclone on the Mac; he won't install it for dev). Public Drive links are a privacy fail (private journal).
+Imported photo references and new uploads are operator-managed outside the repository. Drive is the canonical photo store; the app must fetch existing photos and store new uploads, working identically in local development and OCI production. The app does not depend on rclone. Public Drive links are a privacy fail.
 
 ## Decision
 
 Google Drive API v3, server-side only:
 
 - **Credential**: OAuth desktop-app client (reuse the `rclone-backup` GCP project's client; one-time local loopback flow to mint a refresh token with `https://www.googleapis.com/auth/drive` scope). Refresh token lives in the app `.env` (Mac + OCI), never client-side. Access tokens (~1h) refreshed via `oauth2Client` on each call.
-- **Layout**: all app photos under `AeroDiary/photos/`; filenames keep the legacy `<hash>.jpg` so `photoPaths` map 1:1 with zero renaming.
+- **Layout**: all app photos under `AeroDiary/photos/`; `photoPaths` map 1:1 to Drive-relative filenames with zero renaming.
 - **Upload** (new photos): server action receives the file → `files.create` (multipart, `application/octet-stream`) → DB `Photo` row (`entryId`, `drivePath`, `mimeType`).
 - **Serve**: `GET /photos/[id]` route handler streams `files.get({ fileId, alt: 'media' })` through the server with the token; response cached (immutable — photos never change) so Drive isn't hit per view.
-- **Import**: the legacy `photos/` folder is uploaded to Drive once (Kenneth does this manually — drag into `AeroDiary/photos/` on Drive, or a one-off script); the import script then maps `photoPaths` → existing Drive paths.
+- **Import**: an operator places the referenced files in `AeroDiary/photos/`; the import workflow then maps `photoPaths` → existing Drive paths.
 
 ## Consequences
 

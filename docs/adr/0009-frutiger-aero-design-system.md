@@ -4,7 +4,7 @@
 
 ## Context
 
-Kenneth: "the vibes should not be changed, the prototype vibes is already nostalgic and perfect for my taste so the coding of the styles should follow exactly that theme." The prototype (`aero_diary.html`) is the spec. The vision-model rundown (8 screens) catalogued the exact visual language.
+The prototype's nostalgic visual language is the design requirement. The prototype (`aero_diary.html`) is the spec. The vision-model rundown (8 screens) catalogued the exact visual language.
 
 ## Decision
 

@@ -133,4 +133,32 @@ describe('Google Drive photo store', () => {
     );
     expect(drive.delete).toHaveBeenCalledWith({ fileId: 'known-file' });
   });
+
+  it('reports duplicate filenames instead of choosing an arbitrary Drive file', async () => {
+    const drive = fakeDrive();
+    drive.list.mockImplementation(async ({ q }) => {
+      if (q?.includes("name = 'AeroDiary'")) {
+        return { data: { files: [{ id: 'aero-folder', name: 'AeroDiary' }] } } as never;
+      }
+      if (q?.includes("name = 'photos'")) {
+        return { data: { files: [{ id: 'photos-folder', name: 'photos' }] } } as never;
+      }
+      return {
+        data: {
+          files: [
+            { id: 'first-file', name: 'photo.jpg', mimeType: 'image/jpeg' },
+            { id: 'second-file', name: 'photo.jpg', mimeType: 'image/jpeg' },
+          ],
+        },
+      } as never;
+    });
+
+    const store = createPhotoStore(drive as unknown as DriveFilesApi, 'AeroDiary/photos');
+
+    await expect(store.resolve('photos/photo.jpg')).resolves.toEqual({
+      status: 'duplicate',
+      drivePath: 'photos/photo.jpg',
+      fileIds: ['first-file', 'second-file'],
+    });
+  });
 });
