@@ -219,10 +219,10 @@ export function NewEntryForm({
             </AeroButton>
             {polishSnapshot ? (
               <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-[#144e9d]">
-                <button type="button" onClick={toggleOriginal} className="underline">
+                <button type="button" onClick={toggleOriginal} className="aero-link-control text-xs font-bold underline">
                   {showingOriginal ? 'Show polished' : 'Show original'}
                 </button>
-                <button type="button" onClick={undoPolish} className="underline">
+                <button type="button" onClick={undoPolish} className="aero-link-control text-xs font-bold underline">
                   Undo polish
                 </button>
               </div>

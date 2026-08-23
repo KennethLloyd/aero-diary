@@ -125,30 +125,20 @@ export function TimelineList({
         ))}
       </div>
       {nextCursor ? (
-        <div ref={sentinelRef} className="flex min-h-16 items-center justify-center" aria-live="polite">
-          {isPending ? (
-            <p className="text-sm font-semibold text-[#2b4c73]">Loading older entries…</p>
-          ) : loadError ? (
-            <div className="flex flex-col items-center gap-2">
-              <p className="text-sm font-semibold text-red-700">{loadError}</p>
-              <button
-                type="button"
-                className="aero-link-control text-sm font-bold text-[#144e9d] underline decoration-dotted underline-offset-4"
-                onClick={loadMore}
-              >
-                Try again
-              </button>
-            </div>
-          ) : (
+        <>
+          <div ref={sentinelRef} className="h-px w-full" aria-hidden="true" />
+          <div className="flex min-h-16 flex-col items-center justify-center gap-1" aria-live="polite">
+            {loadError ? <p role="alert" className="text-sm font-semibold text-red-700">{loadError}</p> : null}
             <button
               type="button"
-              className="aero-link-control text-sm font-bold text-[#144e9d] underline decoration-dotted underline-offset-4"
+              disabled={isPending}
+              className="aero-link-control text-sm font-bold text-[#144e9d] underline decoration-dotted underline-offset-4 disabled:cursor-wait disabled:opacity-60"
               onClick={loadMore}
             >
-              Load older entries
+              {isPending ? 'Loading older entries…' : loadError ? 'Try again' : 'Load older entries'}
             </button>
-          )}
-        </div>
+          </div>
+        </>
       ) : (
         <p className="py-4 text-center text-xs font-semibold text-[#2b4c73]">You’re all caught up.</p>
       )}
