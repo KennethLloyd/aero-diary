@@ -15,7 +15,7 @@ vi.mock('@/lib/db', async () => {
   return { db: testDb };
 });
 
-import { verifySession } from '@/lib/dal';
+import { getOptionalSession, verifySession } from '@/lib/dal';
 
 // `redirect()` throws in Next; the mock throws a sentinel so the gate stops.
 const NEXT_REDIRECT = 'NEXT_REDIRECT';
@@ -125,5 +125,39 @@ describe('verifySession (auth gate)', () => {
     await verifySession();
 
     expect(mocks.cookieStore.set).not.toHaveBeenCalled();
+  });
+});
+
+describe('getOptionalSession', () => {
+  beforeEach(async () => {
+    await resetTestDb();
+    vi.clearAllMocks();
+  });
+
+  it('returns null for an anonymous request without redirecting', async () => {
+    mocks.cookieStore.get.mockReturnValue(undefined);
+
+    await expect(getOptionalSession()).resolves.toBeNull();
+    expect(mocks.redirect).not.toHaveBeenCalled();
+  });
+
+  it('returns the authenticated user for a valid session', async () => {
+    const user = await testDb.user.create({
+      data: { email: 'ken@example.com', passwordHash: 'x' },
+    });
+    const token = 'optional-session-token';
+    await testDb.session.create({
+      data: {
+        userId: user.id,
+        tokenHash: hashToken(token),
+        expiresAt: new Date(Date.now() + 100_000),
+      },
+    });
+    mocks.cookieStore.get.mockReturnValue({ value: token });
+
+    await expect(getOptionalSession()).resolves.toEqual({
+      isAuth: true,
+      userId: user.id,
+    });
   });
 });
