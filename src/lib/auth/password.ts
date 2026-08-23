@@ -19,7 +19,7 @@ export async function verifyPassword(
   return verify(passwordHash, password, ARGON2_OPTIONS);
 }
 
-// Dummy hash for timing-uniform verify: unknown emails still run argon2 so
-// response time doesn't leak which accounts exist.
+// Use a dummy hash for unknown emails to avoid timing attacks
+// (i.e. user enumeration where an attacker can tell if an email is registered by measuring response time).
 export const DUMMY_PASSWORD_HASH =
   '$argon2id$v=19$m=19456,t=2,p=1$Y3swWthAcrL2Tv9EyYop4g$QmkiG3T3TX0OcCQ2DbBtaWDN1XVerkWJh+4d5o9Ohbs';

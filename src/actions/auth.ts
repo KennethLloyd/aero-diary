@@ -65,9 +65,8 @@ export async function login(
     return { error: INVALID_CREDENTIALS };
   }
 
-  // Success — clear the per-email throttle only. The per-IP throttle stays:
-  // one valid credential must not reset the IP-wide guard (that would let an
-  // attacker with a single account keep guessing others from the same IP).
+  // Reset the rate limit per email, but not per IP
+  // to prevent attackers from using a valid account to reset the IP-wide throttle.
   resetRateLimit('email', email);
   await createSession(user.id);
 
@@ -103,9 +102,9 @@ export async function loginDemo(): Promise<void> {
 
 // Logout = delete the session row (instant revoke) + clear the cookie.
 export async function logout(): Promise<void> {
-  const cookie = (await cookies()).get(SESSION_COOKIE)?.value;
-  if (cookie) {
-    await db.session.deleteMany({ where: { tokenHash: hashToken(cookie) } });
+  const tokenFromCookie = (await cookies()).get(SESSION_COOKIE)?.value;
+  if (tokenFromCookie) {
+    await db.session.deleteMany({ where: { tokenHash: hashToken(tokenFromCookie) } });
   }
   await clearSessionCookie();
   redirect('/');
