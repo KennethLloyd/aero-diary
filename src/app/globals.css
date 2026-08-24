@@ -1004,23 +1004,31 @@
     display: inline-flex;
     min-height: 2rem;
     align-items: center;
+    appearance: none;
     border: 1px solid rgba(255, 255, 255, 0.95);
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.65);
     padding: 0.3rem 0.7rem;
     color: #144e9d;
     cursor: pointer;
+    font: inherit;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95);
   }
-  .aero-date-change:focus-within {
+  .aero-date-change:focus-visible {
+    outline: none;
     box-shadow: var(--aero-focus-ring), inset 0 1px 0 rgba(255, 255, 255, 0.95);
   }
-  .aero-date-change input {
+  .aero-date-input {
     position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    cursor: pointer;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    border: 0;
+    padding: 0;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
     opacity: 0;
     pointer-events: none;
   }

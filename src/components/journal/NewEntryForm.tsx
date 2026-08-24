@@ -115,6 +115,22 @@ export function NewEntryForm({
       journalDateInput.current.max = currentBrowserDate;
     }
   }
+  function openJournalDatePicker() {
+    const input = journalDateInput.current;
+    if (!input) return;
+
+    input.focus();
+    if (typeof input.showPicker === 'function') {
+      try {
+        input.showPicker();
+        return;
+      } catch {
+        // Fall back for browsers that require a visible native control.
+      }
+    }
+    input.click();
+  }
+
 
   function toggleOriginal() {
     if (!polishSnapshot) return;
@@ -227,20 +243,28 @@ export function NewEntryForm({
               ) : (
                 <>
                   <span>{formatJournalDate(journalDate, browserTodayDate)}</span>
-                  <label htmlFor="journal-date" className="aero-date-change">
-                    <span>Change date</span>
-                    <input
-                      ref={journalDateInput}
-                      id="journal-date"
-                      name="journalDate"
-                      type="date"
-                      value={journalDate}
-                      max={browserTodayDate}
-                      required
-                      aria-label="Journal date"
-                      onChange={(event) => setSelectedJournalDate(event.target.value)}
-                    />
-                  </label>
+                  <button
+                    type="button"
+                    className="aero-date-change"
+                    aria-controls="journal-date"
+                    aria-label="Change journal date"
+                    onClick={openJournalDatePicker}
+                  >
+                    <span aria-hidden="true">Change date</span>
+                  </button>
+                  <input
+                    ref={journalDateInput}
+                    id="journal-date"
+                    name="journalDate"
+                    type="date"
+                    className="aero-date-input"
+                    value={journalDate}
+                    max={browserTodayDate}
+                    required
+                    tabIndex={-1}
+                    aria-hidden="true"
+                    onChange={(event) => setSelectedJournalDate(event.target.value)}
+                  />
                 </>
               )}
             </p>
