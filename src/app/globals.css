@@ -413,6 +413,19 @@
     height: clamp(42px, 12vw, 52px);
     font-size: clamp(20px, 5.5vw, 26px);
   }
+
+  .aero-mood-selector {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    align-items: center;
+    gap: clamp(2px, 1.5vw, 8px);
+  }
+  .aero-mood-option {
+    width: 100%;
+    min-width: 0;
+    min-height: var(--aero-control-min);
+    padding: 2px;
+  }
   .aero-orb::after {
     content: '';
     position: absolute;
@@ -471,6 +484,7 @@
   .aero-screen-content {
     min-width: 0;
     min-height: 0;
+    padding-top: env(safe-area-inset-top);
     overflow-x: hidden;
     overflow-y: auto;
   }
@@ -985,6 +999,40 @@
     min-height: 0;
   }
 
+  .aero-date-change {
+    position: relative;
+    display: inline-flex;
+    min-height: 2rem;
+    align-items: center;
+    appearance: none;
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.65);
+    padding: 0.3rem 0.7rem;
+    color: #144e9d;
+    cursor: pointer;
+    font: inherit;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  }
+  .aero-date-change:focus-visible {
+    outline: none;
+    box-shadow: var(--aero-focus-ring), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  }
+  .aero-date-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    border: 0;
+    padding: 0;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+  }
+
   .aero-entry-form .aero-input::placeholder {
     color: #728ca3;
     opacity: 1;
@@ -1166,6 +1214,9 @@
 @layer utilities {
   .aero-page {
     padding-bottom: var(--aero-page-bottom);
+  }
+  .aero-safe-area-main {
+    padding-top: max(1rem, env(safe-area-inset-top));
   }
 }
 

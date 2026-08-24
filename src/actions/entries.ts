@@ -13,8 +13,12 @@ import {
   insightsCacheTag,
   timelineCacheTag,
 } from '@/lib/journal/cache-tags';
+import {
+  getJournalDateTime,
+  getTodayDateKey,
+  isFutureDateKey,
+} from '@/lib/journal/dates';
 import { createEntrySchema, entryIdSchema, photoIdSchema } from '@/lib/journal/schemas';
-
 export type EntryActionState = { error?: string } | undefined
 export type CreateEntryState = EntryActionState
 export type UpdateEntryState = EntryActionState
@@ -22,6 +26,7 @@ export type DeleteEntryState = EntryActionState
 export type DeletePhotoState = EntryActionState
 
 const INVALID_ENTRY = 'Choose a mood and write a note before saving.';
+const INVALID_DATE = 'Choose a date on or before today.';
 const INVALID_ACTIVITY = 'One or more selected activities no longer exist.';
 const SAVE_FAILED = 'Unable to save your entry. Please try again.';
 const ENTRY_NOT_FOUND = 'Entry not found.';
@@ -88,11 +93,18 @@ export async function createEntry(
     mood: formData.get('mood'),
     note: formData.get('note'),
     activityIds: formData.getAll('activityId'),
+    journalDate: formData.get('journalDate') ?? undefined,
     localOffset: formData.get('localOffset') ?? undefined,
   });
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? INVALID_ENTRY };
+  }
+  const now = new Date();
+  const localOffset = parsed.data.localOffset ?? -now.getTimezoneOffset();
+  const journalDate = parsed.data.journalDate ?? getTodayDateKey(now, localOffset);
+  if (isFutureDateKey(journalDate, now, localOffset)) {
+    return { error: INVALID_DATE };
   }
 
   const parsedPhotos = parsePhotoFiles(formData.getAll('photo'));
@@ -111,14 +123,13 @@ export async function createEntry(
     return { error: INVALID_ACTIVITY };
   }
 
-  const now = new Date();
   let createdEntryId: string | undefined;
   try {
     const createdEntry = await saveWithPhotos(parsedPhotos.data, (uploadedPhotos) => db.entry.create({
       data: {
         userId: session.userId,
-        date: now,
-        localOffset: parsed.data.localOffset ?? -now.getTimezoneOffset(),
+        date: getJournalDateTime(journalDate, now, localOffset),
+        localOffset,
         mood: parsed.data.mood,
         note: parsed.data.note,
         photos: {

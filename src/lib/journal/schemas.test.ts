@@ -7,19 +7,36 @@ import {
 } from '@/lib/journal/schemas';
 
 describe('journal schemas', () => {
-  it('accepts a valid entry and trims its note', () => {
+  it('accepts a valid entry and trims its note and journal date', () => {
     const result = createEntrySchema.safeParse({
       mood: Mood.GOOD,
       note: '  A good day.  ',
       activityIds: ['activity-1'],
+      journalDate: ' 2026-08-24 ',
       localOffset: '480',
     });
 
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.note).toBe('A good day.');
+      expect(result.data.journalDate).toBe('2026-08-24');
       expect(result.data.localOffset).toBe(480);
     }
+  });
+
+  it('rejects malformed and impossible journal dates', () => {
+    expect(createEntrySchema.safeParse({
+      mood: Mood.GOOD,
+      note: 'A note.',
+      activityIds: [],
+      journalDate: '2026-02-30',
+    }).success).toBe(false);
+    expect(createEntrySchema.safeParse({
+      mood: Mood.GOOD,
+      note: 'A note.',
+      activityIds: [],
+      journalDate: '2026-8-24',
+    }).success).toBe(false);
   });
 
   it('rejects invalid moods and empty notes', () => {

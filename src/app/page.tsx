@@ -23,7 +23,7 @@ async function LoginContent() {
   if (session) redirect('/timeline');
 
   return (
-    <main className="relative z-10 flex min-h-screen flex-col items-center justify-center p-4">
+    <main className="aero-safe-area-main relative z-10 flex min-h-screen flex-col items-center justify-center p-4">
       <div className="aero-hero flex w-full max-w-sm flex-col items-center p-6 sm:p-8">
         <AeroLogo />
 
@@ -40,7 +40,7 @@ async function LoginContent() {
 
 function LoginLoading() {
   return (
-    <main className="relative z-10 flex min-h-screen flex-col items-center justify-center p-4" aria-label="Loading Aero Diary">
+    <main className="aero-safe-area-main relative z-10 flex min-h-screen flex-col items-center justify-center p-4" aria-label="Loading Aero Diary">
       <div className="aero-hero h-96 w-full max-w-sm animate-pulse" />
     </main>
   );
