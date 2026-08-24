@@ -16,6 +16,14 @@ const ORB_EMOJI: Record<Mood, string> = {
   RAD: '😃',
 };
 
+const ORB_LABEL: Record<Mood, string> = {
+  AWFUL: 'Awful',
+  BAD: 'Bad',
+  MEH: 'Meh',
+  GOOD: 'Good',
+  RAD: 'Rad',
+};
+
 // Specular glossy mood orb; `mini` renders the small calendar dot.
 export function AeroOrb({
   mood,
@@ -30,7 +38,7 @@ export function AeroOrb({
     <div
       className={`aero-orb flex-none ${ORB_CLASS[mood]} ${mini ? 'mini-orb' : ''} ${className}`}
       role="img"
-      aria-label={`Mood: ${mood}`}
+      aria-label={`Mood: ${ORB_LABEL[mood]}`}
     >
       {mini ? null : ORB_EMOJI[mood]}
     </div>

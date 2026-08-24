@@ -38,14 +38,20 @@
 
   body {
     font-family: var(--font-sans);
-    /* Fixed sky-to-grass background. */
-    background: linear-gradient(
-      to bottom,
-      #69a7e1 0%,
-      #9bd0f5 38%,
-      #bfe8c4 72%,
-      #76c77a 100%
-    );
+    /* Fixed sky-to-grass background with a soft horizon glow. */
+    background:
+      radial-gradient(
+        ellipse 130% 55% at 50% -12%,
+        rgba(255, 255, 255, 0.5),
+        rgba(255, 255, 255, 0) 62%
+      ),
+      linear-gradient(
+        to bottom,
+        #69a7e1 0%,
+        #9bd0f5 38%,
+        #bfe8c4 72%,
+        #76c77a 100%
+      );
     background-attachment: fixed;
     color: #1a2c42;
     min-height: 100vh;
@@ -123,13 +129,19 @@
 
   /* 1. Aero Hero: high gloss, focal areas, special highlights */
   .aero-hero {
-    background: linear-gradient(
-      140deg,
-      rgba(255, 255, 255, 0.92) 0%,
-      rgba(224, 243, 255, 0.85) 45%,
-      rgba(202, 236, 255, 0.78) 70%,
-      rgba(235, 250, 255, 0.9) 100%
-    );
+    background:
+      radial-gradient(
+        circle at 88% -8%,
+        rgba(126, 196, 248, 0.4),
+        rgba(126, 196, 248, 0) 52%
+      ),
+      linear-gradient(
+        140deg,
+        rgba(255, 255, 255, 0.92) 0%,
+        rgba(224, 243, 255, 0.85) 45%,
+        rgba(202, 236, 255, 0.78) 70%,
+        rgba(235, 250, 255, 0.9) 100%
+      );
     border: 1px solid rgba(255, 255, 255, 0.95);
     box-shadow:
       0 10px 28px rgba(10, 47, 92, 0.18),
@@ -191,10 +203,6 @@
     pointer-events: none;
   }
 
-  .aero-calendar-panel {
-    overflow: visible;
-  }
-
   /* 3. Plain Surface: long-form reading, forms, settings lists */
   .aero-surface-plain {
     background: rgba(255, 255, 255, 0.92);
@@ -220,6 +228,8 @@
     border: 1px solid #10427a;
     box-shadow:
       inset 0px 1px 0px rgba(255, 255, 255, 0.85),
+      inset 0 10px 12px -7px rgba(255, 255, 255, 0.55),
+      inset 0 -6px 10px -7px rgba(0, 24, 55, 0.35),
       0px 2px 5px rgba(0, 36, 75, 0.28);
     color: white;
     text-shadow: 0 -1px 1px rgba(0, 0, 0, 0.5);
@@ -239,12 +249,16 @@
     transform: translateY(-1px);
     box-shadow:
       inset 0px 1px 0px rgba(255, 255, 255, 0.9),
+      inset 0 10px 12px -7px rgba(255, 255, 255, 0.6),
+      inset 0 -6px 10px -7px rgba(0, 24, 55, 0.3),
       0px 4px 10px rgba(0, 36, 75, 0.32);
   }
   .aero-btn:active:not(:disabled) {
     background: linear-gradient(180deg, #146cc2 0%, #207ce5 100%);
-    box-shadow: inset 0px 2px 5px rgba(0, 0, 0, 0.4);
-    transform: translateY(0);
+    box-shadow:
+      inset 0px 2px 5px rgba(0, 0, 0, 0.4),
+      0px 1px 2px rgba(0, 36, 75, 0.2);
+    transform: translateY(0) scale(0.98);
   }
   .aero-btn:disabled {
     opacity: 0.65;
@@ -349,6 +363,9 @@
     border-color: #8fb9de;
     transform: translateY(-1px);
   }
+  .activity-chip:active {
+    transform: translateY(0) scale(0.96);
+  }
   .activity-chip-selected {
     background: linear-gradient(180deg, #7ec4f8 0%, #3a97e8 49%, #146cc2 50%, #2982df 100%);
     border-color: #0d4b8a;
@@ -356,7 +373,9 @@
     text-shadow: 0 -1px 1px rgba(0, 36, 75, 0.6);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.7),
-      0 2px 6px rgba(20, 108, 194, 0.35);
+      inset 0 8px 10px -6px rgba(255, 255, 255, 0.45),
+      0 2px 6px rgba(20, 108, 194, 0.35),
+      0 3px 12px rgba(20, 108, 194, 0.3);
   }
   .activity-chip-selected:hover {
     background: linear-gradient(180deg, #95d2fc 0%, #4da7f5 49%, #1c7ad4 50%, #3891ec 100%);
@@ -377,6 +396,7 @@
     box-shadow:
       0 4px 10px rgba(0, 36, 75, 0.22),
       inset 0 -4px 6px rgba(0, 0, 0, 0.2),
+      inset 0 -1.5px 2px rgba(255, 255, 255, 0.3),
       inset 0 4px 6px rgba(255, 255, 255, 0.7);
     border: 1.5px solid rgba(255, 255, 255, 0.85);
     position: relative;
@@ -490,7 +510,7 @@
     min-height: 48px;
     padding: 4px 8px;
     border-radius: 18px;
-    color: #2b4c73;
+    color: #46648c;
     text-decoration: none;
     transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
@@ -502,14 +522,15 @@
     width: 28px;
     height: 28px;
     font-size: 19px;
-    transition: transform 0.18s ease;
+    opacity: 0.82;
+    transition: transform 0.18s ease, opacity 0.18s ease;
   }
   .dock-item .dock-label {
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1;
     letter-spacing: -0.01em;
-    color: #2b4c73;
+    color: #46648c;
     transition: color 0.18s ease;
   }
 
@@ -519,6 +540,10 @@
   }
   .dock-item:hover:not(.active) .dock-icon-wrap {
     transform: scale(1.1);
+    opacity: 1;
+  }
+  .dock-item:active:not(.active) {
+    transform: translateY(0) scale(0.95);
   }
 
   .dock-item.active {
@@ -532,15 +557,20 @@
     border: 1px solid #0d4f91;
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.8),
-      0 3px 8px rgba(19, 107, 192, 0.35);
+      inset 0 8px 10px -6px rgba(255, 255, 255, 0.4),
+      0 4px 12px rgba(19, 107, 192, 0.42);
     color: white;
-    transform: translateY(-1px);
+  }
+  .dock-item.active:active {
+    transform: scale(0.96);
   }
   .dock-item.active .dock-label {
     color: #ffffff;
+    font-weight: 700;
     text-shadow: 0 -1px 1px rgba(0, 36, 75, 0.6);
   }
   .dock-item.active .dock-icon-wrap {
+    opacity: 1;
     filter: drop-shadow(0 1px 2px rgba(0, 24, 55, 0.35));
   }
 
@@ -730,10 +760,12 @@
   }
 
   /* Miscellaneous controls. */
-  .no-scrollbar::-webkit-scrollbar {
+  .aero-screen-content::-webkit-scrollbar,
+  .aero-entry-form::-webkit-scrollbar {
     display: none;
   }
-  .no-scrollbar {
+  .aero-screen-content,
+  .aero-entry-form {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
@@ -857,12 +889,29 @@
       inset 0 1px 0 rgba(255, 255, 255, 1),
       inset 0 0 12px rgba(255, 255, 255, 0.75);
   }
+  .aero-photo-card:active {
+    transform: scale(0.98);
+  }
   .aero-photo-thumb {
     background: linear-gradient(135deg, rgba(155, 208, 245, 0.45), rgba(191, 232, 196, 0.65));
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
   }
+  /* Destructive control: quiet until hovered, unmistakably red. */
   .aero-photo-delete {
-    border: 1.5px solid rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(185, 28, 28, 0.4);
+    background: linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.94) 0%,
+      rgba(254, 235, 235, 0.9) 100%
+    );
+    color: #b91c1c;
+    box-shadow:
+      0 1px 3px rgba(93, 9, 9, 0.16),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    transition: filter 0.18s, transform 0.18s, opacity 0.18s;
+  }
+  .aero-photo-delete:hover {
+    border-color: #b91c1c;
     background: linear-gradient(
       to bottom,
       #ff8080 0%,
@@ -870,14 +919,13 @@
       #b91c1c 50%,
       #ef4444 100%
     );
-    box-shadow:
-      0 2px 6px rgba(93, 9, 9, 0.35),
-      inset 0 1px 0 rgba(255, 255, 255, 0.75);
-    transition: filter 0.18s, transform 0.18s, opacity 0.18s;
+    color: #ffffff;
+    text-shadow: 0 -1px 1px rgba(0, 0, 0, 0.4);
+    filter: brightness(1.05);
+    transform: translateY(-1px);
   }
-  .aero-photo-delete:hover {
-    filter: brightness(1.1);
-    transform: scale(1.08);
+  .aero-photo-delete:active {
+    transform: scale(0.96);
   }
   .aero-photo-viewer {
     border: 1px solid rgba(255, 255, 255, 0.95);
@@ -920,6 +968,10 @@
   .aero-photo-nav:hover:not(:disabled) {
     filter: brightness(1.08);
     transform: translateY(-1px);
+  }
+  .aero-photo-nav:active:not(:disabled) {
+    transform: scale(0.96);
+    filter: brightness(0.96);
   }
 
   .aero-entry-shell {
@@ -1053,9 +1105,7 @@
   .timeline-entry-body {
     padding-top: 0.65rem;
   }
-}
 
-@media (max-width: 639px) {
   .aero-entry-page {
     min-height: 100%;
     overflow: hidden;

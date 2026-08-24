@@ -227,7 +227,7 @@ export function PhotoGallery({ photos }: { photos: PhotoGalleryPhoto[] }) {
             </header>
 
             <div className="aero-photo-viewer-stage relative flex min-h-0 items-center justify-center px-2 py-4 sm:px-6 sm:py-6">
-              <div className="relative h-[min(65vh,70vw)] min-h-[220px] w-full">
+              <div className="relative h-[min(62vh,115vw)] min-h-[240px] w-full">
                 <PhotoMedia
                   photo={activePhoto}
                   alt={`Photo ${viewIndex + 1} from this entry, enlarged`}

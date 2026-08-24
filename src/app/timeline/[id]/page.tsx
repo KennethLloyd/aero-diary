@@ -126,7 +126,7 @@ async function EntryDetailContent({ params }: EntryDetailPageProps) {
           {/* Journal Note Content */}
           <section className="pt-5" aria-labelledby="entry-article-heading">
             <h2 id="entry-article-heading" className="sr-only">Journal note</h2>
-            <div className="space-y-4 text-[15px] font-normal leading-relaxed text-[#1a2c42]">
+            <div className="max-w-[68ch] space-y-4 text-[15px] font-normal leading-relaxed text-[#1a2c42] sm:text-base sm:leading-7">
               {paragraphs.map((paragraph, index) => (
                 <p className="whitespace-pre-wrap" key={`${entry.id}-paragraph-${index}`}>
                   {paragraph}

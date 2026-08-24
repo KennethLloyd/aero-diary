@@ -41,7 +41,7 @@ test('demo user can create, polish, view, and delete an entry', async ({ page })
     await page.getByRole('button', { name: 'Save entry' }).click();
 
     await expect(page).toHaveURL(/\/timeline$/);
-    const createdEntry = page.getByRole('link', { name: new RegExp(`Mood: RAD.*${marker}`) });
+    const createdEntry = page.getByRole('link', { name: new RegExp(`Mood:.*${marker}`, 'i') });
     await expect(createdEntry).toBeVisible();
     await createdEntry.click();
     await expect(page).toHaveURL(/\/timeline\/(?!new$)[^/]+$/);

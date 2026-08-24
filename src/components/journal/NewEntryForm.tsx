@@ -211,9 +211,9 @@ export function NewEntryForm({
                 <button
                   key={option.value}
                   type="button"
-                  className={`relative flex min-h-11 min-w-11 items-center justify-center rounded-full p-1 transition-all duration-200 ${
+                  className={`relative flex min-h-11 min-w-11 items-center justify-center rounded-full p-1 transition-all duration-200 active:scale-95 ${
                     selected
-                      ? 'scale-110 ring-2 ring-[#146cc2] ring-offset-2 ring-offset-white/80'
+                      ? 'scale-110 ring-2 ring-[#146cc2] ring-offset-2 ring-offset-white/80 [&_.aero-orb]:drop-shadow-[0_0_10px_rgba(74,155,230,0.6)]'
                       : 'opacity-75 hover:opacity-100'
                   }`}
                   aria-label={`Select ${option.label} mood`}
@@ -238,7 +238,7 @@ export function NewEntryForm({
           <textarea
             id="entry-note"
             name="note"
-            className="aero-input min-h-44 w-full resize-y rounded-xl border-white/80 bg-white/95 p-4 text-[15px] leading-relaxed text-[#1a2c42] placeholder:text-[#8ba2b8] sm:min-h-52"
+            className="aero-input min-h-44 w-full resize-y rounded-xl border-white/80 bg-white/95 p-4 text-[15px] leading-relaxed text-[#1a2c42] placeholder:text-[#8ba2b8] sm:min-h-52 sm:text-base"
             placeholder="What’s on your mind today?"
             maxLength={20_000}
             value={note}
@@ -365,7 +365,7 @@ export function NewEntryForm({
                 <button
                   type="button"
                   onClick={() => removePhoto(index)}
-                  className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full border border-white/90 bg-[#0a2f5c]/70 text-[10px] font-bold leading-none text-white shadow-sm transition hover:bg-red-600"
+                  className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full border border-white/90 bg-[#0a2f5c]/70 text-xs font-bold leading-none text-white shadow-sm transition hover:bg-red-600 active:scale-90"
                   aria-label={`Remove ${preview.name}`}
                 >
                   <span aria-hidden="true">×</span>
@@ -376,7 +376,7 @@ export function NewEntryForm({
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="flex h-16 w-16 flex-col items-center justify-center gap-0.5 rounded-xl border border-dashed border-[#7da8cc] bg-white/55 text-[#0a2f5c] shadow-xs transition hover:bg-white/85"
+              className="flex h-16 w-16 flex-col items-center justify-center gap-0.5 rounded-xl border border-dashed border-[#7da8cc] bg-white/55 text-[#0a2f5c] shadow-xs transition hover:bg-white/85 active:scale-95"
               aria-label={photoPreviews.length > 0 ? 'Add more photos' : 'Add photos'}
             >
               <span className="text-xl" aria-hidden="true">📷</span>

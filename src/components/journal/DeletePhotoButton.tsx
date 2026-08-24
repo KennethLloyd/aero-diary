@@ -19,7 +19,7 @@ export function DeletePhotoButton({ photoId }: { photoId: string }) {
     >
       <button
         type="submit"
-        className="aero-photo-delete inline-flex h-8 items-center gap-1 rounded-full px-3 text-xs font-bold leading-none text-white focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+        className="aero-photo-delete inline-flex h-8 items-center gap-1 rounded-full px-3 text-xs font-bold leading-none focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
         aria-label="Remove photo"
         title="Remove photo"
         disabled={pending}

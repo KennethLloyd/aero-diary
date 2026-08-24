@@ -11,12 +11,12 @@ describe('AeroOrb', () => {
 
   it('shows the mood emoji on full-size orbs', () => {
     render(<AeroOrb mood={Mood.AWFUL} />);
-    expect(screen.getByLabelText('Mood: AWFUL')).toHaveTextContent('😭');
+    expect(screen.getByLabelText('Mood: Awful')).toHaveTextContent('😭');
   });
 
   it('uses the expressive smiling emoji for the good mood', () => {
     render(<AeroOrb mood={Mood.GOOD} />);
-    expect(screen.getByLabelText('Mood: GOOD')).toHaveTextContent('😊');
+    expect(screen.getByLabelText('Mood: Good')).toHaveTextContent('😊');
   });
 
   it('renders mini orbs without an emoji', () => {

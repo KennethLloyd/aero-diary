@@ -14,10 +14,10 @@ import type { ActivityOption } from '@/lib/journal/types';
 
 function ActionFeedback({ state }: { state: ActivityState }) {
   if (state?.error) {
-    return <p role="alert" className="basis-full text-xs font-bold text-red-600">{state.error}</p>;
+    return <p role="alert" className="w-full text-xs font-bold text-red-600 sm:basis-full">{state.error}</p>;
   }
   if (state?.success) {
-    return <p role="status" className="basis-full text-xs font-bold text-green-700">{state.success}</p>;
+    return <p role="status" className="w-full text-xs font-bold text-green-700 sm:basis-full">{state.success}</p>;
   }
   return null;
 }
@@ -130,27 +130,29 @@ function ActivityRow({ activity }: { activity: ActivityOption }) {
               await formAction(formData);
               setIsEditing(false);
             }}
-            className="flex w-full min-w-0 flex-wrap items-center gap-2"
+            className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center"
           >
-            <input
-              name="emoji"
-              aria-label={`${accessibleName} emoji`}
-              className="aero-input h-9 w-14 text-center text-base"
-              value={draft.emoji}
-              onChange={(event) => setDraft((current) => ({ ...current, emoji: event.target.value }))}
-              maxLength={16}
-              required
-            />
-            <input
-              name="name"
-              aria-label={`${accessibleName} name`}
-              className="aero-input h-9 min-w-0 flex-1 text-sm font-semibold"
-              value={draft.name}
-              onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
-              maxLength={50}
-              required
-            />
-            <div className="flex items-center gap-1.5">
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <input
+                name="emoji"
+                aria-label={`${accessibleName} emoji`}
+                className="aero-input h-9 w-14 flex-none text-center text-base"
+                value={draft.emoji}
+                onChange={(event) => setDraft((current) => ({ ...current, emoji: event.target.value }))}
+                maxLength={16}
+                required
+              />
+              <input
+                name="name"
+                aria-label={`${accessibleName} name`}
+                className="aero-input h-9 min-w-0 flex-1 text-sm font-semibold"
+                value={draft.name}
+                onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
+                maxLength={50}
+                required
+              />
+            </div>
+            <div className="flex flex-none items-center justify-end gap-1.5">
               <AeroButton type="submit" disabled={pending} className="h-9 px-3 py-0 text-xs">
                 {pending ? 'Saving…' : 'Save'}
               </AeroButton>
@@ -231,7 +233,7 @@ function ActivityComposer() {
       <button
         type="button"
         onClick={() => setExpanded(true)}
-        className="aero-link-control w-full justify-start gap-2 rounded-xl px-3 text-sm font-bold text-[#14538f] hover:bg-sky-50/80"
+        className="aero-link-control w-full justify-start gap-2 rounded-xl px-3 text-sm font-bold text-[#144e9d] hover:bg-sky-50/80"
       >
         <span className="text-base" aria-hidden="true">＋</span>
         <span>New activity</span>
@@ -242,41 +244,45 @@ function ActivityComposer() {
   return (
     <form
       action={formAction}
-      className="flex flex-wrap items-center gap-2 sm:flex-nowrap"
+      className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2"
     >
-      <div className="w-14 flex-none">
-        <label htmlFor="activity-emoji" className="sr-only">Emoji</label>
-        <input
-          id="activity-emoji"
-          name="emoji"
-          className="aero-input h-9 w-full text-center text-base"
-          placeholder="✨"
-          maxLength={16}
-          required
-          autoFocus
-        />
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        <div className="w-14 flex-none">
+          <label htmlFor="activity-emoji" className="sr-only">Emoji</label>
+          <input
+            id="activity-emoji"
+            name="emoji"
+            className="aero-input h-9 w-full text-center text-base"
+            placeholder="✨"
+            maxLength={16}
+            required
+            autoFocus
+          />
+        </div>
+        <div className="min-w-0 flex-1">
+          <label htmlFor="activity-name" className="sr-only">Activity name</label>
+          <input
+            id="activity-name"
+            name="name"
+            className="aero-input h-9 w-full text-sm font-medium"
+            placeholder="e.g. Hiking, Reading, Cooking"
+            maxLength={50}
+            required
+          />
+        </div>
       </div>
-      <div className="min-w-0 flex-1">
-        <label htmlFor="activity-name" className="sr-only">Activity name</label>
-        <input
-          id="activity-name"
-          name="name"
-          className="aero-input h-9 w-full text-sm font-medium"
-          placeholder="e.g. Hiking, Reading, Cooking"
-          maxLength={50}
-          required
-        />
+      <div className="flex flex-none items-center justify-end gap-1.5">
+        <AeroButton type="submit" disabled={pending} className="h-9 px-4 py-0 text-xs font-bold">
+          {pending ? 'Adding…' : 'Add'}
+        </AeroButton>
+        <button
+          type="button"
+          onClick={() => setExpanded(false)}
+          className="aero-btn aero-btn-white h-9 px-2.5 py-0 text-xs font-semibold"
+        >
+          Cancel
+        </button>
       </div>
-      <AeroButton type="submit" disabled={pending} className="h-9 px-4 py-0 text-xs font-bold">
-        {pending ? 'Adding…' : 'Add'}
-      </AeroButton>
-      <button
-        type="button"
-        onClick={() => setExpanded(false)}
-        className="aero-btn aero-btn-white h-9 px-2.5 py-0 text-xs font-semibold"
-      >
-        Cancel
-      </button>
       <ActionFeedback state={state} />
     </form>
   );
