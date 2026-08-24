@@ -25,17 +25,20 @@ function form({
   mood = Mood.RAD,
   note = 'A good day to write things down.',
   activityId,
+  journalDate,
   localOffset = '480',
 }: {
   mood?: string
   note?: string
   activityId?: string
+  journalDate?: string
   localOffset?: string
 } = {}): FormData {
   const data = new FormData();
   data.set('mood', mood);
   data.set('note', note);
   data.set('localOffset', localOffset);
+  if (journalDate) data.set('journalDate', journalDate);
   if (activityId) data.append('activityId', activityId);
   return data;
 }
@@ -90,6 +93,53 @@ describe('createEntry action', () => {
     expect(mocks.updateTag).toHaveBeenCalledWith(`journal:${user.id}:timeline`);
     expect(mocks.updateTag).toHaveBeenCalledWith(`journal:${user.id}:entry:${entry.id}`);
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/timeline');
+  });
+
+  it('persists a backdated entry under the selected local calendar date', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-24T15:45:12.345Z'));
+    try {
+      const user = await testDb.user.create({
+        data: { email: 'ken@example.com', passwordHash: 'x' },
+      });
+      mocks.verifySession.mockResolvedValue({ isAuth: true, userId: user.id });
+
+      await expect(
+        createEntry(
+          undefined,
+          form({ journalDate: '2026-08-23', localOffset: '-420' }),
+        ),
+      ).rejects.toThrow(NEXT_REDIRECT);
+
+      const entry = await testDb.entry.findFirstOrThrow();
+      expect(entry).toMatchObject({
+        localOffset: -420,
+        date: new Date('2026-08-23T15:45:12.345Z'),
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('rejects a future journal date before writing', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-24T15:45:12.345Z'));
+    try {
+      const user = await testDb.user.create({
+        data: { email: 'ken@example.com', passwordHash: 'x' },
+      });
+      mocks.verifySession.mockResolvedValue({ isAuth: true, userId: user.id });
+
+      const state = await createEntry(
+        undefined,
+        form({ journalDate: '2026-08-25', localOffset: '-420' }),
+      );
+
+      expect(state).toEqual({ error: 'Choose a date on or before today.' });
+      expect(await testDb.entry.count()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('rejects an activity owned by another user', async () => {
@@ -151,6 +201,7 @@ describe('updateEntry action', () => {
       include: { activities: true },
     });
     expect(updated).toMatchObject({ mood: Mood.GOOD, note: 'After the edit.' });
+    expect(updated.date).toEqual(entry.date);
     expect(updated.activities).toEqual([{ entryId: entry.id, activityId: newActivity.id }]);
     expect(mocks.updateTag).toHaveBeenCalledWith(`journal:${user.id}:timeline`);
     expect(mocks.updateTag).toHaveBeenCalledWith(`journal:${user.id}:entry:${entry.id}`);

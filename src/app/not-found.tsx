@@ -5,7 +5,7 @@ export default function NotFound() {
   return (
     <>
       <AeroBubbles />
-      <main className="relative z-10 flex min-h-screen items-center justify-center px-4">
+      <main className="aero-safe-area-main relative z-10 flex min-h-screen items-center justify-center px-4">
         <RecoveryState
           title="Page not found"
           message="That page does not exist or the link may be out of date. Your timeline is still here."

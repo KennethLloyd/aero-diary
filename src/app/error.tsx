@@ -7,7 +7,7 @@ export default function GlobalError({ reset }: { error: Error & { digest?: strin
   return (
     <>
       <AeroBubbles />
-      <main className="relative z-10 flex min-h-screen items-center justify-center px-4">
+      <main className="aero-safe-area-main relative z-10 flex min-h-screen items-center justify-center px-4">
         <RecoveryState
           title="Aero Diary needs a refresh"
           message="This page could not load your memories. Try again, or return to the timeline."

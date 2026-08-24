@@ -7,9 +7,11 @@ import {
   useActionState,
   useRef,
   useState,
+  useSyncExternalStore,
   type ChangeEvent,
   type MouseEvent,
 } from 'react';
+import { formatJournalDate, getTodayDateKey } from '@/lib/journal/dates';
 import {
   createEntry,
   updateEntry,
@@ -29,6 +31,14 @@ const MOODS: { value: Mood; label: string }[] = [
   { value: Mood.RAD, label: 'Rad' },
 ];
 
+const DATE_CHANGE_EVENTS = ['focus', 'visibilitychange', 'pageshow'] as const;
+
+function subscribeToDateChanges(onChange: () => void) {
+  DATE_CHANGE_EVENTS.forEach((event) => window.addEventListener(event, onChange));
+  return () => DATE_CHANGE_EVENTS.forEach((event) => window.removeEventListener(event, onChange));
+}
+
+
 export type EditableEntry = {
   id: string
   mood: Mood
@@ -40,11 +50,11 @@ export type EditableEntry = {
 export function NewEntryForm({
   activities,
   entry,
-  dateLabel = 'Today',
+  todayDateKey,
 }: {
   activities: ActivityOption[]
   entry?: EditableEntry
-  dateLabel?: string
+  todayDateKey?: string
 }) {
   const action: (
     prevState: EntryActionState,
@@ -56,6 +66,14 @@ export function NewEntryForm({
     action,
     undefined,
   );
+  const initialTodayDateKey = todayDateKey ?? getTodayDateKey();
+  const browserTodayDate = useSyncExternalStore(
+    subscribeToDateChanges,
+    getTodayDateKey,
+    () => initialTodayDateKey,
+  );
+  const [selectedJournalDate, setSelectedJournalDate] = useState<string>();
+  const journalDate = selectedJournalDate ?? browserTodayDate;
   const [polishState, setPolishState] = useState<PolishEntryState>();
   const [polishing, setPolishing] = useState(false);
   const [mood, setMood] = useState<Mood>(entry?.mood ?? Mood.GOOD);
@@ -70,8 +88,10 @@ export function NewEntryForm({
   );
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<{ name: string; url: string }[]>([]);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const localOffsetInput = useRef<HTMLInputElement>(null);
+  const journalDateInput = useRef<HTMLInputElement>(null);
 
   function toggleActivity(activityId: string) {
     setSelectedActivityIds((selected) => {
@@ -83,8 +103,16 @@ export function NewEntryForm({
   }
 
   function setBrowserOffset() {
-    if (!entry && localOffsetInput.current) {
-      localOffsetInput.current.value = String(-new Date().getTimezoneOffset());
+    if (entry) return;
+    const now = new Date();
+    const browserOffset = -now.getTimezoneOffset();
+    if (localOffsetInput.current) {
+      localOffsetInput.current.value = String(browserOffset);
+    }
+    if (selectedJournalDate === undefined && journalDateInput.current) {
+      const currentBrowserDate = getTodayDateKey(now, browserOffset);
+      journalDateInput.current.value = currentBrowserDate;
+      journalDateInput.current.max = currentBrowserDate;
     }
   }
 
@@ -193,8 +221,28 @@ export function NewEntryForm({
             <h1 className="text-base font-bold tracking-tight text-[#0a2f5c] drop-shadow-sm">
               {entry ? 'Edit Entry' : 'New Entry'}
             </h1>
-            <p className="text-xs font-semibold text-[#2b4c73]">
-              {entry ? 'Updating a saved memory' : `Today · ${dateLabel}`}
+            <p className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[#2b4c73]">
+              {entry ? (
+                'Updating a saved memory'
+              ) : (
+                <>
+                  <span>{formatJournalDate(journalDate, browserTodayDate)}</span>
+                  <label htmlFor="journal-date" className="aero-date-change">
+                    <span>Change date</span>
+                    <input
+                      ref={journalDateInput}
+                      id="journal-date"
+                      name="journalDate"
+                      type="date"
+                      value={journalDate}
+                      max={browserTodayDate}
+                      required
+                      aria-label="Journal date"
+                      onChange={(event) => setSelectedJournalDate(event.target.value)}
+                    />
+                  </label>
+                </>
+              )}
             </p>
           </div>
         </header>
@@ -204,14 +252,14 @@ export function NewEntryForm({
           <h2 id="mood-heading" className="text-sm font-bold uppercase tracking-wider text-[#2b4c73]">
             How was your day?
           </h2>
-          <div className="mx-auto flex max-w-xs items-center justify-between gap-1 rounded-2xl border border-white/80 bg-white/40 p-2 shadow-inner sm:max-w-sm sm:gap-2 sm:p-2.5">
+          <div className="aero-mood-selector mx-auto max-w-xs rounded-2xl border border-white/80 bg-white/40 p-2 shadow-inner sm:max-w-sm sm:p-2.5">
             {MOODS.map((option) => {
               const selected = mood === option.value;
               return (
                 <button
                   key={option.value}
                   type="button"
-                  className={`relative flex min-h-11 min-w-11 items-center justify-center rounded-full p-1 transition-all duration-200 active:scale-95 ${
+                  className={`aero-mood-option relative flex items-center justify-center rounded-full transition-all duration-200 active:scale-95 ${
                     selected
                       ? 'scale-110 ring-2 ring-[#146cc2] ring-offset-2 ring-offset-white/80 [&_.aero-orb]:drop-shadow-[0_0_10px_rgba(74,155,230,0.6)]'
                       : 'opacity-75 hover:opacity-100'

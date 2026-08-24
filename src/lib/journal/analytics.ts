@@ -1,6 +1,8 @@
 import { Mood } from '@/generated/prisma/enums';
+import { getDateKey, getTodayDateKey } from '@/lib/journal/dates';
 import { monthParamSchema } from '@/lib/journal/schemas';
 
+export { getDateKey, getTodayDateKey } from '@/lib/journal/dates';
 export type JournalEntry = {
   id: string
   date: Date
@@ -102,17 +104,11 @@ export function formatMonthLabel(month: CalendarMonth): string {
   }).format(new Date(Date.UTC(month.year, month.month - 1, 1)));
 }
 
-export function getDateKey(date: Date, localOffset: number): string {
-  return new Date(date.getTime() + localOffset * 60_000).toISOString().slice(0, 10);
-}
 
 export function getEntryDateKey(entry: Pick<JournalEntry, 'date' | 'localOffset'>): string {
   return getDateKey(entry.date, entry.localOffset);
 }
 
-export function getTodayDateKey(now = new Date()): string {
-  return getDateKey(now, -now.getTimezoneOffset());
-}
 
 export function buildCalendarGrid(
   entries: JournalEntry[],

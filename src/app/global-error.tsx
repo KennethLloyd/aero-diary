@@ -7,7 +7,7 @@ export default function GlobalError({ reset }: { error: Error & { digest?: strin
   return (
     <html lang="en">
       <body className="bg-[#9bd0f5]">
-        <main className="flex min-h-screen items-center justify-center px-4">
+        <main className="aero-safe-area-main flex min-h-screen items-center justify-center px-4">
           <RecoveryState
             title="Aero Diary needs a restart"
             message="Something unexpected interrupted the journal. Try again or return to login."

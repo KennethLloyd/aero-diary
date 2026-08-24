@@ -3,6 +3,7 @@ import { AeroBubbles } from '@/components/aero/AeroBubbles';
 import { AeroScreen } from '@/components/aero/AeroScreen';
 import { NewEntryForm } from '@/components/journal/NewEntryForm';
 import { verifySession } from '@/lib/dal';
+import { getTodayDateKey } from '@/lib/journal/dates';
 import { getActivitiesForUser } from '@/lib/journal/queries';
 
 export default function NewEntryPage() {
@@ -23,13 +24,10 @@ export default function NewEntryPage() {
 async function NewEntryContent() {
   const session = await verifySession();
   const activities = await getActivitiesForUser(session.userId);
-  const dateLabel = new Intl.DateTimeFormat('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  }).format(new Date());
+  const todayDateKey = getTodayDateKey();
 
   return (
-    <NewEntryForm activities={activities} dateLabel={dateLabel} />
+    <NewEntryForm activities={activities} todayDateKey={todayDateKey} />
   );
+
 }
