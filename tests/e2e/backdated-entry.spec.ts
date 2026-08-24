@@ -26,6 +26,23 @@ test('demo user can save an entry for yesterday', async ({ page }) => {
   await expect(page).toHaveURL(/\/timeline$/);
 
   await page.goto('/timeline/new');
+  const dateChange = page.locator('.aero-date-change');
+  const dateChangeBox = await dateChange.boundingBox();
+  expect(dateChangeBox).not.toBeNull();
+  const centerHit = await page.evaluate(({ x, y }) => {
+    const target = document.elementFromPoint(x, y);
+    return target instanceof HTMLInputElement ? target.id : target?.closest('.aero-date-change')?.className;
+  }, {
+    x: dateChangeBox!.x + dateChangeBox!.width / 2,
+    y: dateChangeBox!.y + dateChangeBox!.height / 2,
+  });
+  expect(centerHit).not.toBe('journal-date');
+  await page.mouse.click(
+    dateChangeBox!.x + dateChangeBox!.width / 2,
+    dateChangeBox!.y + dateChangeBox!.height / 2,
+  );
+  await expect(page.locator('#journal-date')).toBeFocused();
+
   await expect(page.locator('#journal-date')).toHaveValue(today);
   await page.locator('#journal-date').fill(yesterday);
   await page.getByLabel('Journal Note').fill(marker);
