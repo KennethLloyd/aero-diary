@@ -13,12 +13,19 @@ const photos = [
 ];
 
 describe('PhotoGallery', () => {
-  it('renders every photo as a compact thumbnail with an X delete control', () => {
+  it('renders every photo as a clean thumbnail; deletion lives in the viewer', () => {
     render(<PhotoGallery photos={photos} />);
 
     expect(screen.getByRole('list', { name: 'Entry photos' })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /View photo/ })).toHaveLength(3);
-    expect(screen.getAllByRole('button', { name: 'Remove photo' })).toHaveLength(3);
+    expect(screen.queryByRole('button', { name: 'Remove photo' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'View photo 1' }).at(-1)!);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove photo' })).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
     expect(screen.queryByText('Photo 1')).not.toBeInTheDocument();
     expect(screen.queryByText('No photos attached yet.')).not.toBeInTheDocument();
   });

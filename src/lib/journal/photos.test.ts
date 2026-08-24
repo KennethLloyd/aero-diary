@@ -16,6 +16,8 @@ describe('parsePhotoFiles', () => {
     const result = parsePhotoFiles(values(
       new File(['photo'], 'photo.jpg', { type: 'image/jpeg' }),
       new File([], 'undefined', { type: 'application/octet-stream' }),
+      new File([], 'blob', { type: 'application/octet-stream' }),
+      new File([], '', { type: 'application/octet-stream' }),
     ));
 
     expect(result.data).toHaveLength(1);

@@ -1,7 +1,6 @@
 import { Suspense } from 'react';
 import { AeroBubbles } from '@/components/aero/AeroBubbles';
 import { AeroScreen } from '@/components/aero/AeroScreen';
-import { AeroTitle } from '@/components/aero/AeroTitle';
 import { NewEntryForm } from '@/components/journal/NewEntryForm';
 import { verifySession } from '@/lib/dal';
 import { getActivitiesForUser } from '@/lib/journal/queries';
@@ -11,9 +10,8 @@ export default function NewEntryPage() {
     <>
       <AeroBubbles />
       <AeroScreen>
-        <main className="aero-page aero-entry-page relative z-10 mx-auto flex h-full w-full max-w-2xl flex-col px-4 py-6 md:pt-10">
-          <AeroTitle className="mb-4 px-2">Aero Diary</AeroTitle>
-          <Suspense fallback={<div className="aero-glass h-[32rem] animate-pulse" aria-label="Loading entry form" />}>
+        <main className="aero-page aero-entry-page relative z-10 mx-auto flex max-sm:h-full w-full max-w-2xl flex-col px-4 py-4 sm:py-6 md:pt-8">
+          <Suspense fallback={<div className="aero-card h-[32rem] animate-pulse" aria-label="Loading entry form" />}>
             <NewEntryContent />
           </Suspense>
         </main>
@@ -25,8 +23,13 @@ export default function NewEntryPage() {
 async function NewEntryContent() {
   const session = await verifySession();
   const activities = await getActivitiesForUser(session.userId);
+  const dateLabel = new Intl.DateTimeFormat('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  }).format(new Date());
 
   return (
-    <NewEntryForm activities={activities} />
+    <NewEntryForm activities={activities} dateLabel={dateLabel} />
   );
 }

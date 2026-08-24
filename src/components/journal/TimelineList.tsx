@@ -51,19 +51,26 @@ export function TimelineList({
 
   if (entries.length === 0) {
     return (
-      <section className="aero-glass p-8 text-center">
+      <section className="aero-card p-8 text-center">
+        <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-white/60 text-2xl shadow-inner">
+          ✨
+        </div>
         <h2 className="text-xl font-bold text-[#0a2f5c]">
-          {filter.mood || filter.activityId ? 'No matching memories yet.' : 'Your timeline is waiting.'}
+          {filter.mood || filter.activityId ? 'No matching memories found' : 'Your journal is waiting'}
         </h2>
-        <p className="mt-2 text-sm font-semibold text-[#2b4c73]">
+        <p className="mx-auto mt-2 max-w-sm text-sm font-medium text-[#2b4c73]">
           {filter.mood || filter.activityId
-            ? 'Try another filter or return to your full timeline.'
-            : 'Capture how today feels and your first memory will appear here.'}
+            ? 'Try adjusting your filters or return to your full memory timeline.'
+            : 'Capture how today feels and your memories will be preserved here.'}
         </p>
-        <div className="mt-5 flex flex-wrap justify-center gap-2">
-          <Link href="/timeline/new" className="aero-btn">New entry</Link>
+        <div className="mt-5 flex flex-wrap justify-center gap-2.5">
+          <Link href="/timeline/new" className="aero-btn">
+            + Write an entry
+          </Link>
           {filter.mood || filter.activityId ? (
-            <Link href="/timeline" className="aero-btn aero-btn-white">View all entries</Link>
+            <Link href="/timeline" className="aero-btn aero-btn-white">
+              View all memories
+            </Link>
           ) : null}
         </div>
       </section>
@@ -72,49 +79,51 @@ export function TimelineList({
 
   return (
     <>
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-3.5">
         {entries.map((entry) => (
           <Link
             key={entry.id}
             href={`/timeline/${entry.id}`}
-            className="aero-glass block p-4 transition-transform duration-200 hover:scale-[1.02]"
+            className="aero-card group block p-4 transition-all duration-200 hover:scale-[1.01] hover:shadow-lg active:scale-[0.99]"
           >
             <div className="relative z-10 timeline-entry-layout">
+              {/* Left column: Mood Orb + Date/Time */}
               <div className="timeline-entry-meta">
-                <AeroOrb mood={entry.mood} className="text-white drop-shadow-md" />
+                <AeroOrb mood={entry.mood} className="drop-shadow" />
                 <div className="timeline-entry-date-group">
-                  <h3 className="text-lg font-bold leading-tight text-[#0a2f5c]">{entry.date}</h3>
-                  <time dateTime={entry.dateTime} className="shrink-0 text-xs font-bold text-[#2b4c73]">
+                  <h3 className="text-sm font-bold text-[#0a2f5c] sm:text-base">{entry.date}</h3>
+                  <time dateTime={entry.dateTime} className="text-xs font-semibold text-[#2b4c73]/80">
                     {entry.time}
                   </time>
                 </div>
               </div>
-              <div className="timeline-entry-body">
-                <p className="line-clamp-4 whitespace-pre-line text-sm font-medium leading-relaxed text-[#1a2c42]">
+
+              {/* Right column: Note Excerpt + Activities */}
+              <div className="timeline-entry-body flex flex-col justify-center">
+                <p className="line-clamp-3 text-sm font-medium leading-relaxed text-[#1a2c42]">
                   {entry.note}
                 </p>
                 {entry.tags.length > 0 ? (
-                  <div className="mt-3 flex flex-wrap gap-1.5 sm:gap-2" aria-label="Activities">
-                    {entry.tags.slice(0, 2).map((tag) => (
+                  <div className="mt-2.5 flex flex-wrap items-center gap-1.5" aria-label="Activities">
+                    {entry.tags.slice(0, 3).map((tag) => (
                       <span
                         key={tag.id}
                         role="img"
                         aria-label={`${tag.emoji} ${tag.name}`}
                         title={tag.name}
-                        className="flex min-h-8 items-center justify-center rounded-full border border-white bg-white/60 px-2 py-1 text-xs font-bold leading-tight text-[#0a2f5c] shadow-sm"
+                        className="inline-flex items-center gap-1 rounded-full border border-white/80 bg-white/70 px-2 py-0.5 text-xs font-semibold text-[#0a2f5c] shadow-xs"
                       >
                         <span aria-hidden="true">{tag.emoji}</span>
-                        <span className="sr-only sm:hidden">{tag.name}</span>
-                        <span className="hidden sm:inline">&nbsp;{tag.name}</span>
+                        <span>{tag.name}</span>
                       </span>
                     ))}
-                    {entry.tags.length > 2 ? (
+                    {entry.tags.length > 3 ? (
                       <span
-                        className="flex min-h-8 items-center rounded-full border border-white/70 bg-white/40 px-2 py-1 text-xs font-bold text-[#2b4c73]"
-                        aria-label={`More activities: ${entry.tags.slice(2).map((tag) => tag.name).join(', ')}`}
-                        title={entry.tags.slice(2).map((tag) => tag.name).join(', ')}
+                        className="inline-flex items-center rounded-full border border-white/60 bg-white/40 px-2 py-0.5 text-xs font-semibold text-[#2b4c73]"
+                        aria-label={`More activities: ${entry.tags.slice(3).map((tag) => tag.name).join(', ')}`}
+                        title={entry.tags.slice(3).map((tag) => tag.name).join(', ')}
                       >
-                        +{entry.tags.length - 2} more
+                        +{entry.tags.length - 3} more
                       </span>
                     ) : null}
                   </div>
@@ -124,6 +133,7 @@ export function TimelineList({
           </Link>
         ))}
       </div>
+
       {nextCursor ? (
         <>
           <div ref={sentinelRef} className="h-px w-full" aria-hidden="true" />
@@ -135,12 +145,12 @@ export function TimelineList({
               className="aero-link-control text-sm font-bold text-[#144e9d] underline decoration-dotted underline-offset-4 disabled:cursor-wait disabled:opacity-60"
               onClick={loadMore}
             >
-              {isPending ? 'Loading older entries…' : loadError ? 'Try again' : 'Load older entries'}
+              {isPending ? 'Loading older memories…' : loadError ? 'Try again' : 'Load older memories'}
             </button>
           </div>
         </>
       ) : (
-        <p className="py-4 text-center text-xs font-semibold text-[#2b4c73]">You’re all caught up.</p>
+        <p className="py-4 text-center text-xs font-semibold text-[#2b4c73]/75">You’re all caught up with your memories.</p>
       )}
     </>
   );

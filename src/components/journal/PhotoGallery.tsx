@@ -34,13 +34,13 @@ function PhotoMedia({
     <div className={`relative h-full w-full ${containerClassName}`}>
       {status === 'loading' ? (
         <div className="photo-media-loading absolute inset-0 flex items-center justify-center text-xs font-semibold text-[#2b4c73]" role="status">
-          Loading photo…
+          Loading…
         </div>
       ) : null}
       {status === 'error' ? (
-        <div className="photo-media-fallback absolute inset-0 flex-col gap-2 p-4" role="status">
-          <span className="text-2xl" aria-hidden="true">🖼️</span>
-          <span className="text-sm font-bold">Photo unavailable</span>
+        <div className="photo-media-fallback absolute inset-0 flex-col gap-1.5 p-3" role="status">
+          <span className="text-xl" aria-hidden="true">🖼️</span>
+          <span className="text-xs font-bold">Photo unavailable</span>
           {retryable ? (
             <button
               type="button"
@@ -52,7 +52,7 @@ function PhotoMedia({
             >
               Try again
             </button>
-          ) : <span className="text-xs font-semibold">Open to retry</span>}
+          ) : <span className="text-[11px] font-semibold text-[#2b4c73]/80">Open to retry</span>}
         </div>
       ) : null}
       <Image
@@ -92,7 +92,9 @@ function usePhotoViewerFocus(
     const previousBodyOverflow = document.body.style.overflow;
     const dialog = dialogRef.current;
     document.body.style.overflow = 'hidden';
-    dialog?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
+    const initialFocus = dialog?.querySelector<HTMLElement>('[data-autofocus]')
+      ?? dialog?.querySelector<HTMLElement>(FOCUSABLE);
+    initialFocus?.focus();
 
     function handleKeyDown(event: KeyboardEvent) {
       const currentIndex = activeIndexRef.current;
@@ -138,14 +140,18 @@ function usePhotoViewerFocus(
 export function PhotoGallery({ photos }: { photos: PhotoGalleryPhoto[] }) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const dialogRef = useRef<HTMLElement>(null);
-  const activeIndexRef = useRef(activeIndex);
+  const activeIndexRef = useRef<number | null>(null);
   const photosRef = useRef(photos);
-  const viewerOpen = activeIndex !== null;
+  // Clamp during render so deleting photos never leaves the viewer out of range.
+  const viewIndex = activeIndex === null || photos.length === 0
+    ? null
+    : Math.min(activeIndex, photos.length - 1);
+  const viewerOpen = viewIndex !== null;
 
   useEffect(() => {
-    activeIndexRef.current = activeIndex;
+    activeIndexRef.current = viewIndex;
     photosRef.current = photos;
-  }, [activeIndex, photos]);
+  }, [photos, viewIndex]);
 
   function closeViewer() {
     setActiveIndex(null);
@@ -166,16 +172,16 @@ export function PhotoGallery({ photos }: { photos: PhotoGalleryPhoto[] }) {
 
   if (photos.length === 0) return null;
 
-  const activePhoto = activeIndex === null ? null : photos[activeIndex];
+  const activePhoto = viewIndex === null ? null : photos[viewIndex];
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Entry photos" role="list">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4" aria-label="Entry photos" role="list">
         {photos.map((photo, index) => (
-          <figure key={photo.id} className="aero-photo-card group relative aspect-square rounded-xl" role="listitem">
+          <figure key={photo.id} className="aero-photo-card group relative aspect-square overflow-hidden rounded-2xl" role="listitem">
             <button
               type="button"
-              className="aero-photo-thumb relative z-0 block h-full w-full cursor-zoom-in overflow-hidden rounded-xl focus:outline-none"
+              className="aero-photo-thumb relative z-0 block h-full w-full cursor-zoom-in overflow-hidden rounded-2xl focus:outline-none"
               aria-label={`View photo ${index + 1}`}
               onClick={() => setActiveIndex(index)}
             >
@@ -183,35 +189,36 @@ export function PhotoGallery({ photos }: { photos: PhotoGalleryPhoto[] }) {
                 photo={photo}
                 alt={`Photo ${index + 1} from this entry`}
                 sizes="(max-width: 639px) 50vw, 25vw"
-                className="object-cover transition duration-200 group-hover:scale-105"
+                className="object-cover transition duration-300 group-hover:scale-105"
                 retryable={false}
               />
             </button>
-            <DeletePhotoButton photoId={photo.id} />
           </figure>
         ))}
       </div>
 
-      {activePhoto && activeIndex !== null ? (
+      {activePhoto && viewIndex !== null ? (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-[#061b35]/85 p-3 backdrop-blur-sm sm:p-6"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-[#061b35]/85 p-3 backdrop-blur-md sm:p-6"
           role="presentation"
           onClick={handleBackdropClick}
         >
           <section
             ref={dialogRef}
-            className="aero-photo-viewer flex max-h-[calc(100vh-1.5rem)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl sm:max-h-[calc(100vh-3rem)]"
+            className="aero-photo-viewer flex max-h-[calc(100vh-1.5rem)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl sm:max-h-[calc(100vh-3rem)]"
             role="dialog"
             aria-modal="true"
             aria-labelledby="photo-viewer-title"
           >
-            <header className="aero-photo-viewer-bar flex items-center justify-between border-b border-white/80 px-4 py-3">
-              <h2 id="photo-viewer-title" className="text-sm font-bold text-[#0a2f5c]">
-                Photo {activeIndex + 1} of {photos.length}
+            <header className="aero-photo-viewer-bar flex items-center justify-between gap-2 border-b border-white/80 px-4 py-3">
+              <h2 id="photo-viewer-title" className="min-w-0 flex-1 text-sm font-bold text-[#0a2f5c]">
+                Photo {viewIndex + 1} of {photos.length}
               </h2>
+              <DeletePhotoButton photoId={activePhoto.id} />
               <button
                 type="button"
-                className="aero-photo-viewer-close flex h-11 w-11 items-center justify-center rounded-full text-2xl font-bold leading-none text-white focus:outline-none"
+                data-autofocus
+                className="flex h-8 w-8 flex-none items-center justify-center rounded-full border border-white/80 bg-white/85 text-lg font-bold leading-none text-[#0a2f5c] shadow-sm transition hover:bg-white focus:outline-none"
                 aria-label="Close photo viewer"
                 onClick={closeViewer}
               >
@@ -219,11 +226,11 @@ export function PhotoGallery({ photos }: { photos: PhotoGalleryPhoto[] }) {
               </button>
             </header>
 
-            <div className="aero-photo-viewer-stage relative flex min-h-0 items-center justify-center px-2 py-3 sm:px-6 sm:py-5">
-              <div className="relative h-[min(70vh,75vw)] min-h-[220px] w-full">
+            <div className="aero-photo-viewer-stage relative flex min-h-0 items-center justify-center px-2 py-4 sm:px-6 sm:py-6">
+              <div className="relative h-[min(65vh,70vw)] min-h-[220px] w-full">
                 <PhotoMedia
                   photo={activePhoto}
-                  alt={`Photo ${activeIndex + 1} from this entry, enlarged`}
+                  alt={`Photo ${viewIndex + 1} from this entry, enlarged`}
                   sizes="(max-width: 639px) 100vw, 80vw"
                   className="object-contain"
                   priority
@@ -231,19 +238,22 @@ export function PhotoGallery({ photos }: { photos: PhotoGalleryPhoto[] }) {
               </div>
             </div>
 
-            <footer className="aero-photo-viewer-bar flex items-center justify-between border-t border-white/80 px-4 py-3">
+            <footer className="aero-photo-viewer-bar flex items-center justify-between border-t border-white/80 px-4 py-2.5">
               <button
                 type="button"
-                className="aero-photo-nav rounded-full px-4 py-2 text-sm font-bold text-[#10427a] disabled:cursor-not-allowed disabled:opacity-50"
+                className="aero-photo-nav rounded-full px-4 py-1.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
                 aria-label="View previous photo"
                 disabled={photos.length < 2}
                 onClick={() => changePhoto(-1)}
               >
                 ‹ Previous
               </button>
+              <span className="text-xs font-semibold text-[#2b4c73]">
+                {viewIndex + 1} / {photos.length}
+              </span>
               <button
                 type="button"
-                className="aero-photo-nav rounded-full px-4 py-2 text-sm font-bold text-[#10427a] disabled:cursor-not-allowed disabled:opacity-50"
+                className="aero-photo-nav rounded-full px-4 py-1.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
                 aria-label="View next photo"
                 disabled={photos.length < 2}
                 onClick={() => changePhoto(1)}

@@ -68,77 +68,84 @@ async function EntryDetailContent({ params }: EntryDetailPageProps) {
   const paragraphs = splitJournalNoteParagraphs(entry.note);
 
   return (
-    <main className="aero-page relative z-10 mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-6 md:pt-10">
-        <header className="mb-2 flex items-center justify-between px-2">
-          <EntryBackButton />
-          <div className="flex items-center gap-3">
-            <Link
-              href={`/timeline/${entry.id}/edit`}
-              className="aero-link-control font-bold text-[#144e9d] drop-shadow-md hover:text-[#0a2f5c]"
+    <main className="aero-page relative z-10 mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-4 sm:py-6 md:pt-8">
+      {/* Secondary Action Header */}
+      <header className="flex items-center justify-between px-1">
+        <EntryBackButton />
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/timeline/${entry.id}/edit`}
+            className="aero-btn aero-btn-white px-3.5 py-1 text-xs font-bold"
+          >
+            Edit
+          </Link>
+          <DeleteEntryDialog entryId={entry.id} />
+        </div>
+      </header>
+
+      {/* Memory Postcard Card */}
+      <article className="aero-card space-y-5 p-5 sm:p-6">
+        <div className="relative z-10">
+          {/* Metadata & Mood Header */}
+          <section className="space-y-3 border-b border-white/60 pb-4" aria-labelledby="entry-mood-heading">
+            <time
+              dateTime={entry.date}
+              className="block text-xs font-bold uppercase tracking-wider text-[#2b4c73]"
             >
-              Edit
-            </Link>
-            <DeleteEntryDialog entryId={entry.id} />
-          </div>
-        </header>
+              {formatEntryTimestamp(new Date(entry.date), entry.localOffset)}
+            </time>
 
-        <article className="aero-glass space-y-6 p-5">
-          <div className="relative z-10">
-            <section className="space-y-4 border-b border-white/50 pb-4" aria-labelledby="entry-mood-heading">
-              <time
-                dateTime={entry.date}
-                className="text-xs font-bold uppercase tracking-wide text-[#2b4c73]"
-              >
-                {formatEntryTimestamp(new Date(entry.date), entry.localOffset)}
-              </time>
-
-              <div className="flex items-center gap-4 pt-1">
-                <AeroOrb
-                  mood={entry.mood}
-                  className="h-16 w-16 border-4 border-white/80 text-4xl shadow-lg"
-                />
-                <div className="min-w-0">
-                  <h1 id="entry-mood-heading" className="text-3xl font-bold tracking-tight text-[#0a2f5c] drop-shadow-md">
-                    {MOOD_LABEL[entry.mood]}
-                  </h1>
-                </div>
+            <div className="flex items-center gap-3.5 pt-0.5">
+              <AeroOrb
+                mood={entry.mood}
+                className="h-14 w-14 border-3 border-white/90 text-3xl shadow-md"
+              />
+              <div>
+                <h1 id="entry-mood-heading" className="text-2xl font-bold tracking-tight text-[#0a2f5c] drop-shadow-xs">
+                  {MOOD_LABEL[entry.mood]}
+                </h1>
               </div>
+            </div>
+          </section>
+
+          {/* Activity Tags */}
+          {entry.activities.length > 0 ? (
+            <section className="flex flex-wrap gap-1.5 pt-3" aria-label="Activities">
+              {entry.activities.map(({ activityId, activity }) => (
+                <span
+                  key={activityId}
+                  className="inline-flex items-center gap-1 rounded-full border border-white/80 bg-white/70 px-2.5 py-1 text-xs font-semibold text-[#0a2f5c] shadow-2xs"
+                >
+                  <span>{activity.emoji}</span>
+                  <span>{activity.name}</span>
+                </span>
+              ))}
             </section>
+          ) : null}
 
-            {entry.activities.length > 0 ? (
-              <section className="flex flex-wrap gap-2 pt-2" aria-label="Activities">
-                {entry.activities.map(({ activityId, activity }) => (
-                  <span
-                    key={activityId}
-                    className="rounded-full border border-gray-300 bg-gradient-to-b from-white to-gray-200 px-3 py-1 text-xs font-bold text-[#0a2f5c] shadow-sm"
-                  >
-                    {activity.emoji} {activity.name}
-                  </span>
-                ))}
-              </section>
-            ) : null}
+          {/* Journal Note Content */}
+          <section className="pt-5" aria-labelledby="entry-article-heading">
+            <h2 id="entry-article-heading" className="sr-only">Journal note</h2>
+            <div className="space-y-4 text-[15px] font-normal leading-relaxed text-[#1a2c42]">
+              {paragraphs.map((paragraph, index) => (
+                <p className="whitespace-pre-wrap" key={`${entry.id}-paragraph-${index}`}>
+                  {paragraph}
+                </p>
+              ))}
+            </div>
+          </section>
 
-            <section className="pt-6" aria-labelledby="entry-article-heading">
-              <h2 id="entry-article-heading" className="sr-only">Journal entry</h2>
-              <div className="space-y-4 text-[15px] font-medium leading-relaxed text-[#111]">
-                {paragraphs.map((paragraph, index) => (
-                  <p className="whitespace-pre-wrap" key={`${entry.id}-paragraph-${index}`}>
-                    {paragraph}
-                  </p>
-                ))}
-              </div>
+          {/* Photos */}
+          {entry.photos.length > 0 ? (
+            <section className="pt-6" aria-labelledby="entry-photos-heading">
+              <h2 id="entry-photos-heading" className="mb-2 text-xs font-bold uppercase tracking-wider text-[#2b4c73]">
+                Memories &amp; Photos
+              </h2>
+              <PhotoGallery photos={entry.photos.map(({ id }) => ({ id }))} />
             </section>
-
-            {entry.photos.length > 0 ? (
-              <section className="pt-6" aria-labelledby="entry-photos-heading">
-                <h2 id="entry-photos-heading" className="mb-2 text-xs font-bold uppercase tracking-wide text-[#2b4c73]">
-                  Photos
-                </h2>
-                <PhotoGallery photos={entry.photos.map(({ id }) => ({ id }))} />
-              </section>
-            ) : null}
-          </div>
-        </article>
+          ) : null}
+        </div>
+      </article>
     </main>
   );
 }

@@ -40,48 +40,54 @@ async function CalendarContent({ searchParams }: CalendarPageProps) {
   const days = buildCalendarGrid(entries, month);
 
   return (
-    <main className="aero-page relative z-10 mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 py-6 md:pt-10">
-        <header className="px-2">
+    <main className="aero-page relative z-10 mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-4 sm:py-6 md:pt-8">
+      <header className="flex flex-col gap-2.5 px-1 sm:flex-row sm:items-center sm:justify-between">
+        <div>
           <AeroTitle>Calendar</AeroTitle>
-          <p className="mt-1 text-sm font-semibold text-[#2b4c73] drop-shadow">
+          <p className="text-xs font-semibold text-[#2b4c73] drop-shadow-2xs">
             Monthly Overview
           </p>
-        </header>
-
-        <section className="aero-glass aero-calendar-panel flex flex-col gap-4 p-4" aria-labelledby="calendar-heading">
-          <h2 id="calendar-heading" className="sr-only">Calendar for selected month</h2>
+        </div>
+        <div className="w-full sm:w-auto">
           <MonthNavigator basePath="/calendar" month={month} />
-          <CalendarGrid days={days} />
-          <div className="rounded-lg border border-white/60 bg-white/35 p-3" aria-label="Mood legend">
-            <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-[#0a2f5c]">Mood legend</h3>
-            <div className="grid grid-cols-5 gap-1 text-center text-[10px] font-bold text-[#2b4c73] sm:text-xs">
-              {[Mood.AWFUL, Mood.BAD, Mood.MEH, Mood.GOOD, Mood.RAD].map((mood) => (
-                <div key={mood} className="flex flex-col items-center gap-1">
-                  <AeroOrb mood={mood} mini className="cursor-default" />
-                  <span>{MOOD_LABEL[mood]}</span>
-                </div>
-              ))}
-            </div>
+        </div>
+      </header>
+
+      <section className="aero-card flex flex-col gap-4 p-4 sm:p-5" aria-labelledby="calendar-heading">
+        <h2 id="calendar-heading" className="sr-only">Calendar for selected month</h2>
+        <CalendarGrid days={days} />
+
+        {/* Mood legend */}
+        <div className="rounded-xl border border-white/70 bg-white/45 p-3" aria-label="Mood legend">
+          <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wider text-[#0a2f5c]">Mood legend</h3>
+          <div className="grid grid-cols-5 gap-1 text-center text-[10px] font-bold text-[#2b4c73] sm:text-xs">
+            {[Mood.AWFUL, Mood.BAD, Mood.MEH, Mood.GOOD, Mood.RAD].map((mood) => (
+              <div key={mood} className="flex flex-col items-center gap-1">
+                <AeroOrb mood={mood} mini className="cursor-default" />
+                <span>{MOOD_LABEL[mood]}</span>
+              </div>
+            ))}
           </div>
-          <p className="text-center text-xs font-semibold text-[#2b4c73]">
-            Tap a day with one orb to open its entry. Days with several orbs list every entry.
-          </p>
-          {entries.length === 0 ? (
-            <div className="recovery-state rounded-lg p-4 text-center">
-              <p className="text-sm font-semibold text-[#2b4c73]">No memories logged this month.</p>
-              <Link href="/timeline/new" className="aero-btn mt-3">New entry</Link>
-            </div>
-          ) : null}
-        </section>
+        </div>
+
+        {entries.length === 0 ? (
+          <div className="recovery-state rounded-xl p-4 text-center">
+            <p className="text-xs font-semibold text-[#2b4c73]">No memories logged for this month yet.</p>
+            <Link href="/timeline/new" className="aero-btn mt-2.5 text-xs">
+              + Write an entry
+            </Link>
+          </div>
+        ) : null}
+      </section>
     </main>
   );
 }
 
 function CalendarLoading() {
   return (
-    <main className="aero-page relative z-10 mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 py-6 md:pt-10" aria-label="Loading calendar">
-      <p className="text-sm font-semibold text-[#2b4c73]">Loading calendar…</p>
-      <div className="aero-glass h-96 animate-pulse p-4" />
+    <main className="aero-page relative z-10 mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-4 sm:py-6 md:pt-8" aria-label="Loading calendar">
+      <p className="text-xs font-semibold text-[#2b4c73]">Loading calendar…</p>
+      <div className="aero-card h-96 animate-pulse p-4" />
     </main>
   );
 }

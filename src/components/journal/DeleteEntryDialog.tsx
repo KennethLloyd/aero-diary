@@ -17,7 +17,7 @@ export function DeleteEntryDialog({ entryId }: { entryId: string }) {
     <>
       <button
         type="button"
-        className="aero-link-control font-bold text-red-700 drop-shadow-md hover:text-red-900"
+        className="aero-btn aero-btn-white px-3 py-1 text-xs font-bold text-[#b91c1c] hover:border-[#b91c1c]/40"
         onClick={() => setOpen(true)}
       >
         Delete
