@@ -1,12 +1,14 @@
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { AeroBubbles } from '@/components/aero/AeroBubbles';
+import { AeroCard } from '@/components/aero/AeroCard';
+import { AeroOrb } from '@/components/aero/AeroOrb';
+import { AeroPageHeader } from '@/components/aero/AeroPageHeader';
 import { AeroScreen } from '@/components/aero/AeroScreen';
-import { AeroTitle } from '@/components/aero/AeroTitle';
 import { MonthNavigator } from '@/components/journal/MonthNavigator';
 import {
+  formatMonthLabel,
   getMonthFromParam,
-  MOOD_EMOJI,
   MOOD_LABEL,
   MOOD_PROGRESS_CLASS,
   summarizeInsights,
@@ -37,103 +39,139 @@ async function InsightsContent({ searchParams }: InsightsPageProps) {
   const month = getMonthFromParam(monthParam);
   const entries = await getEntriesForMonthForUser(session.userId, month);
   const insights = summarizeInsights(entries);
-  const mostCommonMood = insights.moods.reduce((best, mood) => mood.count > best.count ? mood : best, insights.moods[0]);
+  const totalMoodCount = insights.moods.reduce((sum, m) => sum + m.count, 0);
 
   return (
     <main className="aero-page relative z-10 mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 py-6 md:pt-10">
-        <header className="px-2">
-          <AeroTitle>Insights</AeroTitle>
-          <p className="mt-1 text-sm font-semibold text-[#2b4c73] drop-shadow">
-            Data &amp; Trends
-          </p>
-        </header>
+      <AeroPageHeader title="Insights" subtitle={formatMonthLabel(month)} size="md" />
+      <MonthNavigator basePath="/insights" month={month} />
 
-        <section className="aero-glass p-2" aria-label="Insights month navigation">
-          <MonthNavigator basePath="/insights" month={month} />
-        </section>
-
-        <section className="aero-glass grid gap-3 p-4" aria-label="Monthly insight summary">
+      {/* Hero summary */}
+      <AeroCard tier="hero" padded>
+        <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-3xl font-bold text-[#0a2f5c]">{entries.length}</p>
-            <p className="text-sm font-semibold text-[#2b4c73]">entries this month</p>
-          </div>
-          {entries.length > 0 && mostCommonMood ? (
-            <p className="text-sm font-semibold text-[#2b4c73]">
-              Your most common mood was <strong className="text-[#0a2f5c]">{MOOD_LABEL[mostCommonMood.mood]}</strong> ({mostCommonMood.count} {mostCommonMood.count === 1 ? 'entry' : 'entries'}).
+            <p className="text-4xl font-bold text-[#0a2f5c] leading-none">{entries.length}</p>
+            <p className="mt-1 text-sm font-semibold text-[#2b4c73]">
+              {entries.length === 1 ? 'entry' : 'entries'} this month
             </p>
-          ) : null}
-        </section>
-
-        <section className="aero-glass space-y-4 p-5" aria-labelledby="mood-distribution-heading">
-          <h2 id="mood-distribution-heading" className="border-b border-white/40 pb-2 text-lg font-bold text-[#0a2f5c] drop-shadow-sm">
-            Mood Distribution
-          </h2>
-          <div className="space-y-3">
-            {insights.moods.map(({ mood, count, percentage }) => (
-              <div key={mood}>
-                <div className="mb-1.5 flex items-center justify-between gap-3 text-sm font-bold text-[#2b4c73]">
-                  <Link
-                    href={`/timeline?mood=${mood}`}
-                    className="aero-link-control -ml-3 min-w-0 justify-start px-3 py-1 drop-shadow-sm hover:underline"
-                  >
-                    {MOOD_LABEL[mood]} ({MOOD_EMOJI[mood]})
-                  </Link>
-                  <span className="shrink-0" aria-label={`${count} entries`}>{count} · {percentage}%</span>
-                </div>
-                <div
-                  className="aero-progress-track"
-                  role="progressbar"
-                  aria-label={`${MOOD_LABEL[mood]} mood distribution`}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={percentage}
-                >
-                  <div
-                    className={`aero-progress-fill bg-gradient-to-r ${MOOD_PROGRESS_CLASS[mood]}`}
-                    style={{ width: `${percentage}%` }}
-                  />
-                </div>
-              </div>
-            ))}
           </div>
-          {entries.length === 0 ? (
-            <div className="border-t border-white/40 pt-3">
-              <p className="text-sm font-semibold text-[#2b4c73]">No entries logged for this month yet.</p>
-              <Link href="/timeline/new" className="aero-btn mt-3">Write an entry</Link>
-            </div>
+          {insights.moods.length > 0 ? (
+            (() => {
+              const mostCommon = insights.moods.reduce((best, m) => m.count > best.count ? m : best, insights.moods[0]);
+              return (
+                <Link
+                  href={`/timeline?mood=${mostCommon.mood}`}
+                  className="flex items-center gap-2 rounded-full border border-white/80 bg-white/60 px-3 py-1.5 shadow-sm transition hover:bg-white/80"
+                  aria-label={`Filter timeline by ${MOOD_LABEL[mostCommon.mood]} mood`}
+                >
+                  <AeroOrb mood={mostCommon.mood} className="!h-7 !w-7 !text-sm" />
+                  <span className="text-sm font-bold text-[#0a2f5c]">{MOOD_LABEL[mostCommon.mood]}</span>
+                </Link>
+              );
+            })()
           ) : null}
-        </section>
+        </div>
+      </AeroCard>
 
-        <section className="aero-glass p-5" aria-labelledby="top-activities-heading">
-          <h2 id="top-activities-heading" className="mb-4 border-b border-white/40 pb-2 text-lg font-bold text-[#0a2f5c] drop-shadow-sm">
-            Top Activities
-          </h2>
-          {insights.activities.length > 0 ? (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {insights.activities.map((activity) => (
+      {/* Mood distribution */}
+      <AeroCard tier="card" padded>
+        <h2 className="mb-4 text-xs font-bold uppercase tracking-wide text-[#5a7194]">
+          Mood distribution
+        </h2>
+        {totalMoodCount > 0 ? (
+          <>
+            {/* Stacked bar */}
+            <div
+              className="flex h-3 w-full overflow-hidden rounded-full border border-white/80 bg-white/30 shadow-inner"
+              role="img"
+              aria-label={`Mood distribution: ${insights.moods.map((m) => `${MOOD_LABEL[m.mood]} ${m.percentage}%`).join(', ')}`}
+            >
+              {insights.moods
+                .filter((m) => m.count > 0)
+                .map((m) => (
+                  <div
+                    key={m.mood}
+                    className={`${MOOD_PROGRESS_CLASS[m.mood]} h-full`}
+                    style={{ width: `${m.percentage}%` }}
+                  />
+                ))}
+            </div>
+            {/* Legend */}
+            <ul className="mt-4 grid grid-cols-5 gap-2">
+              {insights.moods.map((m) => (
+                <li key={m.mood}>
+                  <Link
+                    href={`/timeline?mood=${m.mood}`}
+                    className="flex flex-col items-center gap-1 rounded-lg p-1 transition hover:bg-white/40"
+                    aria-label={`Filter timeline by ${MOOD_LABEL[m.mood]}: ${m.count} ${m.count === 1 ? 'entry' : 'entries'}, ${m.percentage}%`}
+                  >
+                    <AeroOrb mood={m.mood} className="!h-8 !w-8 !text-base" />
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-[#5a7194]">
+                      {MOOD_LABEL[m.mood]}
+                    </span>
+                    <span className="text-sm font-bold text-[#0a2f5c]">
+                      {m.percentage}%
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          <p className="text-sm font-semibold text-[#5a7194]">
+            Log some entries to see your mood distribution.
+          </p>
+        )}
+      </AeroCard>
+
+      {/* Top activities */}
+      <AeroCard tier="card" padded>
+        <h2 className="mb-3 text-xs font-bold uppercase tracking-wide text-[#5a7194]">
+          Top activities
+        </h2>
+        {insights.activities.length > 0 ? (
+          <ul className="grid grid-cols-2 gap-2">
+            {insights.activities.map((activity) => (
+              <li key={activity.activityId}>
                 <Link
                   href={`/timeline?activity=${activity.activityId}`}
-                  key={activity.activityId}
-                  className="flex min-w-[140px] flex-1 items-center gap-3 rounded-lg border border-white/60 bg-white/40 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.8),_0_2px_4px_rgba(0,0,0,0.05)] hover:bg-white/65"
-                  aria-label={`View timeline entries tagged ${activity.name}`}
+                  className="flex items-center gap-2.5 rounded-xl border border-white/70 bg-white/40 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-white/65"
                 >
-                  <div className="text-3xl drop-shadow-md" aria-hidden="true">{activity.emoji}</div>
-                  <div>
-                    <h3 className="text-sm font-bold text-[#0a2f5c]">{activity.name}</h3>
-                    <p className="text-xs font-medium text-[#2b4c73]">
+                  <span className="text-2xl drop-shadow-sm" aria-hidden="true">
+                    {activity.emoji}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-[#0a2f5c]">{activity.name}</p>
+                    <p className="text-xs font-semibold text-[#5a7194]">
                       {activity.count} {activity.count === 1 ? 'entry' : 'entries'}
                     </p>
                   </div>
                 </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <p className="text-sm font-semibold text-[#2b4c73]">Activities will appear here as you tag your entries.</p>
-              <Link href="/timeline/new" className="aero-btn">Write an entry</Link>
-            </div>
-          )}
-        </section>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-sm font-semibold text-[#5a7194]">
+              Activities will appear here as you tag your entries.
+            </p>
+            <Link href="/timeline/new" className="aero-btn aero-btn-md inline-flex">
+              Write an entry
+            </Link>
+          </div>
+        )}
+      </AeroCard>
+
+      {entries.length === 0 ? (
+        <AeroCard tier="card" padded>
+          <p className="mb-3 text-sm font-semibold text-[#2b4c73]">
+            No entries logged for this month yet.
+          </p>
+          <Link href="/timeline/new" className="aero-btn aero-btn-md inline-flex">
+            Write an entry
+          </Link>
+        </AeroCard>
+      ) : null}
     </main>
   );
 }
@@ -142,8 +180,9 @@ function InsightsLoading() {
   return (
     <main className="aero-page relative z-10 mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 py-6 md:pt-10" aria-label="Loading insights">
       <p className="text-sm font-semibold text-[#2b4c73]">Loading insights…</p>
-      <div className="aero-glass h-64 animate-pulse p-5" />
-      <div className="aero-glass h-48 animate-pulse p-5" />
+      <div className="aero-surface-hero h-32 animate-pulse" />
+      <div className="aero-surface-card h-48 animate-pulse" />
+      <div className="aero-surface-card h-32 animate-pulse" />
     </main>
   );
 }

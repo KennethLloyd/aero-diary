@@ -1,12 +1,12 @@
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { AeroBubbles } from '@/components/aero/AeroBubbles';
-import { AeroScreen } from '@/components/aero/AeroScreen';
+import { AeroChip } from '@/components/aero/AeroChip';
 import { AeroOrb } from '@/components/aero/AeroOrb';
-import { EntryBackButton } from '@/components/journal/EntryBackButton';
+import { AeroScreen } from '@/components/aero/AeroScreen';
 import { DeleteEntryDialog } from '@/components/journal/DeleteEntryDialog';
-import { PhotoGallery } from '@/components/journal/PhotoGallery';
+import { EntryBackButton } from '@/components/journal/EntryBackButton';
+import { ManageablePhotoGallery } from '@/components/journal/ManageablePhotoGallery';
 import { verifySession } from '@/lib/dal';
 import { splitJournalNoteParagraphs } from '@/lib/journal/notes';
 import { getEntryDetailForUser } from '@/lib/journal/queries';
@@ -68,77 +68,72 @@ async function EntryDetailContent({ params }: EntryDetailPageProps) {
   const paragraphs = splitJournalNoteParagraphs(entry.note);
 
   return (
-    <main className="aero-page relative z-10 mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-6 md:pt-10">
-        <header className="mb-2 flex items-center justify-between px-2">
-          <EntryBackButton />
-          <div className="flex items-center gap-3">
-            <Link
-              href={`/timeline/${entry.id}/edit`}
-              className="aero-link-control font-bold text-[#144e9d] drop-shadow-md hover:text-[#0a2f5c]"
+    <main className="aero-page relative z-10 mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 py-6 md:pt-10">
+      <header className="flex items-center justify-between gap-3 px-2">
+        <EntryBackButton />
+        <div className="flex items-center gap-1.5">
+          <a
+            href={`/timeline/${entry.id}/edit`}
+            className="aero-link-control text-sm font-bold text-[#144e9d] drop-shadow-md hover:underline"
+          >
+            Edit
+          </a>
+          <DeleteEntryDialog entryId={entry.id} />
+        </div>
+      </header>
+
+      <article className="aero-surface-card p-5 sm:p-6">
+        <div className="space-y-6">
+          <header className="space-y-3 border-b border-white/50 pb-5">
+            <time
+              dateTime={entry.date}
+              className="block text-xs font-bold uppercase tracking-wide text-[#5a7194]"
             >
-              Edit
-            </Link>
-            <DeleteEntryDialog entryId={entry.id} />
-          </div>
-        </header>
-
-        <article className="aero-glass space-y-6 p-5">
-          <div className="relative z-10">
-            <section className="space-y-4 border-b border-white/50 pb-4" aria-labelledby="entry-mood-heading">
-              <time
-                dateTime={entry.date}
-                className="text-xs font-bold uppercase tracking-wide text-[#2b4c73]"
-              >
-                {formatEntryTimestamp(new Date(entry.date), entry.localOffset)}
-              </time>
-
-              <div className="flex items-center gap-4 pt-1">
-                <AeroOrb
-                  mood={entry.mood}
-                  className="h-16 w-16 border-4 border-white/80 text-4xl shadow-lg"
-                />
-                <div className="min-w-0">
-                  <h1 id="entry-mood-heading" className="text-3xl font-bold tracking-tight text-[#0a2f5c] drop-shadow-md">
-                    {MOOD_LABEL[entry.mood]}
-                  </h1>
-                </div>
+              {formatEntryTimestamp(new Date(entry.date), entry.localOffset)}
+            </time>
+            <div className="flex items-center gap-3">
+              <AeroOrb
+                mood={entry.mood}
+                className="h-14 w-14 border-4 border-white/80 text-3xl shadow-lg"
+              />
+              <div className="min-w-0">
+                <h1 className="text-2xl font-bold tracking-tight text-[#0a2f5c] drop-shadow-md">
+                  {MOOD_LABEL[entry.mood]}
+                </h1>
               </div>
-            </section>
+            </div>
+          </header>
 
-            {entry.activities.length > 0 ? (
-              <section className="flex flex-wrap gap-2 pt-2" aria-label="Activities">
+          {entry.activities.length > 0 ? (
+            <section aria-label="Activities">
+              <h2 className="sr-only">Activities</h2>
+              <div className="flex flex-wrap gap-1.5">
                 {entry.activities.map(({ activityId, activity }) => (
-                  <span
-                    key={activityId}
-                    className="rounded-full border border-gray-300 bg-gradient-to-b from-white to-gray-200 px-3 py-1 text-xs font-bold text-[#0a2f5c] shadow-sm"
-                  >
-                    {activity.emoji} {activity.name}
-                  </span>
-                ))}
-              </section>
-            ) : null}
-
-            <section className="pt-6" aria-labelledby="entry-article-heading">
-              <h2 id="entry-article-heading" className="sr-only">Journal entry</h2>
-              <div className="space-y-4 text-[15px] font-medium leading-relaxed text-[#111]">
-                {paragraphs.map((paragraph, index) => (
-                  <p className="whitespace-pre-wrap" key={`${entry.id}-paragraph-${index}`}>
-                    {paragraph}
-                  </p>
+                  <AeroChip key={activityId} size="sm" tone="subtle">
+                    <span aria-hidden="true">{activity.emoji}</span>
+                    <span>{activity.name}</span>
+                  </AeroChip>
                 ))}
               </div>
             </section>
+          ) : null}
 
-            {entry.photos.length > 0 ? (
-              <section className="pt-6" aria-labelledby="entry-photos-heading">
-                <h2 id="entry-photos-heading" className="mb-2 text-xs font-bold uppercase tracking-wide text-[#2b4c73]">
-                  Photos
-                </h2>
-                <PhotoGallery photos={entry.photos.map(({ id }) => ({ id }))} />
-              </section>
-            ) : null}
-          </div>
-        </article>
+          <section aria-labelledby="entry-article-heading">
+            <h2 id="entry-article-heading" className="sr-only">Journal entry</h2>
+            <div className="space-y-4 text-[17px] font-normal leading-[1.75rem] text-[#0a2f5c]">
+              {paragraphs.map((paragraph, index) => (
+                <p className="whitespace-pre-wrap" key={`${entry.id}-paragraph-${index}`}>
+                  {paragraph}
+                </p>
+              ))}
+            </div>
+          </section>
+
+          {entry.photos.length > 0 ? (
+            <ManageablePhotoGallery photos={entry.photos.map(({ id }) => ({ id }))} />
+          ) : null}
+        </div>
+      </article>
     </main>
   );
 }

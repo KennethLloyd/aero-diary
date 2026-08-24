@@ -1,13 +1,15 @@
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { AeroBubbles } from '@/components/aero/AeroBubbles';
-import { AeroScreen } from '@/components/aero/AeroScreen';
+import { AeroCard } from '@/components/aero/AeroCard';
 import { AeroOrb } from '@/components/aero/AeroOrb';
-import { AeroTitle } from '@/components/aero/AeroTitle';
+import { AeroPageHeader } from '@/components/aero/AeroPageHeader';
+import { AeroScreen } from '@/components/aero/AeroScreen';
 import { CalendarGrid } from '@/components/journal/CalendarGrid';
 import { MonthNavigator } from '@/components/journal/MonthNavigator';
 import {
   buildCalendarGrid,
+  formatMonthLabel,
   getMonthFromParam,
   MOOD_LABEL,
 } from '@/lib/journal/analytics';
@@ -41,38 +43,39 @@ async function CalendarContent({ searchParams }: CalendarPageProps) {
 
   return (
     <main className="aero-page relative z-10 mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 py-6 md:pt-10">
-        <header className="px-2">
-          <AeroTitle>Calendar</AeroTitle>
-          <p className="mt-1 text-sm font-semibold text-[#2b4c73] drop-shadow">
-            Monthly Overview
-          </p>
-        </header>
+      <AeroPageHeader title="Calendar" subtitle={formatMonthLabel(month)} size="md" />
+      <MonthNavigator basePath="/calendar" month={month} />
 
-        <section className="aero-glass aero-calendar-panel flex flex-col gap-4 p-4" aria-labelledby="calendar-heading">
-          <h2 id="calendar-heading" className="sr-only">Calendar for selected month</h2>
-          <MonthNavigator basePath="/calendar" month={month} />
-          <CalendarGrid days={days} />
-          <div className="rounded-lg border border-white/60 bg-white/35 p-3" aria-label="Mood legend">
-            <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-[#0a2f5c]">Mood legend</h3>
-            <div className="grid grid-cols-5 gap-1 text-center text-[10px] font-bold text-[#2b4c73] sm:text-xs">
-              {[Mood.AWFUL, Mood.BAD, Mood.MEH, Mood.GOOD, Mood.RAD].map((mood) => (
-                <div key={mood} className="flex flex-col items-center gap-1">
-                  <AeroOrb mood={mood} mini className="cursor-default" />
-                  <span>{MOOD_LABEL[mood]}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <p className="text-center text-xs font-semibold text-[#2b4c73]">
-            Tap a day with one orb to open its entry. Days with several orbs list every entry.
+      <AeroCard tier="card" padded>
+        <CalendarGrid days={days} />
+      </AeroCard>
+
+      <AeroCard tier="plain" padded>
+        <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-[#5a7194]">
+          Mood legend
+        </h3>
+        <ul className="grid grid-cols-5 gap-2">
+          {[Mood.AWFUL, Mood.BAD, Mood.MEH, Mood.GOOD, Mood.RAD].map((mood) => (
+            <li key={mood} className="flex flex-col items-center gap-1">
+              <AeroOrb mood={mood} mini className="cursor-default" />
+              <span className="text-[10px] font-bold uppercase tracking-wide text-[#5a7194]">
+                {MOOD_LABEL[mood]}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </AeroCard>
+
+      {entries.length === 0 ? (
+        <AeroCard tier="card" padded>
+          <p className="mb-3 text-sm font-semibold text-[#2b4c73]">
+            No memories logged this month.
           </p>
-          {entries.length === 0 ? (
-            <div className="recovery-state rounded-lg p-4 text-center">
-              <p className="text-sm font-semibold text-[#2b4c73]">No memories logged this month.</p>
-              <Link href="/timeline/new" className="aero-btn mt-3">New entry</Link>
-            </div>
-          ) : null}
-        </section>
+          <Link href="/timeline/new" className="aero-btn aero-btn-md inline-flex">
+            New entry
+          </Link>
+        </AeroCard>
+      ) : null}
     </main>
   );
 }
@@ -81,7 +84,7 @@ function CalendarLoading() {
   return (
     <main className="aero-page relative z-10 mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 py-6 md:pt-10" aria-label="Loading calendar">
       <p className="text-sm font-semibold text-[#2b4c73]">Loading calendar…</p>
-      <div className="aero-glass h-96 animate-pulse p-4" />
+      <div className="aero-surface-card h-96 animate-pulse" />
     </main>
   );
 }

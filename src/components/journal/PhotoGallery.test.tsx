@@ -1,10 +1,12 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PhotoGallery } from '@/components/journal/PhotoGallery';
 
 vi.mock('@/actions/entries', () => ({
   deletePhoto: vi.fn(),
 }));
+
+afterEach(cleanup);
 
 const photos = [
   { id: 'photo-1' },
@@ -13,14 +15,21 @@ const photos = [
 ];
 
 describe('PhotoGallery', () => {
-  it('renders every photo as a compact thumbnail with an X delete control', () => {
+  it('renders every photo as a compact thumbnail without delete controls by default', () => {
     render(<PhotoGallery photos={photos} />);
 
     expect(screen.getByRole('list', { name: 'Entry photos' })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /View photo/ })).toHaveLength(3);
-    expect(screen.getAllByRole('button', { name: 'Remove photo' })).toHaveLength(3);
+    expect(screen.queryAllByRole('button', { name: 'Remove photo' })).toHaveLength(0);
     expect(screen.queryByText('Photo 1')).not.toBeInTheDocument();
     expect(screen.queryByText('No photos attached yet.')).not.toBeInTheDocument();
+  });
+
+  it('renders delete controls when editable is true', () => {
+    render(<PhotoGallery photos={photos} editable />);
+
+    expect(screen.getAllByRole('button', { name: /View photo/ })).toHaveLength(3);
+    expect(screen.getAllByRole('button', { name: 'Remove photo' })).toHaveLength(3);
   });
 
   it('opens the viewer, navigates with the keyboard, and closes with Escape', () => {

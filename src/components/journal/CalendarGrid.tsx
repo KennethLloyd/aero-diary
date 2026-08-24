@@ -6,8 +6,8 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function dayClassName(day: CalendarDay): string {
   const surface = day.isToday
-    ? 'bg-white/80 border-[#4a9be6] shadow-[inset_0_0_10px_rgba(74,155,230,0.3)] ring-2 ring-[#4a9be6]'
-    : 'bg-white/40 border-white/60 shadow-sm hover:bg-white/70';
+    ? 'bg-white/75 border-[#4a9be6] ring-1 ring-[#4a9be6]'
+    : 'bg-white/35 border-white/55 shadow-sm hover:bg-white/60';
   return `relative aspect-square min-h-11 min-w-0 rounded-lg border p-1.5 transition-colors ${surface}`;
 }
 
@@ -56,7 +56,7 @@ function DayCell({ day }: { day: CalendarDay }) {
       >
         {content}
       </summary>
-      <div className="absolute inset-x-1 top-full z-30 mt-1 min-w-36 rounded-lg border border-white bg-white/95 p-2 text-left shadow-xl">
+      <div className="absolute left-1/2 top-full z-30 mt-1 min-w-36 -translate-x-1/2 rounded-lg border border-white bg-white/95 p-2 text-left shadow-xl">
         <p className="mb-1 text-[11px] font-bold uppercase text-[#2b4c73]">{day.entryIds.length} entries</p>
         <ul className="space-y-1">
           {day.entryIds.map((entryId, index) => (

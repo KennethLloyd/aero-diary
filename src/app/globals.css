@@ -23,6 +23,40 @@
   --color-aero-blue: #4a9be6;
   --color-aero-blue-deep: #146cc2;
   --color-aero-blue-dark: #10427a;
+
+  /* Semantic surface colors — used by AeroCard tiers */
+  --color-aero-surface-hero: rgba(255, 255, 255, 0.78);
+  --color-aero-surface-card: rgba(255, 255, 255, 0.55);
+  --color-aero-surface-plain: rgba(255, 255, 255, 0.28);
+  --color-aero-surface-elevated: rgba(255, 255, 255, 0.92);
+  --color-aero-divider: rgba(255, 255, 255, 0.65);
+  --color-aero-text-strong: #0a2f5c;
+  --color-aero-text-soft: #2b4c73;
+  --color-aero-text-muted: #5a7194;
+  --color-aero-text-inverse: #ffffff;
+  --color-aero-danger: #c21414;
+  --color-aero-danger-soft: #ffeded;
+
+  /* Type scale — paired with text-* utilities */
+  --text-aero-display: 1.875rem;   /* 30px */
+  --text-aero-display--line-height: 2.125rem;
+  --text-aero-title: 1.5rem;       /* 24px */
+  --text-aero-title--line-height: 1.875rem;
+  --text-aero-subtitle: 1.125rem;  /* 18px */
+  --text-aero-subtitle--line-height: 1.625rem;
+  --text-aero-body: 1rem;          /* 16px */
+  --text-aero-body--line-height: 1.625rem;
+  --text-aero-prose: 1.0625rem;    /* 17px - for journal reading */
+  --text-aero-prose--line-height: 1.75rem;
+  --text-aero-caption: 0.8125rem;  /* 13px */
+  --text-aero-caption--line-height: 1.125rem;
+  --text-aero-meta: 0.75rem;       /* 12px */
+  --text-aero-meta--line-height: 1rem;
+
+  /* Spacing scale additions */
+  --spacing-aero-card: 1.25rem;
+  --spacing-aero-section: 1.5rem;
+  --spacing-aero-page: 1rem;
 }
 
 /* Base styles. */
@@ -79,6 +113,21 @@
     #1a7fe0 50%,
     #2f8ff4 100%
   );
+
+  /* Semantic surface CSS vars (for direct CSS use) */
+  --aero-surface-hero: rgba(255, 255, 255, 0.78);
+  --aero-surface-card: rgba(255, 255, 255, 0.55);
+  --aero-surface-plain: rgba(255, 255, 255, 0.28);
+  --aero-surface-elevated: rgba(255, 255, 255, 0.92);
+  --aero-divider: rgba(255, 255, 255, 0.65);
+  --aero-text-strong: #0a2f5c;
+  --aero-text-soft: #2b4c73;
+  --aero-text-muted: #5a7194;
+  --aero-radius-card: 14px;
+  --aero-radius-pill: 999px;
+  --aero-radius-input: 8px;
+  --aero-shadow-card: 0 6px 16px rgba(7, 36, 70, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  --aero-shadow-hero: 0 12px 28px rgba(7, 36, 70, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
 
 /* Floating bubbles. */
@@ -360,83 +409,79 @@
   }
   .aero-dock {
     position: relative;
-    align-self: center;
     display: flex;
-    gap: 10px;
-    min-height: var(--aero-dock-height);
-    padding: 8px 14px;
+    align-items: stretch;
+    justify-content: center;
+    gap: 4px;
+    padding: 6px;
     background: linear-gradient(
       to bottom,
-      rgba(255, 255, 255, 0.7) 0%,
-      rgba(255, 255, 255, 0.3) 100%
+      rgba(255, 255, 255, 0.78) 0%,
+      rgba(255, 255, 255, 0.5) 100%
     );
-    border: 1px solid rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.95);
     box-shadow:
-      0 10px 25px rgba(0, 0, 0, 0.2),
+      0 10px 28px rgba(0, 36, 91, 0.22),
       inset 0 1px 0 rgba(255, 255, 255, 1),
-      inset 0 0 20px rgba(255, 255, 255, 0.4);
-    border-radius: 40px;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+      inset 0 0 18px rgba(255, 255, 255, 0.4);
+    border-radius: 22px;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
     isolation: isolate;
     z-index: 1000;
     margin: 0 auto max(12px, env(safe-area-inset-bottom));
   }
 
-  .dock-icon {
-    width: var(--aero-control-min);
-    height: var(--aero-control-min);
-    border-radius: 50%;
-    background: linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.9) 0%,
-      rgba(255, 255, 255, 0.2) 100%
-    );
-    border: 1px solid rgba(255, 255, 255, 0.7);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-    display: flex;
+  .dock-tab {
+    display: inline-flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    font-size: 22px;
-    cursor: pointer;
-    position: relative;
-    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    gap: 2px;
+    min-height: 48px;
+    min-width: 64px;
+    padding: 6px 10px;
+    border-radius: 16px;
+    color: #2b4c73;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-decoration: none;
+    border: 1px solid transparent;
+    background: transparent;
+    transition: background 0.15s, color 0.15s, transform 0.1s;
   }
-  /* Dock tooltips. */
-  .dock-icon::before {
-    content: attr(data-tooltip);
-    position: absolute;
-    top: -35px;
-    left: 50%;
-    transform: translateX(-50%) scale(0.8);
-    background: rgba(0, 0, 0, 0.7);
+  .dock-tab:hover {
+    background: rgba(255, 255, 255, 0.55);
+  }
+  .dock-tab:active {
+    transform: translateY(1px);
+  }
+  .dock-tab-icon {
+    font-size: 20px;
+    line-height: 1;
+    filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.7));
+  }
+  .dock-tab-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    line-height: 1;
+    margin-top: 2px;
+  }
+  .dock-tab-active {
+    background: var(--aero-btn-gradient);
+    border-color: #10427a;
     color: white;
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: bold;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    opacity: 0;
-    pointer-events: none;
-    transition: all 0.2s;
-    white-space: nowrap;
-  }
-  .dock-icon:hover::before {
-    opacity: 1;
-    transform: translateX(-50%) scale(1);
-  }
-  .dock-icon:hover {
-    transform: translateY(-10px) scale(1.15);
-    background: var(--aero-btn-gradient);
-    border-color: #10427a;
-  }
-  .dock-icon.active {
-    background: var(--aero-btn-gradient);
-    border-color: #10427a;
     box-shadow:
-      inset 0px 2px 5px rgba(0, 0, 0, 0.5),
-      0 4px 12px rgba(32, 124, 229, 0.5);
-    transform: translateY(-4px);
+      inset 0 1px 0 rgba(255, 255, 255, 0.85),
+      inset 0 -2px 4px rgba(0, 44, 91, 0.25),
+      0 4px 10px rgba(20, 108, 194, 0.4);
+    text-shadow: 0 -1px 1px rgba(0, 0, 0, 0.45);
+  }
+  .dock-tab-active .dock-tab-icon {
+    filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.7));
   }
 
   /* Pure CSS Aero logo. */
@@ -519,6 +564,13 @@
       rgba(255, 255, 255, 0.1) 100%
     );
   }
+
+  /* Stacked mood distribution bar segments. */
+  .aero-mood-bar-awful { background: linear-gradient(180deg, #ff7b7b, #d80000); }
+  .aero-mood-bar-bad { background: linear-gradient(180deg, #ffc17b, #d86c00); }
+  .aero-mood-bar-meh { background: linear-gradient(180deg, #fff48f, #d8b400); }
+  .aero-mood-bar-good { background: linear-gradient(180deg, #8fff9c, #00b017); }
+  .aero-mood-bar-rad { background: linear-gradient(180deg, #7bffff, #00a4b0); }
 
   /* Miscellaneous controls. */
   .no-scrollbar::-webkit-scrollbar {
@@ -798,6 +850,204 @@
     background: var(--aero-surface-soft);
   }
 
+  /* Tier-based card surfaces — use via <AeroCard tier="hero|card|plain"> */
+  .aero-surface-hero {
+    background: linear-gradient(135deg, rgba(255,255,255,0.86) 0%, rgba(207,234,251,0.7) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    box-shadow: var(--aero-shadow-hero);
+    border-radius: var(--aero-radius-card);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    position: relative;
+    overflow: hidden;
+  }
+  .aero-surface-hero::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 45%;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.4), rgba(255,255,255,0));
+    pointer-events: none;
+  }
+  .aero-surface-card {
+    background: linear-gradient(135deg, rgba(255,255,255,0.62) 0%, rgba(255,255,255,0.42) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.75);
+    box-shadow: var(--aero-shadow-card);
+    border-radius: var(--aero-radius-card);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    position: relative;
+    overflow: hidden;
+  }
+  .aero-surface-plain {
+    background: var(--aero-surface-plain);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: var(--aero-radius-card);
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Page header text-shadow utility */
+  .aero-title-shadow {
+    text-shadow: 0 2px 4px rgba(255, 255, 255, 0.8);
+  }
+  .aero-title-soft-shadow {
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
+  }
+
+  /* Chip surfaces */
+  .aero-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    border-radius: 999px;
+    font-weight: 600;
+    line-height: 1;
+    transition: filter 0.15s, transform 0.15s, background 0.15s;
+    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  }
+  .aero-chip:hover {
+    filter: brightness(1.04);
+  }
+  .aero-chip:active {
+    transform: translateY(0.5px);
+  }
+  .aero-chip-neutral {
+    background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(238,243,248,0.85) 100%);
+    color: var(--aero-text-strong);
+  }
+  .aero-chip-selected {
+    background: linear-gradient(180deg, #93cefc 0%, #4a9be6 49%, #146cc2 50%, #207ce5 100%);
+    color: white;
+    border-color: #10427a;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.7), 0 1px 2px rgba(0,0,0,0.18);
+    text-shadow: 0 -1px 1px rgba(0,0,0,0.35);
+  }
+  .aero-chip-subtle {
+    background: rgba(255, 255, 255, 0.35);
+    color: var(--aero-text-soft);
+    border-color: rgba(255, 255, 255, 0.6);
+    box-shadow: none;
+  }
+  .aero-chip-sm { min-height: 28px; padding: 4px 10px; font-size: 12px; }
+  .aero-chip-md { min-height: 36px; padding: 6px 12px; font-size: 13px; }
+
+  /* Icon button surfaces */
+  .aero-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    min-height: 44px;
+    min-width: 44px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: filter 0.15s, transform 0.15s;
+    border: 1px solid transparent;
+  }
+  .aero-icon-btn:hover:not(:disabled) {
+    filter: brightness(1.06);
+  }
+  .aero-icon-btn:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+  .aero-icon-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+  .aero-icon-btn-sm { min-height: 36px; min-width: 36px; font-size: 16px; }
+  .aero-icon-btn-md { min-height: 44px; min-width: 44px; font-size: 20px; }
+  .aero-icon-btn-lg { min-height: 52px; min-width: 52px; font-size: 24px; }
+  .aero-icon-btn-primary {
+    background: var(--aero-btn-gradient);
+    color: white;
+    border-color: #10427a;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.75), 0 2px 4px rgba(0,0,0,0.2);
+    text-shadow: 0 -1px 1px rgba(0,0,0,0.35);
+  }
+  .aero-icon-btn-secondary {
+    background: linear-gradient(180deg, #ffffff 0%, #e6e6e6 49%, #d4d4d4 50%, #f0f0f0 100%);
+    color: #333;
+    border-color: #a0a0a0;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.85), 0 2px 4px rgba(0,0,0,0.12);
+  }
+  .aero-icon-btn-ghost {
+    background: rgba(255, 255, 255, 0.35);
+    color: var(--aero-text-strong);
+    border-color: rgba(255, 255, 255, 0.85);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+  }
+  .aero-icon-btn-danger {
+    background: linear-gradient(180deg, #ff9393 0%, #e64a4a 49%, #c21414 50%, #e52020 100%);
+    color: white;
+    border-color: #7a1010;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.7), 0 2px 4px rgba(0,0,0,0.18);
+    text-shadow: 0 -1px 1px rgba(0,0,0,0.35);
+  }
+
+  /* Button tone + size classes (additive, do not replace .aero-btn recipes) */
+  .aero-btn-base {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 20px;
+    transition: all 0.1s;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    font-weight: bold;
+    text-shadow: none;
+  }
+  .aero-btn-primary {
+    background: var(--aero-btn-gradient);
+    color: white;
+    border: 1px solid #10427a;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.3);
+    text-shadow: 0 -1px 1px rgba(0,0,0,0.6);
+  }
+  .aero-btn-primary:hover {
+    background: var(--aero-btn-gradient-hover);
+  }
+  .aero-btn-primary:active {
+    background: linear-gradient(180deg, #146cc2 0%, #207ce5 100%);
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
+    text-shadow: none;
+  }
+  .aero-btn-secondary {
+    background: linear-gradient(180deg, #ffffff 0%, #e6e6e6 49%, #d4d4d4 50%, #f0f0f0 100%);
+    border: 1px solid #a0a0a0;
+    color: #333;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+  }
+  .aero-btn-secondary:hover {
+    background: linear-gradient(180deg, #ffffff 0%, #f0f0f0 49%, #e0e0e0 50%, #f9f9f9 100%);
+  }
+  .aero-btn-ghost {
+    background: rgba(255, 255, 255, 0.35);
+    color: #144e9d;
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+    text-shadow: none;
+    font-weight: 700;
+  }
+  .aero-btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.55);
+    filter: none;
+  }
+  .aero-btn-danger {
+    background: linear-gradient(180deg, #ff9393 0%, #e64a4a 49%, #c21414 50%, #e52020 100%);
+    border: 1px solid #7a1010;
+    color: white;
+  }
+  .aero-btn-danger:hover {
+    background: linear-gradient(180deg, #fcb0b0 0%, #f96868 49%, #e01a1a 50%, #f42f2f 100%);
+  }
+  .aero-btn-sm { padding: 4px 12px; min-height: 36px; font-size: 12px; }
+  .aero-btn-md { padding: 6px 16px; min-height: 44px; font-size: 14px; }
+  .aero-btn-lg { padding: 10px 24px; min-height: 48px; font-size: 16px; }
+
 }
 
 @media (max-width: 639px) {
@@ -810,9 +1060,16 @@
     max-width: calc(100vw - 1.5rem);
     transform: translateX(-50%);
     margin: 0;
-    gap: 8px;
-    padding-inline: 10px;
+    gap: 2px;
+    padding: 4px;
   }
+  .dock-tab {
+    min-width: 56px;
+    min-height: 46px;
+    padding: 4px 8px;
+  }
+  .dock-tab-icon { font-size: 18px; }
+  .dock-tab-label { font-size: 9px; }
 
   .timeline-entry-layout {
     display: block;
@@ -873,10 +1130,8 @@
 }
 
 @media (max-width: 359px) {
-  .aero-dock {
-    gap: 4px;
-    padding-inline: 6px;
-  }
+  .dock-tab { min-width: 48px; padding: 4px 6px; }
+  .dock-tab-label { font-size: 8px; }
 
   .aero-mood-orb {
     width: 40px;

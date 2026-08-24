@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { loadTimelinePage } from '@/actions/timeline';
+import { AeroChip } from '@/components/aero/AeroChip';
 import { AeroOrb } from '@/components/aero/AeroOrb';
 import type { TimelineFilter, TimelinePage } from '@/lib/journal/timeline';
 
@@ -77,40 +78,34 @@ export function TimelineList({
           <Link
             key={entry.id}
             href={`/timeline/${entry.id}`}
-            className="aero-glass block p-4 transition-transform duration-200 hover:scale-[1.02]"
+            className="aero-surface-card block p-4 transition-colors hover:bg-white/70 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#146cc2]/40"
           >
-            <div className="relative z-10 timeline-entry-layout">
+            <div className="timeline-entry-layout">
               <div className="timeline-entry-meta">
                 <AeroOrb mood={entry.mood} className="text-white drop-shadow-md" />
                 <div className="timeline-entry-date-group">
-                  <h3 className="text-lg font-bold leading-tight text-[#0a2f5c]">{entry.date}</h3>
-                  <time dateTime={entry.dateTime} className="shrink-0 text-xs font-bold text-[#2b4c73]">
+                  <h3 className="text-base font-bold leading-tight text-[#0a2f5c]">{entry.date}</h3>
+                  <time dateTime={entry.dateTime} className="text-xs font-bold text-[#2b4c73]">
                     {entry.time}
                   </time>
                 </div>
               </div>
               <div className="timeline-entry-body">
-                <p className="line-clamp-4 whitespace-pre-line text-sm font-medium leading-relaxed text-[#1a2c42]">
+                <p className="line-clamp-4 whitespace-pre-line text-[15px] leading-relaxed text-[#1a2c42]">
                   {entry.note}
                 </p>
                 {entry.tags.length > 0 ? (
-                  <div className="mt-3 flex flex-wrap gap-1.5 sm:gap-2" aria-label="Activities">
+                  <div className="mt-3 flex flex-wrap items-center gap-1.5" aria-label="Activities">
                     {entry.tags.slice(0, 2).map((tag) => (
-                      <span
-                        key={tag.id}
-                        role="img"
-                        aria-label={`${tag.emoji} ${tag.name}`}
-                        title={tag.name}
-                        className="flex min-h-8 items-center justify-center rounded-full border border-white bg-white/60 px-2 py-1 text-xs font-bold leading-tight text-[#0a2f5c] shadow-sm"
-                      >
+                      <AeroChip key={tag.id} size="sm" tone="subtle">
                         <span aria-hidden="true">{tag.emoji}</span>
                         <span className="sr-only sm:hidden">{tag.name}</span>
-                        <span className="hidden sm:inline">&nbsp;{tag.name}</span>
-                      </span>
+                        <span className="hidden sm:inline">{tag.name}</span>
+                      </AeroChip>
                     ))}
                     {entry.tags.length > 2 ? (
                       <span
-                        className="flex min-h-8 items-center rounded-full border border-white/70 bg-white/40 px-2 py-1 text-xs font-bold text-[#2b4c73]"
+                        className="flex min-h-7 items-center rounded-full border border-white/70 bg-white/40 px-2.5 text-xs font-bold text-[#2b4c73]"
                         aria-label={`More activities: ${entry.tags.slice(2).map((tag) => tag.name).join(', ')}`}
                         title={entry.tags.slice(2).map((tag) => tag.name).join(', ')}
                       >

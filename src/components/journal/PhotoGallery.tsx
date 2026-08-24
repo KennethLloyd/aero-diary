@@ -135,7 +135,13 @@ function usePhotoViewerFocus(
   }, [activeIndexRef, dialogRef, photosRef, setActiveIndex, viewerOpen]);
 }
 
-export function PhotoGallery({ photos }: { photos: PhotoGalleryPhoto[] }) {
+export function PhotoGallery({
+  photos,
+  editable = false,
+}: {
+  photos: PhotoGalleryPhoto[]
+  editable?: boolean
+}) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const dialogRef = useRef<HTMLElement>(null);
   const activeIndexRef = useRef(activeIndex);
@@ -187,7 +193,7 @@ export function PhotoGallery({ photos }: { photos: PhotoGalleryPhoto[] }) {
                 retryable={false}
               />
             </button>
-            <DeletePhotoButton photoId={photo.id} />
+            {editable ? <DeletePhotoButton photoId={photo.id} /> : null}
           </figure>
         ))}
       </div>

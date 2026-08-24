@@ -15,11 +15,11 @@ export function DeletePhotoButton({ photoId }: { photoId: string }) {
       onSubmit={(event) => {
         if (!window.confirm('Remove this photo permanently?')) event.preventDefault();
       }}
-      className="absolute right-2 top-2 z-20"
+      className="absolute right-1.5 top-1.5 z-20"
     >
       <button
         type="submit"
-        className="aero-photo-delete flex h-11 w-11 items-center justify-center rounded-full text-2xl font-bold leading-none text-white focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+        className="flex h-8 w-8 items-center justify-center rounded-full border border-white/85 bg-gradient-to-b from-[#ff8b8b] to-[#c93a3a] text-sm font-bold leading-none text-white shadow-[0_2px_4px_rgba(120,20,20,0.35),inset_0_1px_0_rgba(255,255,255,0.55)] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
         aria-label="Remove photo"
         title="Remove photo"
         disabled={pending}

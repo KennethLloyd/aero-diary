@@ -3,9 +3,8 @@
 import { useActionState } from 'react';
 import { login, loginDemo, type LoginState } from '@/actions/auth';
 import { AeroButton } from '@/components/aero/AeroButton';
+import { AeroField } from '@/components/aero/AeroField';
 
-// Aero login form with email/password and an optional configured demo.
-// `useActionState` wires the action's returned error state into the form.
 export function LoginForm({ demoAvailable }: { demoAvailable: boolean }) {
   const [state, formAction, pending] = useActionState<LoginState, FormData>(
     login,
@@ -13,16 +12,30 @@ export function LoginForm({ demoAvailable }: { demoAvailable: boolean }) {
   );
 
   return (
-    <>
+    <div className="flex w-full flex-col gap-3">
       <form action={formAction} className="flex w-full flex-col gap-3">
-        <div>
-          <label htmlFor="login-email" className="mb-1 block text-sm font-bold text-[#0a2f5c]">Email</label>
-          <input id="login-email" type="email" name="email" className="aero-input w-full" placeholder="you@example.com" autoComplete="email" required />
-        </div>
-        <div>
-          <label htmlFor="login-password" className="mb-1 block text-sm font-bold text-[#0a2f5c]">Password</label>
-          <input id="login-password" type="password" name="password" className="aero-input w-full" placeholder="Your password" autoComplete="current-password" required />
-        </div>
+        <AeroField label="Email" htmlFor="login-email">
+          <input
+            id="login-email"
+            type="email"
+            name="email"
+            className="aero-input w-full"
+            placeholder="you@example.com"
+            autoComplete="email"
+            required
+          />
+        </AeroField>
+        <AeroField label="Password" htmlFor="login-password">
+          <input
+            id="login-password"
+            type="password"
+            name="password"
+            className="aero-input w-full"
+            placeholder="Your password"
+            autoComplete="current-password"
+            required
+          />
+        </AeroField>
         {state?.error ? (
           <p
             role="alert"
@@ -31,36 +44,27 @@ export function LoginForm({ demoAvailable }: { demoAvailable: boolean }) {
             {state.error}
           </p>
         ) : null}
-        <AeroButton type="submit" disabled={pending} className="w-full py-3 text-lg">
+        <AeroButton type="submit" tone="primary" size="lg" disabled={pending} className="w-full">
           {pending ? 'Signing in…' : 'Sign in'}
         </AeroButton>
       </form>
 
       {demoAvailable ? (
-        <form action={loginDemo} className="mt-3 w-full">
-          <AeroButton
-            variant="white"
-            type="submit"
-            className="w-full py-3 text-lg"
-          >
+        <form action={loginDemo} className="mt-1 w-full">
+          <AeroButton tone="secondary" size="lg" type="submit" className="w-full">
             Try the demo
           </AeroButton>
         </form>
       ) : (
-        <div className="mt-3 w-full space-y-2">
-          <AeroButton
-            variant="white"
-            type="button"
-            disabled
-            className="w-full py-3 text-lg"
-          >
+        <div className="mt-1 w-full space-y-2">
+          <AeroButton tone="secondary" size="lg" type="button" disabled className="w-full">
             Try the demo
           </AeroButton>
-          <p className="text-center text-xs font-semibold text-[#2b4c73]" role="status">
+          <p className="text-center text-xs font-semibold text-[#5a7194]" role="status">
             Demo unavailable until the server is configured and seeded.
           </p>
         </div>
       )}
-    </>
+    </div>
   );
 }

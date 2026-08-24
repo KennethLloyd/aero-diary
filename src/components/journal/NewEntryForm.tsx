@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import {
   startTransition,
   useActionState,
@@ -15,17 +14,13 @@ import {
 } from '@/actions/entries';
 import { polishEntry, type PolishEntryState } from '@/actions/polish';
 import { AeroButton } from '@/components/aero/AeroButton';
-import { AeroOrb } from '@/components/aero/AeroOrb';
+import { AeroChip } from '@/components/aero/AeroChip';
+import { AeroTextarea } from '@/components/aero/AeroTextarea';
+import { EntryBackButton } from '@/components/journal/EntryBackButton';
+import { MoodOrbPicker } from '@/components/journal/MoodOrbPicker';
+import { PhotoUploader } from '@/components/journal/PhotoUploader';
 import { Mood } from '@/generated/prisma/enums';
 import type { ActivityOption } from '@/lib/journal/types';
-
-const MOODS: { value: Mood; label: string }[] = [
-  { value: Mood.AWFUL, label: 'Awful' },
-  { value: Mood.BAD, label: 'Bad' },
-  { value: Mood.MEH, label: 'Meh' },
-  { value: Mood.GOOD, label: 'Good' },
-  { value: Mood.RAD, label: 'Rad' },
-];
 
 export type EditableEntry = {
   id: string
@@ -33,6 +28,19 @@ export type EditableEntry = {
   note: string
   localOffset: number
   activityIds: string[]
+}
+
+function formatDateSubtitle(entry?: EditableEntry): string {
+  // For new entries, show today's date; for edits, show the entry's stored date
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
+  return entry
+    ? formatter.format(new Date(now.getTime() + (entry.localOffset ?? 0) * 60_000))
+    : `Today, ${formatter.format(now)}`;
 }
 
 export function NewEntryForm({
@@ -64,7 +72,6 @@ export function NewEntryForm({
   const [selectedActivityIds, setSelectedActivityIds] = useState<Set<string>>(
     () => new Set(entry?.activityIds ?? []),
   );
-  const [selectedPhotoNames, setSelectedPhotoNames] = useState<string[]>([]);
   const localOffsetInput = useRef<HTMLInputElement>(null);
 
   function toggleActivity(activityId: string) {
@@ -124,73 +131,64 @@ export function NewEntryForm({
         id="entry-form"
         action={formAction}
         onSubmit={setBrowserOffset}
-        className="aero-entry-form aero-glass flex min-h-0 flex-1 flex-col p-5"
+        className="aero-entry-form relative z-10 mx-auto flex w-full max-w-2xl flex-col gap-8 px-4 pb-32 pt-4 sm:gap-10 sm:px-6 sm:pt-6 md:pt-10"
       >
-      <input type="hidden" name="mood" value={mood} />
-      <input
-        ref={localOffsetInput}
-        type="hidden"
-        name="localOffset"
-        defaultValue={entry?.localOffset ?? 0}
-      />
-      {[...selectedActivityIds].map((activityId) => (
-        <input key={activityId} type="hidden" name="activityId" value={activityId} />
-      ))}
+        <input type="hidden" name="mood" value={mood} />
+        <input
+          ref={localOffsetInput}
+          type="hidden"
+          name="localOffset"
+          defaultValue={entry?.localOffset ?? 0}
+        />
+        {[...selectedActivityIds].map((activityId) => (
+          <input key={activityId} type="hidden" name="activityId" value={activityId} />
+        ))}
 
-      <header className="relative z-10 mb-6 flex min-h-11 items-center justify-between border-b border-white/50 pb-3">
-        <Link
-          href="/timeline"
-          className="aero-entry-header-cancel aero-link-control hidden text-sm font-bold text-[#144e9d] drop-shadow-md hover:underline sm:inline-flex"
-        >
-          Cancel
-        </Link>
-        <span className="absolute left-1/2 -translate-x-1/2 text-sm font-bold tracking-wide text-[#0a2f5c] drop-shadow-md">
-          {entry ? 'Edit Entry' : 'New Entry'}
-        </span>
-        <AeroButton
-          type="submit"
-          disabled={pending}
-          className="aero-entry-header-save hidden px-4 py-1 text-sm sm:inline-flex"
-        >
-          {pending ? 'Saving…' : 'Save'}
-        </AeroButton>
-      </header>
+        {/* Sticky header */}
+        <header className="sticky top-0 z-20 -mx-4 mb-2 flex items-center justify-between gap-3 border-b border-white/60 bg-gradient-to-b from-[rgba(255,255,255,0.85)] to-[rgba(255,255,255,0.55)] px-4 py-3 backdrop-blur-md sm:-mx-6 sm:px-6">
+          <EntryBackButton />
+          <h1 className="min-w-0 flex-1 truncate text-center text-xl font-bold text-[#0a2f5c] drop-shadow-md sm:text-2xl">
+            {entry ? 'Edit Entry' : 'New Entry'}
+          </h1>
+          <AeroButton
+            type="submit"
+            tone="primary"
+            size="md"
+            disabled={pending}
+            className="hidden sm:inline-flex"
+          >
+            {pending ? 'Saving...' : 'Save entry'}
+          </AeroButton>
+        </header>
 
-      <div className="relative z-10 flex flex-1 flex-col gap-6">
-        <section className="space-y-4 text-center" aria-labelledby="mood-heading">
-          <h2 id="mood-heading" className="text-lg font-bold text-[#0a2f5c] drop-shadow-md">
-            How are you feeling today?
+        {/* Date subtitle */}
+        <p className="text-sm font-semibold text-[#2b4c73]">
+          {formatDateSubtitle(entry)}
+        </p>
+
+        {/* Mood section */}
+        <section aria-labelledby="mood-heading">
+          <h2
+            id="mood-heading"
+            className="mb-3 text-sm font-bold uppercase tracking-wide text-[#5a7194]"
+          >
+            How are you feeling?
           </h2>
-          <div className="mx-auto grid w-full max-w-sm grid-cols-5 justify-items-center gap-1 rounded-2xl border border-black/10 bg-black/5 p-2 shadow-inner sm:gap-4 sm:p-3">
-            {MOODS.map((option) => {
-              const selected = mood === option.value;
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                    className={`flex min-h-11 min-w-11 items-center justify-center rounded-full p-0.5 ${selected ? 'ring-2 ring-white ring-offset-2 ring-offset-transparent' : ''}`}
-                  aria-label={`Select ${option.label} mood`}
-                  aria-pressed={selected}
-                  onClick={() => setMood(option.value)}
-                >
-                  <AeroOrb mood={option.value} className="aero-mood-orb" />
-                </button>
-              );
-            })}
-          </div>
+          <MoodOrbPicker value={mood} onChange={setMood} />
         </section>
 
-        <div className="flex flex-1 flex-col gap-4">
-          <label htmlFor="entry-note" className="block text-sm font-bold text-[#0a2f5c] drop-shadow-sm">
+        {/* Journal textarea */}
+        <section aria-labelledby="note-heading">
+          <h2 id="note-heading" className="sr-only">
             Journal note
-          </label>
-          <textarea
-            id="entry-note"
+          </h2>
+          <AeroTextarea
             name="note"
-            className="aero-input min-h-48 w-full resize-y p-4 text-[15px] leading-relaxed"
-            placeholder="What’s on your mind?"
+            placeholder="What's on your mind?"
+            minLength={1}
             maxLength={20_000}
             value={note}
+            className="min-h-56"
             onChange={(event) => {
               setNote(event.target.value);
               if (polishSnapshot) {
@@ -203,115 +201,115 @@ export function NewEntryForm({
             }}
             required
           />
-
-          {selectedActivityIds.size > 0 ? (
-            <p className="rounded-lg border border-white/60 bg-white/40 px-3 py-2 text-sm font-semibold text-[#2b4c73]" aria-live="polite">
-              Selected activities:{' '}
-              {activities
-                .filter((activity) => selectedActivityIds.has(activity.id))
-                .map((activity) => `${activity.emoji} ${activity.name}`)
-                .join(', ')}
-            </p>
-          ) : null}
-
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <AeroButton
+          <div className="mt-2 flex items-center justify-between">
+            <span className="text-xs text-[#5a7194]">
+              {note.length.toLocaleString()} / 20,000
+            </span>
+            <button
               type="button"
               onClick={handlePolish}
               disabled={pending || polishing || !note.trim()}
-              className="px-3 py-1 text-xs"
+              className="text-sm font-bold text-[#144e9d] underline decoration-dotted underline-offset-4 transition hover:text-[#0a2f5c] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {polishing ? 'Polishing…' : 'Polish ✨'}
-            </AeroButton>
-            {polishSnapshot ? (
-              <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-[#144e9d]">
-                <button type="button" onClick={toggleOriginal} className="aero-link-control text-xs font-bold underline">
-                  {showingOriginal ? 'Show polished' : 'Show original'}
-                </button>
-                <button type="button" onClick={undoPolish} className="aero-link-control text-xs font-bold underline">
-                  Undo polish
-                </button>
-              </div>
-            ) : null}
+              {polishing ? 'Polishing...' : '\u2728 Polish writing'}
+            </button>
           </div>
-
+          {polishSnapshot ? (
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-bold text-[#144e9d]">
+              <button
+                type="button"
+                onClick={toggleOriginal}
+                className="aero-link-control underline"
+              >
+                {showingOriginal ? 'Show polished' : 'Show original'}
+              </button>
+              <button
+                type="button"
+                onClick={undoPolish}
+                className="aero-link-control underline"
+              >
+                Undo polish
+              </button>
+            </div>
+          ) : null}
           {polishState?.error ? (
-            <p role="alert" className="rounded-md border border-amber-300 bg-amber-50/90 px-3 py-2 text-sm font-semibold text-amber-800">
+            <p
+              role="alert"
+              className="mt-2 rounded-md border border-amber-300 bg-amber-50/90 px-3 py-2 text-sm font-semibold text-amber-800"
+            >
               {polishState.error}
             </p>
           ) : null}
+        </section>
 
-          <section className="space-y-2 rounded-lg border border-white/60 bg-white/40 p-3" aria-labelledby="activity-heading">
-            <h2 id="activity-heading" className="text-xs font-bold uppercase text-[#0a2f5c]">
-              Activities
-            </h2>
-            {activities.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {activities.map((activity) => {
-                  const selected = selectedActivityIds.has(activity.id);
-                  return (
-                    <button
-                      key={activity.id}
-                      type="button"
-                      aria-pressed={selected}
-                      className={`activity-chip ${selected ? 'activity-chip-selected' : ''}`}
-                      onClick={() => toggleActivity(activity.id)}
-                    >
-                      {activity.emoji} {activity.name}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-sm font-semibold text-[#2b4c73]">
-                Add activities from the Activities screen first.
-              </p>
-            )}
-          </section>
-
-          <section className="space-y-2 rounded-lg border border-white/60 bg-white/40 p-3" aria-labelledby="photo-heading">
-            <label htmlFor="entry-photos" className="block text-xs font-bold uppercase text-[#0a2f5c]">
-              Photos (optional)
-            </label>
-            <input
-              id="entry-photos"
-              name="photo"
-              type="file"
-              accept="image/jpeg,image/png,image/heic,image/heif,.heic,.heif"
-              multiple
-              className="block min-h-11 w-full text-sm font-semibold text-[#2b4c73] file:mr-3 file:min-h-11 file:rounded-md file:border file:border-[#7a9eae] file:bg-white file:px-3 file:py-1.5 file:font-bold file:text-[#144e9d]"
-              onChange={(event) => setSelectedPhotoNames([...event.target.files ?? []].map((file) => file.name))}
-            />
-            <p className="text-xs font-semibold text-[#2b4c73]">
-              Up to 10 JPEG, PNG, HEIC, or HEIF photos, 10 MB each (20 MB total).
+        {/* Activities */}
+        <section aria-labelledby="activity-heading">
+          <h2
+            id="activity-heading"
+            className="mb-3 text-sm font-bold uppercase tracking-wide text-[#5a7194]"
+          >
+            What did you do today?
+          </h2>
+          {activities.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {activities.map((activity) => (
+                <AeroChip
+                  key={activity.id}
+                  tone={selectedActivityIds.has(activity.id) ? 'selected' : 'neutral'}
+                  size="sm"
+                  onClick={() => toggleActivity(activity.id)}
+                >
+                  <span aria-hidden="true">{activity.emoji}</span>
+                  <span>{activity.name}</span>
+                </AeroChip>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm font-semibold text-[#5a7194]">
+              No activities yet.{' '}
+              <a
+                href="/settings/activities"
+                className="text-[#144e9d] underline decoration-dotted underline-offset-4 hover:text-[#0a2f5c]"
+              >
+                Add some from Settings.
+              </a>
             </p>
-            {selectedPhotoNames.length > 0 ? (
-              <p className="text-xs font-semibold text-[#0a2f5c]" aria-live="polite">
-                Selected: {selectedPhotoNames.join(', ')}
-              </p>
-            ) : null}
-          </section>
+          )}
+        </section>
 
-          {state?.error ? (
-            <p role="alert" className="rounded-md border border-red-300 bg-red-50/80 px-3 py-2 text-sm font-semibold text-red-700">
-              {state.error}
-            </p>
-          ) : null}
-        </div>
-      </div>
+        {/* Photos */}
+        <section aria-labelledby="photo-heading">
+          <h2
+            id="photo-heading"
+            className="mb-3 text-sm font-bold uppercase tracking-wide text-[#5a7194]"
+          >
+            Photos (optional)
+          </h2>
+          <PhotoUploader />
+        </section>
+
+        {/* Error */}
+        {state?.error ? (
+          <p
+            role="alert"
+            className="rounded-md border border-red-300 bg-red-50/80 px-3 py-2 text-sm font-semibold text-red-700"
+          >
+            {state.error}
+          </p>
+        ) : null}
       </form>
 
+      {/* Mobile sticky bottom save bar */}
       <div className="aero-action-bar" aria-label="Entry actions">
-        <Link href="/timeline" className="aero-link-control font-bold text-[#144e9d]">
-          Cancel
-        </Link>
         <AeroButton
           type="submit"
           form="entry-form"
+          tone="primary"
+          size="lg"
           disabled={pending}
-          className="px-5 text-sm"
+          className="w-full"
         >
-          {pending ? 'Saving…' : 'Save'}
+          {pending ? 'Saving...' : 'Save entry'}
         </AeroButton>
       </div>
     </div>
