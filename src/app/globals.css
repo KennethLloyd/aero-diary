@@ -38,32 +38,37 @@
 
   body {
     font-family: var(--font-sans);
-    /* Fixed sky-to-grass background. */
-    background: linear-gradient(
-      to bottom,
-      #69a7e1 0%,
-      #9bd0f5 40%,
-      #bfe8c4 70%,
-      #76c77a 100%
-    );
+    /* Fixed sky-to-grass background with a soft horizon glow. */
+    background:
+      radial-gradient(
+        ellipse 130% 55% at 50% -12%,
+        rgba(255, 255, 255, 0.5),
+        rgba(255, 255, 255, 0) 62%
+      ),
+      linear-gradient(
+        to bottom,
+        #69a7e1 0%,
+        #9bd0f5 38%,
+        #bfe8c4 72%,
+        #76c77a 100%
+      );
     background-attachment: fixed;
-    color: #1a202c;
+    color: #1a2c42;
     min-height: 100vh;
     overflow-x: hidden;
     margin: 0;
   }
 }
 
-/* Shared glossy recipes. */
+/* Shared glossy recipes & tokens. */
 :root {
   --aero-control-min: 44px;
-  --aero-focus-ring: 0 0 0 4px rgba(20, 108, 194, 0.42);
-  --aero-dock-height: 70px;
-  --aero-dock-gap: 14px;
+  --aero-focus-ring: 0 0 0 3px rgba(20, 108, 194, 0.45);
+  --aero-dock-height: 64px;
+  --aero-dock-gap: 12px;
   --aero-dock-bottom: max(12px, env(safe-area-inset-bottom));
-  --aero-page-bottom: calc(var(--aero-dock-height) + var(--aero-dock-gap) + var(--aero-dock-bottom));
-  --aero-surface-strong: rgba(255, 255, 255, 0.72);
-  --aero-surface-soft: rgba(255, 255, 255, 0.42);
+  --aero-page-bottom: calc(var(--aero-dock-height) + var(--aero-dock-gap) + var(--aero-dock-bottom) + 8px);
+  --aero-surface-soft: rgba(255, 255, 255, 0.55);
   --aero-ink-muted: #2b4c73;
   --aero-btn-gradient: linear-gradient(
     180deg,
@@ -81,20 +86,20 @@
   );
 }
 
-/* Floating bubbles. */
+/* Subtle background bubbles. */
 @keyframes float-up {
   0% {
     transform: translateY(110vh) scale(0.8);
     opacity: 0;
   }
-  10% {
-    opacity: 0.8;
+  12% {
+    opacity: 0.65;
   }
-  90% {
-    opacity: 0.8;
+  88% {
+    opacity: 0.65;
   }
   100% {
-    transform: translateY(-20vh) scale(1.2);
+    transform: translateY(-20vh) scale(1.15);
     opacity: 0;
   }
 }
@@ -105,55 +110,114 @@
     border-radius: 50%;
     background: radial-gradient(
       circle at 30% 30%,
-      rgba(255, 255, 255, 0.8),
-      rgba(255, 255, 255, 0.1) 60%,
-      rgba(255, 255, 255, 0.4) 100%
+      rgba(255, 255, 255, 0.75),
+      rgba(255, 255, 255, 0.08) 60%,
+      rgba(255, 255, 255, 0.35) 100%
     );
     box-shadow:
-      inset 0 0 10px rgba(255, 255, 255, 0.5),
-      0 4px 8px rgba(0, 0, 0, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    animation: float-up 15s infinite linear;
+      inset 0 0 8px rgba(255, 255, 255, 0.45),
+      0 4px 10px rgba(0, 0, 0, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    animation: float-up 18s infinite linear;
     pointer-events: none;
     z-index: 0;
   }
 
-  /* Glass panels. */
-  .aero-glass {
-    background: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.7) 0%,
-      rgba(255, 255, 255, 0.3) 50%,
-      rgba(255, 255, 255, 0.6) 100%
-    );
-    border: 1px solid rgba(255, 255, 255, 0.9);
+  /* ----------------------------------------------------
+     SURFACE HIERARCHY
+     ---------------------------------------------------- */
+
+  /* 1. Aero Hero: high gloss, focal areas, special highlights */
+  .aero-hero {
+    background:
+      radial-gradient(
+        circle at 88% -8%,
+        rgba(126, 196, 248, 0.4),
+        rgba(126, 196, 248, 0) 52%
+      ),
+      linear-gradient(
+        140deg,
+        rgba(255, 255, 255, 0.92) 0%,
+        rgba(224, 243, 255, 0.85) 45%,
+        rgba(202, 236, 255, 0.78) 70%,
+        rgba(235, 250, 255, 0.9) 100%
+      );
+    border: 1px solid rgba(255, 255, 255, 0.95);
     box-shadow:
-      0 8px 20px rgba(0, 0, 0, 0.15),
+      0 10px 28px rgba(10, 47, 92, 0.18),
       inset 0 1px 0 rgba(255, 255, 255, 1),
-      inset 0 0 20px rgba(255, 255, 255, 0.5);
-    border-radius: 12px;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+      inset 0 0 20px rgba(255, 255, 255, 0.6);
+    border-radius: 18px;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
     position: relative;
     overflow: hidden;
   }
-  .aero-glass::before {
+  .aero-hero::before {
     content: '';
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
-    height: 50%;
+    height: 45%;
+    background: linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.65) 0%,
+      rgba(255, 255, 255, 0.05) 100%
+    );
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
+  /* 2. Aero Card: standard diary entries, stats, grouped memory postcards */
+  .aero-card {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.82) 0%,
+      rgba(242, 249, 255, 0.7) 50%,
+      rgba(230, 246, 255, 0.78) 100%
+    );
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow:
+      0 6px 20px rgba(10, 47, 92, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.95),
+      inset 0 0 14px rgba(255, 255, 255, 0.45);
+    border-radius: 16px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    position: relative;
+    overflow: hidden;
+  }
+  .aero-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 40%;
     background: linear-gradient(
       to bottom,
       rgba(255, 255, 255, 0.5) 0%,
-      rgba(255, 255, 255, 0.1) 100%
+      rgba(255, 255, 255, 0) 100%
     );
     pointer-events: none;
   }
-  .aero-calendar-panel {
-    overflow: visible;
+
+  /* 3. Plain Surface: long-form reading, forms, settings lists */
+  .aero-surface-plain {
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    box-shadow:
+      0 3px 12px rgba(10, 47, 92, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 1);
+    border-radius: 14px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
   }
+
+  /* ----------------------------------------------------
+     BUTTONS & CONTROLS
+     ---------------------------------------------------- */
 
   /* Glossy buttons. */
   .aero-btn {
@@ -163,116 +227,164 @@
     background: var(--aero-btn-gradient);
     border: 1px solid #10427a;
     box-shadow:
-      inset 0px 1px 0px rgba(255, 255, 255, 0.8),
-      0px 2px 4px rgba(0, 0, 0, 0.3);
+      inset 0px 1px 0px rgba(255, 255, 255, 0.85),
+      inset 0 10px 12px -7px rgba(255, 255, 255, 0.55),
+      inset 0 -6px 10px -7px rgba(0, 24, 55, 0.35),
+      0px 2px 5px rgba(0, 36, 75, 0.28);
     color: white;
-    text-shadow: 0 -1px 1px rgba(0, 0, 0, 0.6);
-    border-radius: 20px;
-    padding: 6px 16px;
+    text-shadow: 0 -1px 1px rgba(0, 0, 0, 0.5);
+    border-radius: 999px;
+    padding: 7px 18px;
     min-height: var(--aero-control-min);
     min-width: var(--aero-control-min);
-    font-weight: bold;
-    transition: all 0.1s;
+    font-weight: 700;
+    font-size: 0.925rem;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
     position: relative;
     overflow: hidden;
   }
-  .aero-btn:hover {
+  .aero-btn:hover:not(:disabled) {
     background: var(--aero-btn-gradient-hover);
+    transform: translateY(-1px);
+    box-shadow:
+      inset 0px 1px 0px rgba(255, 255, 255, 0.9),
+      inset 0 10px 12px -7px rgba(255, 255, 255, 0.6),
+      inset 0 -6px 10px -7px rgba(0, 24, 55, 0.3),
+      0px 4px 10px rgba(0, 36, 75, 0.32);
   }
-  .aero-btn:active {
+  .aero-btn:active:not(:disabled) {
     background: linear-gradient(180deg, #146cc2 0%, #207ce5 100%);
-    box-shadow: inset 0px 2px 5px rgba(0, 0, 0, 0.5);
-    text-shadow: none;
+    box-shadow:
+      inset 0px 2px 5px rgba(0, 0, 0, 0.4),
+      0px 1px 2px rgba(0, 36, 75, 0.2);
+    transform: translateY(0) scale(0.98);
+  }
+  .aero-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
   }
 
   .aero-btn-white {
     background: linear-gradient(
       180deg,
       #ffffff 0%,
-      #e6e6e6 49%,
-      #d4d4d4 50%,
-      #f0f0f0 100%
+      #edf4f9 49%,
+      #dbe8f2 50%,
+      #f4f8fb 100%
     );
-    border: 1px solid #a0a0a0;
-    color: #333;
-    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+    border: 1px solid #9bb7cf;
+    box-shadow:
+      inset 0px 1px 0px rgba(255, 255, 255, 1),
+      0px 2px 4px rgba(10, 47, 92, 0.12);
+    color: #0a2f5c;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
   }
-  .aero-btn-white:hover {
+  .aero-btn-white:hover:not(:disabled) {
     background: linear-gradient(
       180deg,
       #ffffff 0%,
-      #f0f0f0 49%,
-      #e0e0e0 50%,
-      #f9f9f9 100%
+      #f5faff 49%,
+      #e4f0fa 50%,
+      #fafcff 100%
     );
+    border-color: #7da8cc;
   }
 
   .aero-btn-red {
     background: linear-gradient(
       180deg,
-      #ff9393 0%,
+      #ff9a9a 0%,
       #e64a4a 49%,
       #c21414 50%,
       #e52020 100%
     );
     border: 1px solid #7a1010;
+    box-shadow:
+      inset 0px 1px 0px rgba(255, 255, 255, 0.7),
+      0px 2px 4px rgba(90, 0, 0, 0.3);
+    color: white;
+    text-shadow: 0 -1px 1px rgba(0, 0, 0, 0.5);
   }
-  .aero-btn-red:hover {
+  .aero-btn-red:hover:not(:disabled) {
     background: linear-gradient(
       180deg,
-      #fcb0b0 0%,
+      #fcb4b4 0%,
       #f96868 49%,
       #e01a1a 50%,
       #f42f2f 100%
     );
   }
 
-  /* Input wells. */
+  /* Input fields. */
   .aero-input {
     background: #ffffff;
-    border: 1px solid #7a9eae;
+    border: 1px solid #91b5ce;
     box-shadow:
-      inset 0 2px 5px rgba(0, 0, 0, 0.2),
-      0 1px 0 rgba(255, 255, 255, 0.8);
-    border-radius: 6px;
-    color: #333;
-    padding: 8px 12px;
+      inset 0 1.5px 3px rgba(10, 47, 92, 0.12),
+      0 1px 0 rgba(255, 255, 255, 0.9);
+    border-radius: 10px;
+    color: #1a2c42;
+    padding: 9px 14px;
     min-height: var(--aero-control-min);
-    transition: all 0.2s;
+    font-size: 0.95rem;
+    transition: all 0.18s ease;
   }
   .aero-input:focus {
     outline: none;
-    border-color: #4a9be6;
+    border-color: #2b8ce6;
     box-shadow:
-      inset 0 2px 5px rgba(0, 0, 0, 0.2),
-      0 0 8px rgba(74, 155, 230, 0.6);
+      inset 0 1.5px 3px rgba(10, 47, 92, 0.12),
+      0 0 0 3px rgba(43, 140, 230, 0.35);
   }
 
+  /* Activity chips. */
   .activity-chip {
-    border: 1px solid #a0a0a0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid #b5cadc;
     border-radius: 999px;
-    background: linear-gradient(180deg, #f7f7f7 0%, #e6e6e6 49%, #d4d4d4 50%, #f0f0f0 100%);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-    color: #333;
+    background: linear-gradient(180deg, #ffffff 0%, #f0f6fb 49%, #e2eef7 50%, #f4f8fc 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 1),
+      0 1.5px 3px rgba(10, 47, 92, 0.1);
+    color: #143e6d;
     cursor: pointer;
-    font-size: 0.875rem;
+    font-size: 0.85rem;
     font-weight: 600;
-    min-height: var(--aero-control-min);
-    padding: 0.45rem 0.75rem;
-    transition: all 0.1s;
+    min-height: 38px;
+    padding: 0.35rem 0.85rem;
+    transition: all 0.15s ease;
+    user-select: none;
   }
   .activity-chip:hover {
-    background: linear-gradient(180deg, #ffffff 0%, #f0f0f0 49%, #e0e0e0 50%, #f9f9f9 100%);
+    background: linear-gradient(180deg, #ffffff 0%, #f7fbff 49%, #eaf4fd 50%, #ffffff 100%);
+    border-color: #8fb9de;
+    transform: translateY(-1px);
+  }
+  .activity-chip:active {
+    transform: translateY(0) scale(0.96);
   }
   .activity-chip-selected {
-    background: linear-gradient(180deg, #b4e3f9 0%, #74c4ed 49%, #4096ee 50%, #74c4ed 100%);
-    border-color: #4096ee;
-    color: #0a2f5c;
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.6), 0 1px 2px rgba(0, 0, 0, 0.2);
+    background: linear-gradient(180deg, #7ec4f8 0%, #3a97e8 49%, #146cc2 50%, #2982df 100%);
+    border-color: #0d4b8a;
+    color: #ffffff;
+    text-shadow: 0 -1px 1px rgba(0, 36, 75, 0.6);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.7),
+      inset 0 8px 10px -6px rgba(255, 255, 255, 0.45),
+      0 2px 6px rgba(20, 108, 194, 0.35),
+      0 3px 12px rgba(20, 108, 194, 0.3);
+  }
+  .activity-chip-selected:hover {
+    background: linear-gradient(180deg, #95d2fc 0%, #4da7f5 49%, #1c7ad4 50%, #3891ec 100%);
+    border-color: #0d4b8a;
   }
 
-  /* Glossy mood orbs. */
+  /* ----------------------------------------------------
+     GLOSSY MOOD ORBS
+     ---------------------------------------------------- */
   .aero-orb {
     width: 48px;
     height: 48px;
@@ -282,23 +394,24 @@
     justify-content: center;
     font-size: 24px;
     box-shadow:
-      0 4px 6px rgba(0, 0, 0, 0.2),
+      0 4px 10px rgba(0, 36, 75, 0.22),
       inset 0 -4px 6px rgba(0, 0, 0, 0.2),
-      inset 0 4px 6px rgba(255, 255, 255, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.8);
+      inset 0 -1.5px 2px rgba(255, 255, 255, 0.3),
+      inset 0 4px 6px rgba(255, 255, 255, 0.7);
+    border: 1.5px solid rgba(255, 255, 255, 0.85);
     position: relative;
     overflow: hidden;
     flex: none;
     cursor: pointer;
-    transition: transform 0.2s;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
   }
   .aero-orb:hover {
-    transform: scale(1.1);
+    transform: scale(1.08);
   }
   .aero-mood-orb {
-    width: clamp(40px, 13vw, 48px);
-    height: clamp(40px, 13vw, 48px);
-    font-size: clamp(19px, 6vw, 24px);
+    width: clamp(42px, 12vw, 52px);
+    height: clamp(42px, 12vw, 52px);
+    font-size: clamp(20px, 5.5vw, 26px);
   }
   .aero-orb::after {
     content: '';
@@ -309,25 +422,26 @@
     height: 40%;
     background: linear-gradient(
       to bottom,
-      rgba(255, 255, 255, 0.9),
+      rgba(255, 255, 255, 0.95),
       rgba(255, 255, 255, 0)
     );
     border-radius: 50%;
+    pointer-events: none;
   }
   .orb-awful {
-    background: radial-gradient(circle at 30% 30%, #ff7b7b, #d80000);
+    background: radial-gradient(circle at 30% 30%, #ff8585, #d61111);
   }
   .orb-bad {
-    background: radial-gradient(circle at 30% 30%, #ffc17b, #d86c00);
+    background: radial-gradient(circle at 30% 30%, #ffc885, #d66f00);
   }
   .orb-meh {
-    background: radial-gradient(circle at 30% 30%, #fff48f, #d8b400);
+    background: radial-gradient(circle at 30% 30%, #fff799, #d6b200);
   }
   .orb-good {
-    background: radial-gradient(circle at 30% 30%, #8fff9c, #00b017);
+    background: radial-gradient(circle at 30% 30%, #99ffa4, #00b01c);
   }
   .orb-rad {
-    background: radial-gradient(circle at 30% 30%, #7bffff, #00a4b0);
+    background: radial-gradient(circle at 30% 30%, #8affff, #00a8b5);
   }
 
   .mini-orb {
@@ -336,7 +450,7 @@
     font-size: 0;
     border-width: 1px;
     box-shadow:
-      0 2px 3px rgba(0, 0, 0, 0.3),
+      0 2px 3px rgba(0, 0, 0, 0.25),
       inset 0 -2px 3px rgba(0, 0, 0, 0.2);
   }
   .mini-orb::after {
@@ -344,7 +458,9 @@
     height: 45%;
   }
 
-  /* Bottom navigation dock. */
+  /* ----------------------------------------------------
+     BOTTOM NAVIGATION DOCK
+     ---------------------------------------------------- */
   .aero-screen {
     display: grid;
     grid-template-rows: minmax(0, 1fr) auto;
@@ -362,98 +478,221 @@
     position: relative;
     align-self: center;
     display: flex;
-    gap: 10px;
+    align-items: center;
+    gap: 6px;
     min-height: var(--aero-dock-height);
-    padding: 8px 14px;
+    padding: 6px 12px;
     background: linear-gradient(
-      to bottom,
-      rgba(255, 255, 255, 0.7) 0%,
-      rgba(255, 255, 255, 0.3) 100%
+      180deg,
+      rgba(255, 255, 255, 0.88) 0%,
+      rgba(235, 248, 255, 0.72) 100%
     );
-    border: 1px solid rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.95);
     box-shadow:
-      0 10px 25px rgba(0, 0, 0, 0.2),
+      0 12px 32px rgba(10, 47, 92, 0.22),
       inset 0 1px 0 rgba(255, 255, 255, 1),
-      inset 0 0 20px rgba(255, 255, 255, 0.4);
-    border-radius: 40px;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+      inset 0 0 16px rgba(255, 255, 255, 0.5);
+    border-radius: 999px;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     isolation: isolate;
     z-index: 1000;
     margin: 0 auto max(12px, env(safe-area-inset-bottom));
   }
 
-  .dock-icon {
-    width: var(--aero-control-min);
-    height: var(--aero-control-min);
-    border-radius: 50%;
-    background: linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.9) 0%,
-      rgba(255, 255, 255, 0.2) 100%
-    );
-    border: 1px solid rgba(255, 255, 255, 0.7);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  .dock-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-width: 58px;
+    min-height: 48px;
+    padding: 4px 8px;
+    border-radius: 18px;
+    color: #46648c;
+    text-decoration: none;
+    transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+  }
+  .dock-item .dock-icon-wrap {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 22px;
-    cursor: pointer;
-    position: relative;
-    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    width: 28px;
+    height: 28px;
+    font-size: 19px;
+    opacity: 0.82;
+    transition: transform 0.18s ease, opacity 0.18s ease;
   }
-  /* Dock tooltips. */
-  .dock-icon::before {
-    content: attr(data-tooltip);
-    position: absolute;
-    top: -35px;
-    left: 50%;
-    transform: translateX(-50%) scale(0.8);
-    background: rgba(0, 0, 0, 0.7);
-    color: white;
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: bold;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    opacity: 0;
-    pointer-events: none;
-    transition: all 0.2s;
-    white-space: nowrap;
+  .dock-item .dock-label {
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    color: #46648c;
+    transition: color 0.18s ease;
   }
-  .dock-icon:hover::before {
+
+  .dock-item:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.65);
+    transform: translateY(-2px);
+  }
+  .dock-item:hover:not(.active) .dock-icon-wrap {
+    transform: scale(1.1);
     opacity: 1;
-    transform: translateX(-50%) scale(1);
   }
-  .dock-icon:hover {
-    transform: translateY(-10px) scale(1.15);
-    background: var(--aero-btn-gradient);
-    border-color: #10427a;
+  .dock-item:active:not(.active) {
+    transform: translateY(0) scale(0.95);
   }
-  .dock-icon.active {
-    background: var(--aero-btn-gradient);
-    border-color: #10427a;
+
+  .dock-item.active {
+    background: linear-gradient(
+      180deg,
+      #90cefc 0%,
+      #4498e6 49%,
+      #136bc0 50%,
+      #1f7be3 100%
+    );
+    border: 1px solid #0d4f91;
     box-shadow:
-      inset 0px 2px 5px rgba(0, 0, 0, 0.5),
-      0 4px 12px rgba(32, 124, 229, 0.5);
-    transform: translateY(-4px);
+      inset 0 1px 0 rgba(255, 255, 255, 0.8),
+      inset 0 8px 10px -6px rgba(255, 255, 255, 0.4),
+      0 4px 12px rgba(19, 107, 192, 0.42);
+    color: white;
+  }
+  .dock-item.active:active {
+    transform: scale(0.96);
+  }
+  .dock-item.active .dock-label {
+    color: #ffffff;
+    font-weight: 700;
+    text-shadow: 0 -1px 1px rgba(0, 36, 75, 0.6);
+  }
+  .dock-item.active .dock-icon-wrap {
+    opacity: 1;
+    filter: drop-shadow(0 1px 2px rgba(0, 24, 55, 0.35));
+  }
+
+  /* Quiet round icon control (month navigation, overflow triggers). */
+  .aero-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    min-height: 32px;
+    padding: 0;
+    border-radius: 999px;
+    border: 1px solid #b7cddf;
+    background: linear-gradient(180deg, #ffffff 0%, #f2f8fc 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 1),
+      0 1px 2px rgba(10, 47, 92, 0.12);
+    color: #14538f;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .aero-icon-btn:hover:not(:disabled) {
+    background: linear-gradient(180deg, #ffffff 0%, #e6f2fb 100%);
+    border-color: #8fb9de;
+    transform: translateY(-1px);
+  }
+  .aero-icon-btn:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: inset 0 1px 3px rgba(10, 47, 92, 0.18);
+  }
+  .aero-icon-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  /* Compact month navigator pill. */
+  .aero-month-nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.62);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.95),
+      0 2px 6px rgba(10, 47, 92, 0.1);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    padding: 0.25rem 0.375rem;
+  }
+  .aero-month-nav .aero-month-label {
+    min-width: 7.5rem;
+    text-align: center;
+    font-size: 0.875rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: #0a2f5c;
+  }
+
+  /* Overflow (⋯) row menu. */
+  .aero-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 4px);
+    z-index: 40;
+    min-width: 9.5rem;
+    padding: 0.3rem;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    background: rgba(252, 253, 255, 0.97);
+    box-shadow:
+      0 10px 24px rgba(10, 47, 92, 0.22),
+      inset 0 1px 0 rgba(255, 255, 255, 1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  .aero-menu-item {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: 8px;
+    padding: 0.5rem 0.625rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #143e6d;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.12s ease;
+  }
+  .aero-menu-item:hover:not(:disabled) {
+    background: rgba(120, 184, 240, 0.18);
+  }
+  .aero-menu-item:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .aero-menu-item-danger {
+    color: #b91c1c;
+  }
+  .aero-menu-item-danger:hover:not(:disabled) {
+    background: rgba(254, 202, 202, 0.4);
   }
 
   /* Pure CSS Aero logo. */
   .aero-logo-orb {
-    width: 120px;
-    height: 120px;
+    width: 108px;
+    height: 108px;
     border-radius: 50%;
     background: radial-gradient(circle at 30% 30%, #a1d9ff 0%, #3b9eeb 40%, #0c5699 100%);
     box-shadow:
-      0 15px 25px rgba(0, 0, 0, 0.3),
-      inset -10px -10px 20px rgba(0, 0, 0, 0.4),
-      inset 5px 5px 15px rgba(255, 255, 255, 0.8);
+      0 14px 28px rgba(10, 47, 92, 0.28),
+      inset -8px -8px 18px rgba(0, 0, 0, 0.35),
+      inset 5px 5px 15px rgba(255, 255, 255, 0.85);
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 2px solid rgba(255, 255, 255, 0.4);
+    border: 2px solid rgba(255, 255, 255, 0.6);
   }
   .aero-logo-orb::before {
     content: '';
@@ -472,39 +711,39 @@
   .aero-swoosh {
     position: absolute;
     width: 140%;
-    height: 40px;
+    height: 38px;
     background: linear-gradient(
       90deg,
       transparent,
-      rgba(118, 199, 122, 0.9),
+      rgba(118, 199, 122, 0.95),
       transparent
     );
     border-radius: 50%;
     transform: rotate(-15deg);
-    box-shadow: 0 5px 15px rgba(118, 199, 122, 0.6);
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+    box-shadow: 0 4px 12px rgba(118, 199, 122, 0.5);
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
   }
 
   /* Progress bars. */
   .aero-progress-track {
-    background: #e0e5e9;
-    border: 1px solid #b3c2cc;
-    border-radius: 10px;
-    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
-    height: 18px;
+    background: #dbe6ef;
+    border: 1px solid #a8bfd1;
+    border-radius: 999px;
+    box-shadow: inset 0 1.5px 3px rgba(10, 47, 92, 0.15);
+    height: 14px;
     width: 100%;
     overflow: hidden;
     position: relative;
   }
   .aero-progress-fill {
     height: 100%;
-    border-radius: 8px;
-    /* Default rad-cyan fill. */
+    border-radius: 999px;
     background: linear-gradient(90deg, #00a4b0, #7bffff);
     box-shadow:
-      inset 0 1px 2px rgba(255, 255, 255, 0.8),
-      inset 0 -1px 2px rgba(0, 0, 0, 0.3);
+      inset 0 1px 2px rgba(255, 255, 255, 0.85),
+      inset 0 -1px 2px rgba(0, 0, 0, 0.25);
     position: relative;
+    transition: width 0.4s ease-out;
   }
   .aero-progress-fill::after {
     content: '';
@@ -516,20 +755,22 @@
     background: linear-gradient(
       to bottom,
       rgba(255, 255, 255, 0.7) 0%,
-      rgba(255, 255, 255, 0.1) 100%
+      rgba(255, 255, 255, 0.05) 100%
     );
   }
 
   /* Miscellaneous controls. */
-  .no-scrollbar::-webkit-scrollbar {
+  .aero-screen-content::-webkit-scrollbar,
+  .aero-entry-form::-webkit-scrollbar {
     display: none;
   }
-  .no-scrollbar {
+  .aero-screen-content,
+  .aero-entry-form {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
 
-  /* Entry deletion modal. */
+  /* Modal / Dialog. */
   .aero-modal-backdrop {
     position: fixed;
     inset: 0;
@@ -537,54 +778,58 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.4);
+    background: rgba(8, 32, 60, 0.45);
     padding: 1rem;
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
   }
   .aero-modal {
-    width: min(100%, 24rem);
+    width: min(100%, 25rem);
     overflow: hidden;
-    border-radius: 12px;
+    border-radius: 16px;
     background: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.7) 0%,
-      rgba(255, 255, 255, 0.3) 50%,
-      rgba(255, 255, 255, 0.6) 100%
+      140deg,
+      rgba(255, 255, 255, 0.95) 0%,
+      rgba(240, 248, 255, 0.92) 50%,
+      rgba(228, 244, 255, 0.95) 100%
     );
-    border: 1px solid rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.98);
     box-shadow:
-      0 12px 30px rgba(0, 0, 0, 0.3),
+      0 16px 40px rgba(8, 32, 60, 0.32),
       inset 0 1px 0 rgba(255, 255, 255, 1),
-      inset 0 0 20px rgba(255, 255, 255, 0.5);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+      inset 0 0 20px rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
   }
   .aero-modal-titlebar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border-bottom: 1px solid #7daecf;
-    background: linear-gradient(to bottom, #e3f0f8, #9fc8e8);
-    padding: 0.375rem 0.75rem;
+    border-bottom: 1px solid #9dc4df;
+    background: linear-gradient(to bottom, #edf5fa, #b8daef);
+    padding: 0.5rem 0.85rem;
     color: #0a2f5c;
-    font-size: 0.875rem;
+    font-size: 0.9rem;
     font-weight: 700;
     text-shadow: 0 1px 1px rgba(255, 255, 255, 0.8);
   }
   .aero-modal-close {
     display: flex;
-    width: var(--aero-control-min);
-    height: var(--aero-control-min);
+    width: 32px;
+    height: 32px;
     align-items: center;
     justify-content: center;
-    border: 1px solid #a31b1b;
-    border-radius: 0.25rem;
-    background: linear-gradient(to bottom, #ff8c8c, #d43535);
+    border: 1px solid #b82b2b;
+    border-radius: 6px;
+    background: linear-gradient(to bottom, #ff9494, #db3b3b);
     color: white;
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     font-weight: 700;
-    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.5);
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+  }
+  .aero-modal-close:hover {
+    background: linear-gradient(to bottom, #ffa8a8, #eb4646);
   }
   .aero-modal-close:disabled,
   .aero-modal-cancel:disabled {
@@ -594,119 +839,139 @@
   .aero-modal-body {
     display: flex;
     gap: 1rem;
-    background: rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.5);
     padding: 1.25rem;
   }
   .aero-modal-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 0.5rem;
+    gap: 0.6rem;
     border-top: 1px solid rgba(255, 255, 255, 0.9);
-    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.6), rgba(229, 229, 229, 0.6));
-    padding: 0.75rem;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.7), rgba(235, 244, 250, 0.7));
+    padding: 0.85rem 1.25rem;
   }
   .aero-modal-cancel {
-    border: 1px solid #9ca3af;
-    border-radius: 0.25rem;
-    background: linear-gradient(to bottom, #f3f4f6, #d1d5db);
+    border: 1px solid #a3bdd1;
+    border-radius: 999px;
+    background: linear-gradient(to bottom, #ffffff, #e3edf5);
     min-height: var(--aero-control-min);
-    padding: 0.375rem 1rem;
-    color: #1f2937;
+    padding: 0.4rem 1.15rem;
+    color: #1a3c63;
     font-size: 0.875rem;
-    font-weight: 500;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(10, 47, 92, 0.1);
+    cursor: pointer;
   }
   .aero-modal-cancel:hover {
-    background: linear-gradient(to bottom, #ffffff, #e5e7eb);
+    background: linear-gradient(to bottom, #ffffff, #edf4fa);
+    border-color: #88acc6;
   }
 
-  /* Photo gallery. */
+  /* Photo gallery cards. */
   .aero-photo-card {
     border: 1px solid rgba(255, 255, 255, 0.95);
     background: linear-gradient(
       145deg,
       rgba(255, 255, 255, 0.95) 0%,
-      rgba(198, 232, 249, 0.78) 48%,
-      rgba(255, 255, 255, 0.72) 100%
+      rgba(215, 239, 252, 0.78) 48%,
+      rgba(255, 255, 255, 0.85) 100%
     );
     box-shadow:
-      0 5px 12px rgba(14, 60, 95, 0.28),
+      0 4px 12px rgba(10, 47, 92, 0.14),
       inset 0 1px 0 rgba(255, 255, 255, 1),
-      inset 0 0 12px rgba(255, 255, 255, 0.7);
-    transition: transform 0.2s, box-shadow 0.2s;
+      inset 0 0 10px rgba(255, 255, 255, 0.6);
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease;
   }
   .aero-photo-card:hover {
     transform: translateY(-2px);
     box-shadow:
-      0 8px 16px rgba(14, 60, 95, 0.32),
+      0 8px 18px rgba(10, 47, 92, 0.2),
       inset 0 1px 0 rgba(255, 255, 255, 1),
-      inset 0 0 14px rgba(255, 255, 255, 0.8);
+      inset 0 0 12px rgba(255, 255, 255, 0.75);
+  }
+  .aero-photo-card:active {
+    transform: scale(0.98);
   }
   .aero-photo-thumb {
-    background: linear-gradient(135deg, rgba(155, 208, 245, 0.48), rgba(191, 232, 196, 0.72));
+    background: linear-gradient(135deg, rgba(155, 208, 245, 0.45), rgba(191, 232, 196, 0.65));
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
   }
-  .aero-photo-delete,
-  .aero-photo-viewer-close {
-    border: 2px solid rgba(255, 255, 255, 0.95);
+  /* Destructive control: quiet until hovered, unmistakably red. */
+  .aero-photo-delete {
+    border: 1px solid rgba(185, 28, 28, 0.4);
     background: linear-gradient(
       to bottom,
-      #ff7777 0%,
-      #ed343d 48%,
+      rgba(255, 255, 255, 0.94) 0%,
+      rgba(254, 235, 235, 0.9) 100%
+    );
+    color: #b91c1c;
+    box-shadow:
+      0 1px 3px rgba(93, 9, 9, 0.16),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    transition: filter 0.18s, transform 0.18s, opacity 0.18s;
+  }
+  .aero-photo-delete:hover {
+    border-color: #b91c1c;
+    background: linear-gradient(
+      to bottom,
+      #ff8080 0%,
+      #ee3841 48%,
       #b91c1c 50%,
       #ef4444 100%
     );
-    box-shadow:
-      0 2px 5px rgba(93, 9, 9, 0.42),
-      inset 0 1px 0 rgba(255, 255, 255, 0.7);
-    transition: filter 0.2s, transform 0.2s;
-  }
-  .aero-photo-delete:hover,
-  .aero-photo-viewer-close:hover {
-    filter: brightness(1.08);
+    color: #ffffff;
+    text-shadow: 0 -1px 1px rgba(0, 0, 0, 0.4);
+    filter: brightness(1.05);
     transform: translateY(-1px);
+  }
+  .aero-photo-delete:active {
+    transform: scale(0.96);
   }
   .aero-photo-viewer {
     border: 1px solid rgba(255, 255, 255, 0.95);
     background: linear-gradient(
       135deg,
-      rgba(240, 251, 255, 0.96) 0%,
-      rgba(198, 232, 249, 0.92) 48%,
-      rgba(235, 250, 255, 0.96) 100%
+      rgba(245, 252, 255, 0.97) 0%,
+      rgba(215, 239, 252, 0.94) 48%,
+      rgba(240, 251, 255, 0.97) 100%
     );
     box-shadow:
-      0 14px 35px rgba(0, 24, 55, 0.45),
+      0 16px 45px rgba(0, 24, 55, 0.45),
       inset 0 1px 0 rgba(255, 255, 255, 1),
       inset 0 0 24px rgba(255, 255, 255, 0.75);
-    backdrop-filter: blur(12px);
+    backdrop-filter: blur(14px);
   }
   .aero-photo-viewer-bar {
     background: linear-gradient(
       to bottom,
-      rgba(255, 255, 255, 0.85),
-      rgba(183, 222, 244, 0.6) 49%,
-      rgba(255, 255, 255, 0.78) 50%,
-      rgba(215, 240, 252, 0.82)
+      rgba(255, 255, 255, 0.9),
+      rgba(200, 230, 248, 0.65) 49%,
+      rgba(255, 255, 255, 0.8) 50%,
+      rgba(225, 244, 254, 0.85)
     );
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95);
   }
   .aero-photo-viewer-stage {
     background:
-      radial-gradient(circle at 50% 8%, rgba(255, 255, 255, 0.75), transparent 42%),
-      linear-gradient(135deg, rgba(150, 203, 238, 0.5), rgba(213, 242, 220, 0.6));
+      radial-gradient(circle at 50% 8%, rgba(255, 255, 255, 0.8), transparent 45%),
+      linear-gradient(135deg, rgba(160, 210, 242, 0.5), rgba(218, 245, 224, 0.6));
   }
   .aero-photo-nav {
     border: 1px solid #146cc2;
     background: var(--aero-btn-gradient);
     box-shadow:
-      0 2px 4px rgba(0, 44, 91, 0.3),
+      0 2px 5px rgba(0, 44, 91, 0.25),
       inset 0 1px 0 rgba(255, 255, 255, 0.75);
-    transition: filter 0.2s, transform 0.2s;
+    transition: filter 0.18s, transform 0.18s;
     min-height: var(--aero-control-min);
   }
   .aero-photo-nav:hover:not(:disabled) {
     filter: brightness(1.08);
     transform: translateY(-1px);
+  }
+  .aero-photo-nav:active:not(:disabled) {
+    transform: scale(0.96);
+    filter: brightness(0.96);
   }
 
   .aero-entry-shell {
@@ -721,7 +986,7 @@
   }
 
   .aero-entry-form .aero-input::placeholder {
-    color: #64748b;
+    color: #728ca3;
     opacity: 1;
   }
 
@@ -743,6 +1008,7 @@
     align-items: center;
     border-radius: 999px;
     padding: 0.45rem 0.75rem;
+    transition: all 0.15s ease;
   }
 
   :where(a, button, input, textarea, select):focus-visible {
@@ -753,7 +1019,6 @@
   :where(a, button, input, textarea, select) {
     scroll-margin-bottom: var(--aero-page-bottom);
   }
-
 
   .timeline-entry-layout {
     display: grid;
@@ -797,11 +1062,9 @@
     border: 1px solid rgba(255, 255, 255, 0.9);
     background: var(--aero-surface-soft);
   }
-
 }
 
 @media (max-width: 639px) {
-
   .aero-dock {
     position: fixed;
     left: 50%;
@@ -810,8 +1073,13 @@
     max-width: calc(100vw - 1.5rem);
     transform: translateX(-50%);
     margin: 0;
-    gap: 8px;
-    padding-inline: 10px;
+    gap: 4px;
+    padding: 5px 8px;
+  }
+
+  .dock-item {
+    min-width: 52px;
+    padding: 3px 6px;
   }
 
   .timeline-entry-layout {
@@ -821,8 +1089,8 @@
   .timeline-entry-meta {
     flex-direction: row;
     align-items: center;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.55);
-    padding: 0 0 0.75rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.65);
+    padding: 0 0 0.65rem;
   }
 
   .timeline-entry-date-group {
@@ -835,11 +1103,9 @@
   }
 
   .timeline-entry-body {
-    padding-top: 0.75rem;
+    padding-top: 0.65rem;
   }
-}
 
-@media (max-width: 639px) {
   .aero-entry-page {
     min-height: 100%;
     overflow: hidden;
@@ -864,9 +1130,9 @@
     margin: 0.75rem 0 0;
     border: 1px solid rgba(255, 255, 255, 0.95);
     border-radius: 1rem;
-    background: rgba(240, 251, 255, 0.96);
-    padding: 0.5rem;
-    box-shadow: 0 8px 20px rgba(0, 44, 91, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    background: rgba(245, 252, 255, 0.97);
+    padding: 0.5rem 0.85rem;
+    box-shadow: 0 8px 20px rgba(0, 44, 91, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
   }
@@ -874,14 +1140,22 @@
 
 @media (max-width: 359px) {
   .aero-dock {
-    gap: 4px;
-    padding-inline: 6px;
+    gap: 2px;
+    padding-inline: 4px;
+  }
+
+  .dock-item {
+    min-width: 44px;
+    padding: 2px 4px;
+  }
+  .dock-item .dock-label {
+    font-size: 10px;
   }
 
   .aero-mood-orb {
-    width: 40px;
-    height: 40px;
-    font-size: 19px;
+    width: 38px;
+    height: 38px;
+    font-size: 18px;
   }
 
   .calendar-grid-scroll-hint {

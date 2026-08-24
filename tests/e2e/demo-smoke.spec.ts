@@ -7,6 +7,10 @@ if (!demoEmail || !demoPassword) {
   throw new Error('PLAYWRIGHT_DEMO_EMAIL and PLAYWRIGHT_DEMO_PASSWORD are required for the configured smoke suite.');
 }
 
+// Hosts without the polish LLM configured can set PLAYWRIGHT_POLISH_DISABLED=1
+// to smoke-test the rest of the journal flow.
+const polishEnabled = process.env.PLAYWRIGHT_POLISH_DISABLED !== '1';
+
 test('demo user can create, polish, view, and delete an entry', async ({ page }) => {
   let detailUrl: string | undefined;
   const marker = `Automated smoke entry ${Date.now()}`;
@@ -16,7 +20,7 @@ test('demo user can create, polish, view, and delete an entry', async ({ page })
   await page.getByLabel('Password').fill(demoPassword);
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page).toHaveURL(/\/timeline$/);
-  await expect(page.getByRole('heading', { name: 'Aero Diary', exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Timeline', exact: true })).toBeVisible();
 
   await page.goto('/');
   await expect(page).toHaveURL(/\/timeline$/);
@@ -29,13 +33,15 @@ test('demo user can create, polish, view, and delete an entry', async ({ page })
   try {
     await page.goto('/timeline/new');
     await page.getByRole('button', { name: 'Select Rad mood' }).click();
-    await page.getByLabel('Journal note').fill(marker);
-    await page.getByRole('button', { name: 'Polish ✨' }).click();
-    await expect(page.getByRole('button', { name: 'Show original' })).toBeVisible({ timeout: 30_000 });
-    await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByLabel('Journal Note').fill(marker);
+    if (polishEnabled) {
+      await page.getByRole('button', { name: 'Polish writing' }).click();
+      await expect(page.getByRole('button', { name: 'Show original' })).toBeVisible({ timeout: 30_000 });
+    }
+    await page.getByRole('button', { name: 'Save entry' }).click();
 
     await expect(page).toHaveURL(/\/timeline$/);
-    const createdEntry = page.getByRole('link', { name: new RegExp(`Mood: RAD.*${marker}`) });
+    const createdEntry = page.getByRole('link', { name: new RegExp(`Mood:.*${marker}`, 'i') });
     await expect(createdEntry).toBeVisible();
     await createdEntry.click();
     await expect(page).toHaveURL(/\/timeline\/(?!new$)[^/]+$/);

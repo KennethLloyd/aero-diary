@@ -55,14 +55,14 @@ async function verifyTimelineFlow(page: Page) {
   expect(documentRequests).toBe(requestsBeforeNavigation);
 
   const initialCount = await cards.count();
-  const loadOlder = page.getByRole('button', { name: 'Load older entries', exact: true });
+  const loadOlder = page.getByRole('button', { name: 'Load older memories', exact: true });
   await expect(loadOlder).toBeVisible();
   await loadOlder.click();
   await expect.poll(() => cards.count()).toBe(initialCount + 25);
 
   await page.goto('/timeline?activity=not-a-real-activity');
-  await expect(page.getByText('No matching memories yet.')).toBeVisible();
-  await page.getByRole('link', { name: 'View all entries', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'No matching memories found' })).toBeVisible();
+  await page.getByRole('link', { name: 'View all memories', exact: true }).click();
   await expect(page).toHaveURL(/\/timeline$/);
   await expect(cards.first()).toBeVisible();
 
@@ -97,12 +97,14 @@ test.describe('timeline polish mobile', () => {
     for (const width of [320, 360, 393, 412]) {
       await page.setViewportSize({ width, height: 915 });
       await page.goto('/timeline/new');
-      const form = page.locator('form.aero-entry-form');
+      const form = page.locator('#entry-form');
       await expect(form).toBeVisible();
       await expect(page.getByRole('button', { name: /Select .* mood/ })).toHaveCount(5);
+      await expect(page.getByRole('button', { name: 'Select Good mood' })).toHaveAttribute('aria-pressed', 'true');
+      await page.getByRole('button', { name: 'Select Rad mood' }).click();
       await expect(page.getByRole('button', { name: 'Select Rad mood' })).toHaveAttribute('aria-pressed', 'true');
-      await expect(page.getByText('Journal note', { exact: true })).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Save', exact: true })).toHaveCount(1);
+      await expect(page.getByText('Journal Note', { exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Save entry' })).toHaveCount(1);
 
       const metrics = await page.evaluate(() => {
         const action = document.querySelector('.aero-action-bar')?.getBoundingClientRect();
@@ -124,7 +126,7 @@ test.describe('timeline polish mobile', () => {
       expect(metrics.smallestMoodButton).toBeGreaterThanOrEqual(44);
       expect(metrics.actionBottom).toBeLessThanOrEqual(metrics.dockTop);
       expect(metrics.dockPosition).toBe('fixed');
-      await page.getByRole('heading', { name: 'Activities', exact: true }).scrollIntoViewIfNeeded();
+      await page.getByRole('heading', { name: 'What did you do today?' }).scrollIntoViewIfNeeded();
       await expect(page.getByLabel('Entry actions')).toBeVisible();
     }
 
@@ -157,13 +159,13 @@ test.describe('timeline polish mobile', () => {
 
     await page.setViewportSize({ width: 393, height: 852 });
     await page.goto('/insights');
-    await expect(page.getByText('entries this month', { exact: true })).toBeVisible();
-    await expect(page.getByText('compared with last month', { exact: true })).toHaveCount(0);
+    await expect(page.getByText(/memories logged/).first()).toBeVisible();
 
     for (const [route, selector] of [
       ['/timeline', 'main a[href^="/timeline/"]:not([href="/timeline/new"])'],
       ['/insights', 'section[aria-labelledby="top-activities-heading"]'],
       ['/activities', 'section[aria-labelledby="activities-list-heading"]'],
+      ['/settings', 'section[aria-labelledby="settings-management-heading"]'],
     ] as const) {
       await page.goto(route);
       const safeAtScrollEnd = await page.evaluate((targetSelector) => {

@@ -26,7 +26,9 @@ function isBlankFile(value: FormDataEntryValue) {
   return isFile(value)
     && value.size === 0
     && value.type === 'application/octet-stream'
-    && (value.name === '' || value.name === 'undefined');
+    // Untouched pickers arrive as '' (native submit), 'undefined' (older
+    // serialization), or 'blob' (React server-action serialization).
+    && (value.name === '' || value.name === 'undefined' || value.name === 'blob');
 }
 
 function hasHeifExtension(file: File) {

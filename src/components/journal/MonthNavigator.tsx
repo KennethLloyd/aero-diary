@@ -17,23 +17,13 @@ export function MonthNavigator({
   const nextMonth = getNextMonth(month);
 
   return (
-    <div className="flex items-center justify-between rounded-full border border-white/60 bg-white/30 px-3 py-1.5 shadow-inner">
-      <Link
-        href={`${basePath}?month=${previousMonth.key}`}
-        className="aero-btn flex h-11 w-11 items-center justify-center rounded-full p-0 text-lg"
-        aria-label="Previous month"
-      >
-        ‹
+    <div className="aero-month-nav">
+      <Link href={`${basePath}?month=${previousMonth.key}`} className="aero-icon-btn" aria-label="Previous month">
+        <span aria-hidden="true">‹</span>
       </Link>
-      <span className="text-lg font-bold text-[#0a2f5c] drop-shadow-sm">
-        {formatMonthLabel(month)}
-      </span>
-      <Link
-        href={`${basePath}?month=${nextMonth.key}`}
-        className="aero-btn flex h-11 w-11 items-center justify-center rounded-full p-0 text-lg"
-        aria-label="Next month"
-      >
-        ›
+      <span className="aero-month-label">{formatMonthLabel(month)}</span>
+      <Link href={`${basePath}?month=${nextMonth.key}`} className="aero-icon-btn" aria-label="Next month">
+        <span aria-hidden="true">›</span>
       </Link>
     </div>
   );

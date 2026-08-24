@@ -23,12 +23,12 @@ async function LoginContent() {
   if (session) redirect('/timeline');
 
   return (
-    <main className="relative z-10 flex min-h-screen flex-col items-center justify-center px-4">
-      <div className="aero-glass flex w-full max-w-sm flex-col items-center p-8">
+    <main className="relative z-10 flex min-h-screen flex-col items-center justify-center p-4">
+      <div className="aero-hero flex w-full max-w-sm flex-col items-center p-6 sm:p-8">
         <AeroLogo />
 
-        <AeroTitle className="mb-2 mt-6">Aero Diary</AeroTitle>
-        <p className="mb-8 text-center text-sm font-semibold text-[#2b4c73]">
+        <AeroTitle className="mb-1 mt-4 text-center">Aero Diary</AeroTitle>
+        <p className="mb-6 text-center text-xs font-semibold text-[#2b4c73]">
           Your memories, vividly preserved.
         </p>
 
@@ -40,8 +40,8 @@ async function LoginContent() {
 
 function LoginLoading() {
   return (
-    <main className="relative z-10 flex min-h-screen flex-col items-center justify-center px-4" aria-label="Loading Aero Diary">
-      <div className="aero-glass h-96 w-full max-w-sm animate-pulse" />
+    <main className="relative z-10 flex min-h-screen flex-col items-center justify-center p-4" aria-label="Loading Aero Diary">
+      <div className="aero-hero h-96 w-full max-w-sm animate-pulse" />
     </main>
   );
 }

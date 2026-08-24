@@ -3,12 +3,13 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-// Bottom navigation for the journal screens.
+// Bottom navigation for the journal screens with icons + labels.
 const DOCK_ITEMS = [
-  { href: '/timeline', icon: '🗓️', tooltip: 'Timeline' },
-  { href: '/calendar', icon: '📆', tooltip: 'Calendar' },
-  { href: '/insights', icon: '📊', tooltip: 'Insights' },
-  { href: '/activities', icon: '⚙️', tooltip: 'Activities' },
+  { href: '/timeline', label: 'Timeline', icon: '📖', match: (path: string) => path === '/timeline' || path.startsWith('/timeline/') },
+  { href: '/calendar', label: 'Calendar', icon: '📅', match: (path: string) => path === '/calendar' },
+  { href: '/insights', label: 'Insights', icon: '📊', match: (path: string) => path === '/insights' },
+  // Activities management lives under Settings, so it keeps Settings lit.
+  { href: '/settings', label: 'Settings', icon: '⚙️', match: (path: string) => path === '/settings' || path.startsWith('/activities') },
 ];
 
 export function AeroDock() {
@@ -16,18 +17,23 @@ export function AeroDock() {
 
   return (
     <nav className="aero-dock" aria-label="Main navigation">
-      {DOCK_ITEMS.map((item) => (
-        <Link
-          key={item.href}
-          href={item.href}
-          aria-label={item.tooltip}
-          aria-current={pathname === item.href ? 'page' : undefined}
-          data-tooltip={item.tooltip}
-          className={`dock-icon ${pathname === item.href ? 'active' : ''}`}
-        >
-          {item.icon}
-        </Link>
-      ))}
+      {DOCK_ITEMS.map((item) => {
+        const isActive = item.match(pathname);
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            aria-label={item.label}
+            aria-current={isActive ? 'page' : undefined}
+            className={`dock-item ${isActive ? 'active' : ''}`}
+          >
+            <span className="dock-icon-wrap" aria-hidden="true">
+              {item.icon}
+            </span>
+            <span className="dock-label">{item.label}</span>
+          </Link>
+        );
+      })}
     </nav>
   );
 }
