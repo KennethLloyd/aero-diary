@@ -129,6 +129,14 @@ test.describe('timeline polish mobile', () => {
       await expect(page.getByRole('button', { name: 'Select Good mood' })).toHaveAttribute('aria-pressed', 'true');
       await page.getByRole('button', { name: 'Select Rad mood' }).click();
       await expect(page.getByRole('button', { name: 'Select Rad mood' })).toHaveAttribute('aria-pressed', 'true');
+      const firstActivityChip = page.locator('.activity-chip').first();
+      const activityBefore = await firstActivityChip.boundingBox();
+      await firstActivityChip.click();
+      const activityAfter = await firstActivityChip.boundingBox();
+      expect(activityBefore).not.toBeNull();
+      expect(activityAfter).not.toBeNull();
+      expect(activityAfter?.width).toBeCloseTo(activityBefore?.width ?? 0, 0);
+      expect(activityAfter?.height).toBe(activityBefore?.height);
       await expect(page.getByText('Journal Note', { exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Save entry' })).toHaveCount(1);
 
