@@ -78,6 +78,18 @@ test.describe('timeline polish desktop', () => {
   test('uses cached client navigation and 25-entry pages', async ({ page }) => {
     await verifyTimelineFlow(page);
   });
+  test('shows a new entry immediately after the create redirect', async ({ page }) => {
+    await signIn(page);
+
+    const uniqueNote = `Read-your-writes ${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    await page.goto('/timeline/new');
+    await page.getByLabel('Journal Note').fill(uniqueNote);
+    await page.getByRole('button', { name: 'Save entry' }).click();
+
+    await expect(page).toHaveURL(/\/timeline$/);
+    await expect(page.getByText(uniqueNote, { exact: true })).toBeVisible();
+  });
+
 });
 
 test.describe('timeline polish mobile', () => {
@@ -94,7 +106,7 @@ test.describe('timeline polish mobile', () => {
       expect(tops).toBeLessThanOrEqual(2);
     }
 
-    for (const width of [320, 360, 393, 412]) {
+    for (const width of [360, 390, 412, 430]) {
       await page.setViewportSize({ width, height: 915 });
       await page.goto('/timeline/new');
       const form = page.locator('#entry-form');
@@ -107,27 +119,35 @@ test.describe('timeline polish mobile', () => {
       await expect(page.getByRole('button', { name: 'Save entry' })).toHaveCount(1);
 
       const metrics = await page.evaluate(() => {
-        const action = document.querySelector('.aero-action-bar')?.getBoundingClientRect();
+        const save = document.querySelector('[data-entry-save-sentinel]');
         const dock = document.querySelector('.aero-dock');
-        const dockRect = dock?.getBoundingClientRect();
         const moodButtons = [...document.querySelectorAll('section[aria-labelledby="mood-heading"] button')]
           .map((button) => button.getBoundingClientRect());
         return {
           documentWidth: document.documentElement.scrollWidth,
           viewportWidth: window.innerWidth,
-          actionBottom: action?.bottom ?? 0,
-          dockTop: dockRect?.top ?? window.innerHeight,
+          saveInForm: save?.closest('form')?.id === 'entry-form',
+          actionBar: Boolean(document.querySelector('.aero-action-bar')),
           dockPosition: dock ? getComputedStyle(dock).position : null,
           smallestMoodButton: Math.min(...moodButtons.map((button) => Math.min(button.width, button.height))),
         };
       });
 
       expect(metrics.documentWidth).toBe(metrics.viewportWidth);
+      expect(metrics.saveInForm).toBe(true);
+      expect(metrics.actionBar).toBe(false);
       expect(metrics.smallestMoodButton).toBeGreaterThanOrEqual(44);
-      expect(metrics.actionBottom).toBeLessThanOrEqual(metrics.dockTop);
       expect(metrics.dockPosition).toBe('fixed');
-      await page.getByRole('heading', { name: 'What did you do today?' }).scrollIntoViewIfNeeded();
-      await expect(page.getByLabel('Entry actions')).toBeVisible();
+      await expect.poll(() => page.locator('.aero-dock').evaluate((dock) => getComputedStyle(dock).visibility)).toBe('visible');
+
+      await page.locator('[data-entry-save-sentinel]').scrollIntoViewIfNeeded();
+      await expect.poll(() => page.locator('.aero-dock').evaluate((dock) => getComputedStyle(dock).visibility)).toBe('hidden');
+
+      await page.evaluate(() => {
+        const form = document.querySelector<HTMLElement>('.aero-entry-form');
+        if (form) form.scrollTop = 0;
+      });
+      await expect.poll(() => page.locator('.aero-dock').evaluate((dock) => getComputedStyle(dock).visibility)).toBe('visible');
     }
 
     for (const width of [393, 412]) {

@@ -65,6 +65,15 @@ describe('polishEntry action', () => {
       error: 'Polish is unavailable right now. Your entry can still be saved as written.',
     });
   });
+  it('preserves the draft when the model returns only reasoning', async () => {
+    mocks.verifySession.mockResolvedValue({ isAuth: true, userId: 'user-1' });
+    mocks.findUnique.mockResolvedValue({ styleStandard: 'Keep the voice direct.' });
+    mocks.complete.mockResolvedValue('<think>**Revising the draft**</think>');
+
+    await expect(polishEntry(undefined, form('Original draft.'))).resolves.toEqual({
+      error: 'Polish is unavailable right now. Your entry can still be saved as written.',
+    });
+  });
 
   it('uses the concise default when the user has no style standard', async () => {
     mocks.verifySession.mockResolvedValue({ isAuth: true, userId: 'user-1' });
