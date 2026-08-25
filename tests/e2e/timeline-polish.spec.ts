@@ -70,6 +70,20 @@ async function verifyTimelineFlow(page: Page) {
   expect(iconHref).toBeTruthy();
   const iconResponse = await page.request.get(new URL(iconHref!, page.url()).toString());
   expect(iconResponse.ok()).toBeTruthy();
+  const appleIconHref = await page.locator('link[rel="apple-touch-icon"]').getAttribute('href');
+  expect(appleIconHref).toBe('/icon-512-maskable.png');
+  const appleIconResponse = await page.request.get(new URL(appleIconHref!, page.url()).toString());
+  expect(appleIconResponse.ok()).toBeTruthy();
+
+  const manifestHref = await page.locator('link[rel="manifest"]').getAttribute('href');
+  expect(manifestHref).toBe('/manifest.webmanifest');
+  const manifestResponse = await page.request.get(new URL(manifestHref!, page.url()).toString());
+  expect(manifestResponse.ok()).toBeTruthy();
+  expect(await manifestResponse.json()).toMatchObject({
+    display: 'standalone',
+    theme_color: '#69a7e1',
+    background_color: '#69a7e1',
+  });
 }
 
 test.describe('timeline polish desktop', () => {
@@ -123,6 +137,14 @@ test.describe('timeline polish mobile', () => {
         const dock = document.querySelector('.aero-dock');
         const moodButtons = [...document.querySelectorAll('section[aria-labelledby="mood-heading"] button')]
           .map((button) => button.getBoundingClientRect());
+        const activityChips = [...document.querySelectorAll('.activity-chip')]
+          .map((chip) => {
+            const rect = chip.getBoundingClientRect();
+            const style = getComputedStyle(chip);
+            return { height: rect.height, fontSize: Number.parseFloat(style.fontSize) };
+          });
+        const polishButton = [...document.querySelectorAll('button')]
+          .find((button) => button.textContent?.includes('Polish writing'));
         return {
           documentWidth: document.documentElement.scrollWidth,
           viewportWidth: window.innerWidth,
@@ -130,6 +152,10 @@ test.describe('timeline polish mobile', () => {
           actionBar: Boolean(document.querySelector('.aero-action-bar')),
           dockPosition: dock ? getComputedStyle(dock).position : null,
           smallestMoodButton: Math.min(...moodButtons.map((button) => Math.min(button.width, button.height))),
+          largestActivityChip: Math.max(...activityChips.map((chip) => chip.height)),
+          smallestActivityChip: Math.min(...activityChips.map((chip) => chip.height)),
+          activityChipFontSize: Math.max(...activityChips.map((chip) => chip.fontSize)),
+          polishFontSize: polishButton ? Number.parseFloat(getComputedStyle(polishButton).fontSize) : 0,
         };
       });
 
@@ -137,6 +163,9 @@ test.describe('timeline polish mobile', () => {
       expect(metrics.saveInForm).toBe(true);
       expect(metrics.actionBar).toBe(false);
       expect(metrics.smallestMoodButton).toBeGreaterThanOrEqual(44);
+      expect(metrics.largestActivityChip).toBeLessThanOrEqual(36);
+      expect(metrics.smallestActivityChip).toBeGreaterThanOrEqual(36);
+      expect(metrics.activityChipFontSize).toBeLessThanOrEqual(metrics.polishFontSize);
       expect(metrics.dockPosition).toBe('fixed');
       await expect.poll(() => page.locator('.aero-dock').evaluate((dock) => getComputedStyle(dock).visibility)).toBe('visible');
 

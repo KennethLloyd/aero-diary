@@ -419,7 +419,7 @@ export function NewEntryForm({
             </Link>
           </div>
           {activities.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {activities.map((activity) => {
                 const selected = selectedActivityIds.has(activity.id);
                 return (

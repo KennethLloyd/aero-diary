@@ -10,6 +10,10 @@ export const metadata: Metadata = {
     title: 'Aero Diary',
     statusBarStyle: 'default',
   },
+  icons: {
+    icon: '/icon.svg',
+    apple: '/icon-512-maskable.png',
+  },
 };
 
 export const viewport: Viewport = {

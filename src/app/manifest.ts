@@ -8,7 +8,7 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: '/timeline',
     scope: '/',
     display: 'standalone',
-    background_color: '#bfe8c4',
+    background_color: '#69a7e1',
     theme_color: '#69a7e1',
     icons: [
       {
