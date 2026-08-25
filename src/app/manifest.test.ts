@@ -1,6 +1,7 @@
 import { existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { metadata } from '@/app/layout';
 import manifest from '@/app/manifest';
 
 describe('Aero Diary web manifest', () => {
@@ -14,7 +15,7 @@ describe('Aero Diary web manifest', () => {
       scope: '/',
       display: 'standalone',
       theme_color: '#69a7e1',
-      background_color: '#bfe8c4',
+      background_color: '#69a7e1',
     });
     expect(value.icons).toEqual([
       expect.objectContaining({ src: '/icon-192x192.png', sizes: '192x192' }),
@@ -25,6 +26,19 @@ describe('Aero Diary web manifest', () => {
         purpose: 'maskable',
       }),
     ]);
+  });
+  it('publishes Safari Home Screen metadata', () => {
+    expect(metadata).toMatchObject({
+      appleWebApp: {
+        capable: true,
+        title: 'Aero Diary',
+        statusBarStyle: 'default',
+      },
+      icons: {
+        icon: '/icon.svg',
+        apple: '/icon-512-maskable.png',
+      },
+    });
   });
   it('ships every manifest icon asset', () => {
     for (const filename of ['icon-192x192.png', 'icon-512x512.png', 'icon-512-maskable.png']) {

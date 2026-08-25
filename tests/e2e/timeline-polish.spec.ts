@@ -70,6 +70,20 @@ async function verifyTimelineFlow(page: Page) {
   expect(iconHref).toBeTruthy();
   const iconResponse = await page.request.get(new URL(iconHref!, page.url()).toString());
   expect(iconResponse.ok()).toBeTruthy();
+  const appleIconHref = await page.locator('link[rel="apple-touch-icon"]').getAttribute('href');
+  expect(appleIconHref).toBe('/icon-512-maskable.png');
+  const appleIconResponse = await page.request.get(new URL(appleIconHref!, page.url()).toString());
+  expect(appleIconResponse.ok()).toBeTruthy();
+
+  const manifestHref = await page.locator('link[rel="manifest"]').getAttribute('href');
+  expect(manifestHref).toBe('/manifest.webmanifest');
+  const manifestResponse = await page.request.get(new URL(manifestHref!, page.url()).toString());
+  expect(manifestResponse.ok()).toBeTruthy();
+  expect(await manifestResponse.json()).toMatchObject({
+    display: 'standalone',
+    theme_color: '#69a7e1',
+    background_color: '#69a7e1',
+  });
 }
 
 test.describe('timeline polish desktop', () => {
@@ -78,6 +92,18 @@ test.describe('timeline polish desktop', () => {
   test('uses cached client navigation and 25-entry pages', async ({ page }) => {
     await verifyTimelineFlow(page);
   });
+  test('shows a new entry immediately after the create redirect', async ({ page }) => {
+    await signIn(page);
+
+    const uniqueNote = `Read-your-writes ${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    await page.goto('/timeline/new');
+    await page.getByLabel('Journal Note').fill(uniqueNote);
+    await page.getByRole('button', { name: 'Save entry' }).click();
+
+    await expect(page).toHaveURL(/\/timeline$/);
+    await expect(page.getByText(uniqueNote, { exact: true })).toBeVisible();
+  });
+
 });
 
 test.describe('timeline polish mobile', () => {
@@ -94,7 +120,7 @@ test.describe('timeline polish mobile', () => {
       expect(tops).toBeLessThanOrEqual(2);
     }
 
-    for (const width of [320, 360, 393, 412]) {
+    for (const width of [360, 390, 412, 430]) {
       await page.setViewportSize({ width, height: 915 });
       await page.goto('/timeline/new');
       const form = page.locator('#entry-form');
@@ -103,31 +129,62 @@ test.describe('timeline polish mobile', () => {
       await expect(page.getByRole('button', { name: 'Select Good mood' })).toHaveAttribute('aria-pressed', 'true');
       await page.getByRole('button', { name: 'Select Rad mood' }).click();
       await expect(page.getByRole('button', { name: 'Select Rad mood' })).toHaveAttribute('aria-pressed', 'true');
+      const firstActivityChip = page.locator('.activity-chip').first();
+      const activityBefore = await firstActivityChip.boundingBox();
+      await firstActivityChip.click();
+      const activityAfter = await firstActivityChip.boundingBox();
+      expect(activityBefore).not.toBeNull();
+      expect(activityAfter).not.toBeNull();
+      expect(activityAfter?.width).toBeCloseTo(activityBefore?.width ?? 0, 0);
+      expect(activityAfter?.height).toBeCloseTo(activityBefore?.height ?? 0, 0);
       await expect(page.getByText('Journal Note', { exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Save entry' })).toHaveCount(1);
 
       const metrics = await page.evaluate(() => {
-        const action = document.querySelector('.aero-action-bar')?.getBoundingClientRect();
+        const save = document.querySelector('[data-entry-save-sentinel]');
         const dock = document.querySelector('.aero-dock');
-        const dockRect = dock?.getBoundingClientRect();
         const moodButtons = [...document.querySelectorAll('section[aria-labelledby="mood-heading"] button')]
           .map((button) => button.getBoundingClientRect());
+        const activityChips = [...document.querySelectorAll('.activity-chip')]
+          .map((chip) => {
+            const rect = chip.getBoundingClientRect();
+            const style = getComputedStyle(chip);
+            return { height: rect.height, fontSize: Number.parseFloat(style.fontSize) };
+          });
+        const polishButton = [...document.querySelectorAll('button')]
+          .find((button) => button.textContent?.includes('Polish writing'));
         return {
           documentWidth: document.documentElement.scrollWidth,
           viewportWidth: window.innerWidth,
-          actionBottom: action?.bottom ?? 0,
-          dockTop: dockRect?.top ?? window.innerHeight,
+          saveInForm: save?.closest('form')?.id === 'entry-form',
+          actionBar: Boolean(document.querySelector('.aero-action-bar')),
           dockPosition: dock ? getComputedStyle(dock).position : null,
           smallestMoodButton: Math.min(...moodButtons.map((button) => Math.min(button.width, button.height))),
+          largestActivityChip: Math.max(...activityChips.map((chip) => chip.height)),
+          smallestActivityChip: Math.min(...activityChips.map((chip) => chip.height)),
+          activityChipFontSize: Math.max(...activityChips.map((chip) => chip.fontSize)),
+          polishFontSize: polishButton ? Number.parseFloat(getComputedStyle(polishButton).fontSize) : 0,
         };
       });
 
       expect(metrics.documentWidth).toBe(metrics.viewportWidth);
+      expect(metrics.saveInForm).toBe(true);
+      expect(metrics.actionBar).toBe(false);
       expect(metrics.smallestMoodButton).toBeGreaterThanOrEqual(44);
-      expect(metrics.actionBottom).toBeLessThanOrEqual(metrics.dockTop);
+      expect(metrics.largestActivityChip).toBeLessThanOrEqual(36);
+      expect(metrics.smallestActivityChip).toBeGreaterThanOrEqual(36);
+      expect(metrics.activityChipFontSize).toBeLessThanOrEqual(metrics.polishFontSize);
       expect(metrics.dockPosition).toBe('fixed');
-      await page.getByRole('heading', { name: 'What did you do today?' }).scrollIntoViewIfNeeded();
-      await expect(page.getByLabel('Entry actions')).toBeVisible();
+      await expect.poll(() => page.locator('.aero-dock').evaluate((dock) => getComputedStyle(dock).visibility)).toBe('visible');
+
+      await page.locator('[data-entry-save-sentinel]').scrollIntoViewIfNeeded();
+      await expect.poll(() => page.locator('.aero-dock').evaluate((dock) => getComputedStyle(dock).visibility)).toBe('hidden');
+
+      await page.evaluate(() => {
+        const form = document.querySelector<HTMLElement>('.aero-entry-form');
+        if (form) form.scrollTop = 0;
+      });
+      await expect.poll(() => page.locator('.aero-dock').evaluate((dock) => getComputedStyle(dock).visibility)).toBe('visible');
     }
 
     for (const width of [393, 412]) {

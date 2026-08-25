@@ -54,7 +54,11 @@ async function TimelineContent({ searchParams }: TimelinePageProps) {
       </header>
 
       <TimelineList
-        key={`${filter.mood ?? ''}:${filter.activityId ?? ''}`}
+        key={[
+          filter.mood ?? '',
+          filter.activityId ?? '',
+          JSON.stringify(initialPage),
+        ].join(':')}
         initialPage={initialPage}
         filter={filter}
       />

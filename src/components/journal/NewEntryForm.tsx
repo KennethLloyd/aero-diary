@@ -5,6 +5,7 @@ import Image from 'next/image';
 import {
   startTransition,
   useActionState,
+  useEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -88,10 +89,57 @@ export function NewEntryForm({
   );
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<{ name: string; url: string }[]>([]);
-
   const fileInputRef = useRef<HTMLInputElement>(null);
   const localOffsetInput = useRef<HTMLInputElement>(null);
   const journalDateInput = useRef<HTMLInputElement>(null);
+  const saveSentinelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const sentinel = saveSentinelRef.current;
+    if (
+      !sentinel
+      || typeof IntersectionObserver === 'undefined'
+      || typeof MutationObserver === 'undefined'
+    ) return;
+
+    const root = sentinel.closest<HTMLElement>('.aero-screen-content');
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        const isNearSave = entry?.isIntersecting ?? false;
+        const dock = document.querySelector<HTMLElement>('.aero-dock[data-hide-near-save]');
+        if (!dock) return;
+
+        dock.classList.toggle('aero-dock-hidden', isNearSave);
+        if (isNearSave) {
+          dock.setAttribute('aria-hidden', 'true');
+          dock.setAttribute('inert', '');
+        } else {
+          dock.removeAttribute('aria-hidden');
+          dock.removeAttribute('inert');
+        }
+      },
+      {
+        root,
+        rootMargin: '0px 0px -5% 0px',
+        threshold: 0.25,
+      },
+    );
+
+    const connectObserver = () => {
+      const dock = document.querySelector('.aero-dock[data-hide-near-save]');
+      if (!dock) return;
+      observer.observe(sentinel);
+      mutationObserver.disconnect();
+    };
+    const mutationObserver = new MutationObserver(connectObserver);
+    mutationObserver.observe(document.body, { childList: true, subtree: true });
+    connectObserver();
+
+    return () => {
+      mutationObserver.disconnect();
+      observer.disconnect();
+    };
+  }, []);
 
   function toggleActivity(activityId: string) {
     setSelectedActivityIds((selected) => {
@@ -371,7 +419,7 @@ export function NewEntryForm({
             </Link>
           </div>
           {activities.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {activities.map((activity) => {
                 const selected = selectedActivityIds.has(activity.id);
                 return (
@@ -384,7 +432,6 @@ export function NewEntryForm({
                   >
                     <span>{activity.emoji}</span>
                     <span>{activity.name}</span>
-                    {selected ? <span className="ml-1 text-xs" aria-hidden="true">✓</span> : null}
                   </button>
                 );
               })}
@@ -443,8 +490,8 @@ export function NewEntryForm({
                   <span aria-hidden="true">×</span>
                 </button>
               </div>
-            ))}
 
+            ))}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -467,8 +514,7 @@ export function NewEntryForm({
           </p>
         ) : null}
 
-        {/* 5. Primary Save Button (desktop / inline) */}
-        <div className="relative z-10 hidden pt-2 sm:block">
+        <div ref={saveSentinelRef} data-entry-save-sentinel className="relative z-10 pt-2">
           <AeroButton
             type="submit"
             disabled={pending}
@@ -478,18 +524,6 @@ export function NewEntryForm({
           </AeroButton>
         </div>
       </form>
-
-      {/* Mobile Action Bar */}
-      <div className="aero-action-bar" aria-label="Entry actions">
-        <AeroButton
-          type="submit"
-          form="entry-form"
-          disabled={pending}
-          className="flex-1 text-sm"
-        >
-          {pending ? 'Saving memory…' : entry ? 'Save changes' : 'Save entry'}
-        </AeroButton>
-      </div>
     </div>
   );
 }
