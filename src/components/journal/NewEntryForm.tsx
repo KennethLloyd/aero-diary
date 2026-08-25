@@ -432,7 +432,6 @@ export function NewEntryForm({
                   >
                     <span>{activity.emoji}</span>
                     <span>{activity.name}</span>
-                    {selected ? <span className="ml-1 text-xs" aria-hidden="true">✓</span> : null}
                   </button>
                 );
               })}

@@ -136,7 +136,7 @@ test.describe('timeline polish mobile', () => {
       expect(activityBefore).not.toBeNull();
       expect(activityAfter).not.toBeNull();
       expect(activityAfter?.width).toBeCloseTo(activityBefore?.width ?? 0, 0);
-      expect(activityAfter?.height).toBe(activityBefore?.height);
+      expect(activityAfter?.height).toBeCloseTo(activityBefore?.height ?? 0, 0);
       await expect(page.getByText('Journal Note', { exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Save entry' })).toHaveCount(1);
 

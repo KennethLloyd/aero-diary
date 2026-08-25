@@ -341,7 +341,6 @@
   /* Activity chips. */
   .activity-chip {
     display: inline-flex;
-    position: relative;
     align-items: center;
     gap: 4px;
     border: 1px solid #b5cadc;
@@ -387,15 +386,6 @@
       inset 0 5px 7px -6px rgba(255, 255, 255, 0.45),
       0 1px 4px rgba(20, 108, 194, 0.28),
       0 2px 6px rgba(20, 108, 194, 0.2);
-    padding-right: 0.25rem;
-  }
-  .activity-chip-selected > span:nth-child(2) {
-    padding-right: 0.4rem;
-  }
-  .activity-chip-selected > span:last-child {
-    position: absolute;
-    right: 0.25rem;
-    margin-left: 0;
   }
   .activity-chip-selected:hover {
     background: linear-gradient(180deg, #95d2fc 0%, #4da7f5 49%, #1c7ad4 50%, #3891ec 100%);
