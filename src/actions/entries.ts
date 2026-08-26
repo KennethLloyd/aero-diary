@@ -1,24 +1,19 @@
 'use server';
 
-import { revalidatePath, updateTag } from 'next/cache';
+import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 import { verifySession } from '@/lib/dal';
 import { getPhotoStore } from '@/lib/drive/server-store';
 import type { PhotoStore, UploadedPhoto } from '@/lib/drive/store';
 import { parsePhotoFiles, PHOTO_UPLOAD_ERROR } from '@/lib/journal/photos';
+import { invalidateEntryDetailRead, invalidateJournalReads } from '@/lib/journal/cache';
 import {
-  calendarCacheTag,
-  entryDetailCacheTag,
-  insightsCacheTag,
-  timelineCacheTag,
-} from '@/lib/journal/cache-tags';
-import {
-  getJournalDateTime,
-  getTodayDateKey,
-  isFutureDateKey,
-} from '@/lib/journal/dates';
-import { createEntrySchema, entryIdSchema, photoIdSchema } from '@/lib/journal/schemas';
+  createJournalEntry,
+  updateJournalEntry,
+} from '@/lib/journal/mutations';
+import { getTodayDateKey, isFutureDateKey } from '@/lib/journal/dates';
+import { createEntrySchema, entryIdSchema, photoIdSchema, updateEntrySchema } from '@/lib/journal/schemas';
 export type EntryActionState = { error?: string } | undefined
 export type CreateEntryState = EntryActionState
 export type UpdateEntryState = EntryActionState
@@ -33,12 +28,6 @@ const ENTRY_NOT_FOUND = 'Entry not found.';
 const PHOTO_NOT_FOUND = 'Photo not found.';
 const PHOTO_DELETE_FAILED = 'Unable to delete your photo. Please try again.';
 
-function invalidateEntryReads(userId: string, entryId?: string) {
-  updateTag(timelineCacheTag(userId));
-  updateTag(calendarCacheTag(userId));
-  updateTag(insightsCacheTag(userId));
-  if (entryId) updateTag(entryDetailCacheTag(userId, entryId));
-}
 
 async function cleanupUploadedPhotos(store: PhotoStore | undefined, photos: UploadedPhoto[]) {
   if (!store || photos.length === 0) return;
@@ -76,13 +65,6 @@ async function deleteStoredPhoto(
   }
 }
 
-function photoRows(photos: UploadedPhoto[]) {
-  return photos.map(({ drivePath, fileId, mimeType }) => ({
-    driveFileId: fileId,
-    drivePath,
-    mimeType,
-  }));
-}
 
 export async function createEntry(
   _prevState: CreateEntryState,
@@ -94,16 +76,14 @@ export async function createEntry(
     note: formData.get('note'),
     activityIds: formData.getAll('activityId'),
     journalDate: formData.get('journalDate') ?? undefined,
-    localOffset: formData.get('localOffset') ?? undefined,
   });
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? INVALID_ENTRY };
   }
   const now = new Date();
-  const localOffset = parsed.data.localOffset ?? -now.getTimezoneOffset();
-  const journalDate = parsed.data.journalDate ?? getTodayDateKey(now, localOffset);
-  if (isFutureDateKey(journalDate, now, localOffset)) {
+  const journalDate = parsed.data.journalDate ?? getTodayDateKey(now);
+  if (isFutureDateKey(journalDate, now)) {
     return { error: INVALID_DATE };
   }
 
@@ -125,29 +105,23 @@ export async function createEntry(
 
   let createdEntryId: string | undefined;
   try {
-    const createdEntry = await saveWithPhotos(parsedPhotos.data, (uploadedPhotos) => db.entry.create({
-      data: {
+    const createdEntry = await saveWithPhotos(
+      parsedPhotos.data,
+      (uploadedPhotos) => createJournalEntry(db, {
         userId: session.userId,
-        date: getJournalDateTime(journalDate, now, localOffset),
-        localOffset,
+        journalDate,
         mood: parsed.data.mood,
         note: parsed.data.note,
-        photos: {
-          create: photoRows(uploadedPhotos),
-        },
-        activities: {
-          create: activityIds.map((activityId) => ({
-            activity: { connect: { id: activityId } },
-          })),
-        },
-      },
-    }));
+        activityIds,
+        photos: uploadedPhotos,
+      }),
+    );
     createdEntryId = createdEntry.id;
   } catch {
     return { error: parsedPhotos.data.length > 0 ? PHOTO_UPLOAD_ERROR : SAVE_FAILED };
   }
 
-  invalidateEntryReads(session.userId, createdEntryId);
+  invalidateJournalReads(session.userId, createdEntryId);
   revalidatePath('/timeline');
   redirect('/timeline');
 }
@@ -163,11 +137,10 @@ export async function updateEntry(
     return { error: ENTRY_NOT_FOUND };
   }
 
-  const parsed = createEntrySchema.safeParse({
+  const parsed = updateEntrySchema.safeParse({
     mood: formData.get('mood'),
     note: formData.get('note'),
     activityIds: formData.getAll('activityId'),
-    localOffset: formData.get('localOffset') ?? undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? INVALID_ENTRY };
@@ -178,7 +151,7 @@ export async function updateEntry(
 
   const entry = await db.entry.findFirst({
     where: { id: parsedId.data, userId: session.userId },
-    select: { id: true, localOffset: true },
+    select: { id: true },
   });
   if (!entry) {
     return { error: ENTRY_NOT_FOUND };
@@ -198,30 +171,23 @@ export async function updateEntry(
   }
 
   try {
-    await saveWithPhotos(parsedPhotos.data, (uploadedPhotos) => db.entry.update({
-      where: { id: entry.id },
-      data: {
+    await saveWithPhotos(
+      parsedPhotos.data,
+      (uploadedPhotos) => updateJournalEntry(db, entry.id, {
         mood: parsed.data.mood,
         note: parsed.data.note,
-        localOffset: parsed.data.localOffset ?? entry.localOffset,
-        photos: {
-          create: photoRows(uploadedPhotos),
-        },
-        activities: {
-          deleteMany: {},
-          create: activityIds.map((activityId) => ({
-            activity: { connect: { id: activityId } },
-          })),
-        },
-      },
-    }));
+        activityIds,
+        photos: uploadedPhotos,
+      }),
+    );
   } catch {
     return { error: parsedPhotos.data.length > 0 ? PHOTO_UPLOAD_ERROR : SAVE_FAILED };
   }
 
-  invalidateEntryReads(session.userId, entry.id);
+  invalidateJournalReads(session.userId, entry.id);
   revalidatePath('/timeline');
   revalidatePath(`/timeline/${entry.id}`);
+  revalidatePath(`/timeline/${entry.id}/edit`);
   redirect(`/timeline/${entry.id}`);
 }
 
@@ -256,7 +222,7 @@ export async function deleteEntry(
     return { error: 'Unable to delete your entry. Please try again.' };
   }
 
-  invalidateEntryReads(session.userId, parsedId.data);
+  invalidateJournalReads(session.userId, parsedId.data);
   revalidatePath('/timeline');
   revalidatePath(`/timeline/${parsedId.data}`);
   redirect('/timeline');
@@ -293,7 +259,7 @@ export async function deletePhoto(
     return { error: PHOTO_DELETE_FAILED };
   }
 
-  updateTag(entryDetailCacheTag(session.userId, photo.entryId));
+  invalidateEntryDetailRead(session.userId, photo.entryId);
   revalidatePath('/timeline');
   revalidatePath(`/timeline/${photo.entryId}`);
 }

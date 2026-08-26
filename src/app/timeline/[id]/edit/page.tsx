@@ -40,12 +40,12 @@ async function EditEntryContent({ params }: EditEntryPageProps) {
 
   return (
     <NewEntryForm
+      key={`${entry.id}:${entry.updatedAt}`}
       activities={activities}
       entry={{
         id: entry.id,
         mood: entry.mood,
         note: entry.note,
-        localOffset: entry.localOffset,
         activityIds: entry.activities.map(({ activityId }) => activityId),
       }}
     />

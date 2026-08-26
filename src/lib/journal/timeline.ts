@@ -5,15 +5,14 @@ import type { PrismaClient } from '@/generated/prisma/client';
 import type { Mood } from '@/generated/prisma/enums';
 import { db } from '@/lib/db';
 import { timelineCacheTag } from '@/lib/journal/cache-tags';
+import { formatDateKey } from '@/lib/journal/dates';
 import { normalizeJournalNote } from '@/lib/journal/notes';
 import { timelineMoodSchema } from '@/lib/journal/schemas';
 
 export const TIMELINE_PAGE_SIZE = 25;
-
 type TimelineDbEntry = {
   id: string
-  date: Date
-  localOffset: number
+  journalDate: string
   mood: Mood
   note: string
   activities: { activityId: string; activity: { emoji: string; name: string } }[]
@@ -21,9 +20,8 @@ type TimelineDbEntry = {
 
 export type TimelineEntry = {
   id: string
+  journalDate: string
   date: string
-  dateTime: string
-  time: string
   mood: Mood
   note: string
   tags: { id: string; emoji: string; name: string }[]
@@ -54,24 +52,10 @@ export function parseTimelineFilter(
 }
 
 function formatEntry(entry: TimelineDbEntry): TimelineEntry {
-  const local = new Date(entry.date.getTime() + entry.localOffset * 60_000);
-  const dateFormatter = new Intl.DateTimeFormat('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    timeZone: 'UTC',
-  });
-  const timeFormatter = new Intl.DateTimeFormat('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZone: 'UTC',
-  });
-
   return {
     id: entry.id,
-    date: dateFormatter.format(local),
-    dateTime: entry.date.toISOString(),
-    time: timeFormatter.format(local),
+    journalDate: entry.journalDate,
+    date: formatDateKey(entry.journalDate),
     mood: entry.mood,
     note: normalizeJournalNote(entry.note),
     tags: entry.activities.map((activity) => ({
@@ -81,7 +65,6 @@ function formatEntry(entry: TimelineDbEntry): TimelineEntry {
     })),
   };
 }
-
 export async function getCachedTimelinePage(
   userId: string,
   cursor?: string,
@@ -102,7 +85,7 @@ export async function listTimelinePage(
   const cursorEntry = cursor
     ? await database.entry.findFirst({
       where: { id: cursor, userId },
-      select: { id: true, date: true },
+      select: { id: true, journalDate: true },
     })
     : null;
 
@@ -116,18 +99,17 @@ export async function listTimelinePage(
       ...(cursorEntry
         ? {
           OR: [
-            { date: { lt: cursorEntry.date } },
-            { date: cursorEntry.date, id: { lt: cursorEntry.id } },
+            { journalDate: { lt: cursorEntry.journalDate } },
+            { journalDate: cursorEntry.journalDate, id: { lt: cursorEntry.id } },
           ],
         }
         : {}),
     },
-    orderBy: [{ date: 'desc' }, { id: 'desc' }],
+    orderBy: [{ journalDate: 'desc' }, { id: 'desc' }],
     take: TIMELINE_PAGE_SIZE + 1,
     select: {
       id: true,
-      date: true,
-      localOffset: true,
+      journalDate: true,
       mood: true,
       note: true,
       activities: {

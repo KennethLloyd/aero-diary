@@ -1,15 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatJournalDate,
-  getDateKey,
-  getJournalDateTime,
+  getTodayDateKey,
   isFutureDateKey,
   isValidDateKey,
 } from '@/lib/journal/dates';
 
 describe('journal date utilities', () => {
   const now = new Date('2026-08-24T15:45:12.345Z');
-  const localOffset = -420;
 
   it('validates real calendar dates rather than only date-shaped strings', () => {
     expect(isValidDateKey('2026-08-24')).toBe(true);
@@ -18,17 +16,15 @@ describe('journal date utilities', () => {
     expect(isValidDateKey('2026-8-24')).toBe(false);
   });
 
-  it('builds a backdated UTC instant that keeps the selected local day', () => {
-    const stored = getJournalDateTime('2026-08-23', now, localOffset);
-
-    expect(stored).toEqual(new Date('2026-08-23T15:45:12.345Z'));
-    expect(getDateKey(stored, localOffset)).toBe('2026-08-23');
+  it('keeps journal dates canonical instead of deriving them from an instant', () => {
+    expect(getTodayDateKey(new Date('2026-08-24T23:45:12.345Z'))).toBe('2026-08-24');
+    expect(getTodayDateKey(new Date('2026-08-25T00:15:12.345Z'))).toBe('2026-08-25');
   });
 
-  it('rejects only local dates after the current local date', () => {
-    expect(isFutureDateKey('2026-08-24', now, localOffset)).toBe(false);
-    expect(isFutureDateKey('2026-08-25', now, localOffset)).toBe(true);
-    expect(isFutureDateKey('2026-08-23', now, localOffset)).toBe(false);
+  it('rejects only date keys after the current UTC date', () => {
+    expect(isFutureDateKey('2026-08-24', now)).toBe(false);
+    expect(isFutureDateKey('2026-08-25', now)).toBe(true);
+    expect(isFutureDateKey('2026-08-23', now)).toBe(false);
   });
 
   it('formats the selected date with a Today prefix only for today', () => {

@@ -12,9 +12,8 @@ function page(id: string, note: string): TimelinePage {
   return {
     entries: [{
       id,
+      journalDate: '2026-08-25',
       date: 'Tuesday, August 25',
-      dateTime: '2026-08-25T12:00:00.000Z',
-      time: '8:00 AM',
       mood: Mood.GOOD,
       note,
       tags: [],

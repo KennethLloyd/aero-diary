@@ -30,7 +30,6 @@ function form(photo?: File) {
   const data = new FormData();
   data.set('mood', Mood.RAD);
   data.set('note', 'A memory with a photo.');
-  data.set('localOffset', '480');
   if (photo) data.append('photo', photo);
   return data;
 }
@@ -94,8 +93,7 @@ describe('entry photo actions', () => {
     const entry = await testDb.entry.create({
       data: {
         userId: user.id,
-        date: new Date('2026-08-18T10:00:00.000Z'),
-        localOffset: 480,
+        journalDate: '2026-08-18',
         mood: Mood.RAD,
         note: 'Delete me.',
         photos: { create: { drivePath: 'photos/hash.jpg', mimeType: 'image/jpeg' } },
@@ -117,8 +115,7 @@ describe('entry photo actions', () => {
     const entry = await testDb.entry.create({
       data: {
         userId: user.id,
-        date: new Date('2026-08-18T10:00:00.000Z'),
-        localOffset: 480,
+        journalDate: '2026-08-18',
         mood: Mood.RAD,
         note: 'Keep the entry.',
         photos: { create: { drivePath: 'photos/hash.jpg', mimeType: 'image/jpeg' } },
@@ -143,8 +140,7 @@ describe('entry photo actions', () => {
     const entry = await testDb.entry.create({
       data: {
         userId: user.id,
-        date: new Date('2026-08-18T10:00:00.000Z'),
-        localOffset: 480,
+        journalDate: '2026-08-18',
         mood: Mood.RAD,
         note: 'Keep the photo row.',
         photos: { create: { drivePath: 'photos/hash.jpg', mimeType: 'image/jpeg' } },
@@ -175,8 +171,7 @@ describe('entry photo actions', () => {
     const otherEntry = await testDb.entry.create({
       data: {
         userId: otherUser.id,
-        date: new Date('2026-08-18T10:00:00.000Z'),
-        localOffset: 480,
+        journalDate: '2026-08-18',
         mood: Mood.RAD,
         note: 'Private photo.',
         photos: { create: { drivePath: 'photos/private.jpg', mimeType: 'image/jpeg' } },

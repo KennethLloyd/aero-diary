@@ -44,7 +44,6 @@ export type EditableEntry = {
   id: string
   mood: Mood
   note: string
-  localOffset: number
   activityIds: string[]
 }
 
@@ -90,7 +89,6 @@ export function NewEntryForm({
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<{ name: string; url: string }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const localOffsetInput = useRef<HTMLInputElement>(null);
   const journalDateInput = useRef<HTMLInputElement>(null);
   const saveSentinelRef = useRef<HTMLDivElement>(null);
 
@@ -150,19 +148,6 @@ export function NewEntryForm({
     });
   }
 
-  function setBrowserOffset() {
-    if (entry) return;
-    const now = new Date();
-    const browserOffset = -now.getTimezoneOffset();
-    if (localOffsetInput.current) {
-      localOffsetInput.current.value = String(browserOffset);
-    }
-    if (selectedJournalDate === undefined && journalDateInput.current) {
-      const currentBrowserDate = getTodayDateKey(now, browserOffset);
-      journalDateInput.current.value = currentBrowserDate;
-      journalDateInput.current.max = currentBrowserDate;
-    }
-  }
   function openJournalDatePicker() {
     const input = journalDateInput.current;
     if (!input) return;
@@ -258,16 +243,9 @@ export function NewEntryForm({
       <form
         id="entry-form"
         action={formAction}
-        onSubmit={setBrowserOffset}
         className="aero-entry-form aero-card flex min-h-0 flex-1 flex-col gap-6 p-5 sm:p-6"
       >
         <input type="hidden" name="mood" value={mood} />
-        <input
-          ref={localOffsetInput}
-          type="hidden"
-          name="localOffset"
-          defaultValue={entry?.localOffset ?? 0}
-        />
         {[...selectedActivityIds].map((activityId) => (
           <input key={activityId} type="hidden" name="activityId" value={activityId} />
         ))}

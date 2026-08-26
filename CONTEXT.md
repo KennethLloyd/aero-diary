@@ -4,7 +4,7 @@ A self-hosted mood journal ("your memories, vividly preserved") in the Frutiger 
 
 ## Glossary
 
-- **Entry** — one journal record: local date/time, mood, note text, activity tags, optional photos. `isFavorite` and `sourceId` are retained for existing database compatibility and have no UI.
+- **Entry** — one journal record: canonical `YYYY-MM-DD` journal date, mood, note text, activity tags, optional photos. `isFavorite` and `sourceId` are retained for existing database compatibility and have no UI.
 - **Mood** — the 5-level scale: **Awful, Bad, Meh, Good, Rad** (glossy orbs, red→cyan).
 - **Activity** — a user-owned emoji + name tag (e.g. `💻 Work`, `🌲 Trail`), CRUD-manageable in the Activities screen and attachable to that user's entries. Private and configured demo accounts have independent vocabularies.
 - **Photo** — an image attached to an entry. Canonical storage is **Google Drive** under `AeroDiary/photos/`; the database stores the Drive-relative path and optional file ID.

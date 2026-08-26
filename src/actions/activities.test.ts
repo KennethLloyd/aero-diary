@@ -75,8 +75,7 @@ describe('activity actions', () => {
     const entry = await testDb.entry.create({
       data: {
         userId: currentUserId,
-        date: new Date(),
-        localOffset: 480,
+        journalDate: '2026-08-18',
         mood: Mood.GOOD,
         note: 'Historical activity link.',
         activities: { create: [{ activityId: activity.id }] },

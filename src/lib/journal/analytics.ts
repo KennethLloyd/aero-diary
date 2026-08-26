@@ -1,12 +1,11 @@
 import { Mood } from '@/generated/prisma/enums';
-import { getDateKey, getTodayDateKey } from '@/lib/journal/dates';
+import { getTodayDateKey } from '@/lib/journal/dates';
 import { monthParamSchema } from '@/lib/journal/schemas';
 
-export { getDateKey, getTodayDateKey } from '@/lib/journal/dates';
+export { getTodayDateKey } from '@/lib/journal/dates';
 export type JournalEntry = {
   id: string
-  date: Date
-  localOffset: number
+  journalDate: string
   mood: Mood
   activities: {
     activityId: string
@@ -67,9 +66,6 @@ function makeMonth(year: number, month: number): CalendarMonth {
   };
 }
 
-function monthFromDate(date: Date): CalendarMonth {
-  return makeMonth(date.getFullYear(), date.getMonth() + 1);
-}
 
 export function getMonthFromParam(
   value: string | string[] | undefined,
@@ -77,7 +73,9 @@ export function getMonthFromParam(
 ): CalendarMonth {
   const candidate = Array.isArray(value) ? value[0] : value;
   const parsed = monthParamSchema.safeParse(candidate);
-  if (!parsed.success) return monthFromDate(now);
+  if (!parsed.success) {
+    return makeMonth(now.getUTCFullYear(), now.getUTCMonth() + 1);
+  }
 
   const [yearString, monthString] = parsed.data.split('-');
   const year = Number(yearString);
@@ -105,8 +103,8 @@ export function formatMonthLabel(month: CalendarMonth): string {
 }
 
 
-export function getEntryDateKey(entry: Pick<JournalEntry, 'date' | 'localOffset'>): string {
-  return getDateKey(entry.date, entry.localOffset);
+export function getEntryDateKey(entry: Pick<JournalEntry, 'journalDate'>): string {
+  return entry.journalDate;
 }
 
 

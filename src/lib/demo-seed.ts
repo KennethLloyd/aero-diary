@@ -3,7 +3,6 @@ import { provisionUser } from '@/lib/auth/provision-user';
 import type { DemoCredentials } from '@/lib/auth/demo-config';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const DEMO_LOCAL_OFFSET = 8 * 60;
 
 const DEMO_ACTIVITIES = [
   { name: 'Morning walk', emoji: '🚶', sortOrder: 0 },
@@ -39,8 +38,7 @@ type DemoPhoto = {
 }
 
 export type DemoSeedEntry = {
-  date: Date
-  localOffset: number
+  journalDate: string
   mood: DemoMood
   note: string
   activityNames: readonly string[]
@@ -58,17 +56,20 @@ const DEMO_PHOTOS: ReadonlyMap<number, DemoPhoto[]> = new Map([
   [75, [{ drivePath: 'photos/demo-sky.jpg', mimeType: 'image/jpeg' }]],
 ]);
 
-function seedEndDate(now: Date): Date {
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 12));
+function seedEndDateKey(now: Date): string {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+    .toISOString()
+    .slice(0, 10);
 }
 
 export function buildDemoDataset(now = new Date()): DemoSeedDataset {
-  const endDate = seedEndDate(now);
+  const endDate = new Date(`${seedEndDateKey(now)}T00:00:00.000Z`);
   const entries = Array.from({ length: 90 }, (_, index) => {
     const template = ENTRY_TEMPLATES[index % ENTRY_TEMPLATES.length];
     return {
-      date: new Date(endDate.getTime() - (89 - index) * DAY_MS),
-      localOffset: DEMO_LOCAL_OFFSET,
+      journalDate: new Date(endDate.getTime() - (89 - index) * DAY_MS)
+        .toISOString()
+        .slice(0, 10),
       mood: MOOD_CYCLE[index % MOOD_CYCLE.length],
       note: template.note,
       activityNames: template.activityNames,
@@ -96,12 +97,12 @@ async function isExistingDemoDataset(
     }),
     database.entry.findMany({
       where: { userId },
-      orderBy: { date: 'asc' },
+      orderBy: { journalDate: 'asc' },
       select: {
         sourceId: true,
+        journalDate: true,
         mood: true,
         note: true,
-        localOffset: true,
         activities: {
           select: { activity: { select: { name: true, emoji: true } } },
         },
@@ -133,7 +134,6 @@ async function isExistingDemoDataset(
       entry.sourceId !== null
       || entry.mood !== expectedEntry.mood
       || entry.note !== expectedEntry.note
-      || entry.localOffset !== expectedEntry.localOffset
     ) {
       return false;
     }
@@ -214,8 +214,7 @@ export async function seedDemoData(
       await transaction.entry.create({
         data: {
           userId: user.id,
-          date: entryData.date,
-          localOffset: entryData.localOffset,
+          journalDate: entryData.journalDate,
           mood: entryData.mood,
           note: entryData.note,
           activities: {

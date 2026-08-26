@@ -27,13 +27,9 @@ export const createEntrySchema = z.object({
     .array(z.string().trim().min(1).max(100))
     .max(100, { error: 'Choose fewer activities.' }),
   journalDate: journalDateSchema.optional(),
-  localOffset: z.coerce
-    .number({ error: 'Invalid local time.' })
-    .int()
-    .min(-840)
-    .max(840)
-    .optional(),
 });
+
+export const updateEntrySchema = createEntrySchema.omit({ journalDate: true });
 
 export const polishEntrySchema = createEntrySchema.pick({ note: true });
 

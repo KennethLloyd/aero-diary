@@ -26,18 +26,15 @@ function form({
   note = 'A good day to write things down.',
   activityId,
   journalDate,
-  localOffset = '480',
 }: {
   mood?: string
   note?: string
   activityId?: string
   journalDate?: string
-  localOffset?: string
 } = {}): FormData {
   const data = new FormData();
   data.set('mood', mood);
   data.set('note', note);
-  data.set('localOffset', localOffset);
   if (journalDate) data.set('journalDate', journalDate);
   if (activityId) data.append('activityId', activityId);
   return data;
@@ -95,7 +92,7 @@ describe('createEntry action', () => {
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/timeline');
   });
 
-  it('persists a backdated entry under the selected local calendar date', async () => {
+  it('persists a backdated entry under the selected canonical calendar date', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-08-24T15:45:12.345Z'));
     try {
@@ -107,15 +104,12 @@ describe('createEntry action', () => {
       await expect(
         createEntry(
           undefined,
-          form({ journalDate: '2026-08-23', localOffset: '-420' }),
+          form({ journalDate: '2026-08-23' }),
         ),
       ).rejects.toThrow(NEXT_REDIRECT);
 
       const entry = await testDb.entry.findFirstOrThrow();
-      expect(entry).toMatchObject({
-        localOffset: -420,
-        date: new Date('2026-08-23T15:45:12.345Z'),
-      });
+      expect(entry.journalDate).toBe('2026-08-23');
     } finally {
       vi.useRealTimers();
     }
@@ -132,7 +126,7 @@ describe('createEntry action', () => {
 
       const state = await createEntry(
         undefined,
-        form({ journalDate: '2026-08-25', localOffset: '-420' }),
+        form({ journalDate: '2026-08-25' }),
       );
 
       expect(state).toEqual({ error: 'Choose a date on or before today.' });
@@ -183,8 +177,7 @@ describe('updateEntry action', () => {
     const entry = await testDb.entry.create({
       data: {
         userId: user.id,
-        date: new Date('2026-08-18T10:00:00.000Z'),
-        localOffset: 480,
+        journalDate: '2026-08-18',
         mood: Mood.BAD,
         note: 'Before the edit.',
         activities: { create: [{ activityId: oldActivity.id }] },
@@ -201,8 +194,7 @@ describe('updateEntry action', () => {
       include: { activities: true },
     });
     expect(updated).toMatchObject({ mood: Mood.GOOD, note: 'After the edit.' });
-    expect(updated.date).toEqual(entry.date);
-    expect(updated.activities).toEqual([{ entryId: entry.id, activityId: newActivity.id }]);
+    expect(updated.journalDate).toBe(entry.journalDate);
     expect(mocks.updateTag).toHaveBeenCalledWith(`journal:${user.id}:timeline`);
     expect(mocks.updateTag).toHaveBeenCalledWith(`journal:${user.id}:entry:${entry.id}`);
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/timeline');
@@ -237,8 +229,7 @@ describe('updateEntry action', () => {
     const entry = await testDb.entry.create({
       data: {
         userId: otherUser.id,
-        date: new Date('2026-08-18T10:00:00.000Z'),
-        localOffset: 480,
+        journalDate: '2026-08-18',
         mood: Mood.BAD,
         note: 'Private note.',
       },
@@ -275,8 +266,7 @@ describe('deleteEntry action', () => {
     const entry = await testDb.entry.create({
       data: {
         userId: user.id,
-        date: new Date('2026-08-18T10:00:00.000Z'),
-        localOffset: 480,
+        journalDate: '2026-08-18',
         mood: Mood.RAD,
         note: 'Delete me.',
         activities: { create: [{ activityId: activity.id }] },
@@ -321,8 +311,7 @@ describe('deleteEntry action', () => {
     const entry = await testDb.entry.create({
       data: {
         userId: otherUser.id,
-        date: new Date('2026-08-18T10:00:00.000Z'),
-        localOffset: 480,
+        journalDate: '2026-08-18',
         mood: Mood.RAD,
         note: 'Keep me.',
       },

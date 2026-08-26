@@ -46,8 +46,7 @@ describe('demo seed', () => {
     await testDb.entry.create({
       data: {
         userId: real.id,
-        date: SEED_DATE,
-        localOffset: 480,
+        journalDate: '2026-08-21',
         mood: 'RAD',
         note: 'Private journal note.',
         activities: { create: [{ activity: { connect: { id: realActivity.id } } }] },
@@ -82,8 +81,7 @@ describe('demo seed', () => {
     await testDb.entry.create({
       data: {
         userId: real.id,
-        date: SEED_DATE,
-        localOffset: 480,
+        journalDate: '2026-08-21',
         mood: 'GOOD',
         note: 'This must remain private.',
       },

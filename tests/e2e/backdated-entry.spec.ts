@@ -10,12 +10,12 @@ if (!demoEmail || !demoPassword) {
 test('demo user can save an entry for yesterday', async ({ page }) => {
   const marker = `Automated backdated entry ${Date.now()}`;
   const { today, yesterday } = await page.evaluate(() => {
-    const format = (date: Date) => [date.getFullYear(), date.getMonth() + 1, date.getDate()]
+    const format = (date: Date) => [date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate()]
       .map((part) => String(part).padStart(2, '0'))
       .join('-');
     const todayDate = new Date();
-    const yesterdayDate = new Date();
-    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const yesterdayDate = new Date(todayDate);
+    yesterdayDate.setUTCDate(yesterdayDate.getUTCDate() - 1);
     return { today: format(todayDate), yesterday: format(yesterdayDate) };
   });
 
@@ -59,8 +59,9 @@ test('demo user can save an entry for yesterday', async ({ page }) => {
   await expect(detailDate).toContainText(
     await page.evaluate(() => {
       const date = new Date();
-      date.setDate(date.getDate() - 1);
+      date.setUTCDate(date.getUTCDate() - 1);
       return new Intl.DateTimeFormat('en-US', {
+        timeZone: 'UTC',
         weekday: 'long',
         month: 'long',
         day: 'numeric',
@@ -69,6 +70,23 @@ test('demo user can save an entry for yesterday', async ({ page }) => {
     }),
   );
 
+  const updatedMarker = `${marker} edited`;
+  await page.getByRole('link', { name: 'Edit' }).click();
+  await expect(page).toHaveURL(/\/timeline\/[^/]+\/edit$/);
+  await page.getByLabel('Journal Note').fill(updatedMarker);
+  await page.getByRole('button', { name: 'Save changes' }).click();
+  await expect(page).toHaveURL(/\/timeline\/[^/]+$/);
+  await expect(page.getByText(updatedMarker)).toBeVisible();
+
+  await page.getByRole('link', { name: 'Edit' }).click();
+  await expect(page.getByLabel('Journal Note')).toHaveValue(updatedMarker);
+  await page.getByRole('link', { name: 'Back to timeline without saving' }).click();
+  await expect(page).toHaveURL(/\/timeline$/);
+
+  const updatedEntry = page.getByRole('link', { name: new RegExp(`Mood:.*${updatedMarker}`, 'i') });
+  await expect(updatedEntry).toBeVisible();
+  await updatedEntry.click();
+  await expect(page).toHaveURL(/\/timeline\/[^/]+$/);
   await page.getByRole('button', { name: 'Delete', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Delete', exact: true }).click();
   await expect(page).toHaveURL(/\/timeline$/);

@@ -44,8 +44,7 @@ model Entry {
   sourceId    Int?      @unique // optional external key retained for existing data
   userId      String
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  date        DateTime // stored UTC; local offset handled at the boundary
-  localOffset Int // minutes east of UTC for the stored local time
+  journalDate String    // canonical YYYY-MM-DD journal placement
   mood        Mood
   note        String
   isFavorite  Boolean   @default(false)
@@ -53,6 +52,8 @@ model Entry {
   photos      Photo[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+
+  @@index([userId, journalDate])
 }
 
 model Activity {
