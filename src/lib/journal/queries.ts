@@ -4,6 +4,7 @@ import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/lib/db';
 import { verifySession } from '@/lib/dal';
 import type { Mood } from '@/generated/prisma/enums';
+import { parseJournalDate, type JournalDate } from '@/lib/journal/dates';
 import { type CalendarMonth, type JournalEntry } from '@/lib/journal/analytics';
 import {
   activityOptionsCacheTag,
@@ -15,7 +16,7 @@ import type { ActivityOption } from '@/lib/journal/types';
 
 export type EntryDetailView = {
   id: string
-  journalDate: string
+  journalDate: JournalDate
   updatedAt: string
   mood: Mood
   note: string
@@ -88,7 +89,7 @@ export async function getEntriesForMonthForUser(
 
   return entries.map((entry) => ({
     id: entry.id,
-    journalDate: entry.journalDate,
+    journalDate: parseJournalDate(entry.journalDate),
     mood: entry.mood,
     activities: entry.activities.map((activity) => ({
       activityId: activity.activityId,
@@ -121,7 +122,7 @@ export async function getEntryDetailForUser(
 
   return {
     id: entry.id,
-    journalDate: entry.journalDate,
+    journalDate: parseJournalDate(entry.journalDate),
     updatedAt: entry.updatedAt.toISOString(),
     mood: entry.mood,
     note: entry.note,

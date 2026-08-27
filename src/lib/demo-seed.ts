@@ -1,7 +1,7 @@
 import type { Prisma, PrismaClient } from '@/generated/prisma/client';
 import { provisionUser } from '@/lib/auth/provision-user';
 import type { DemoCredentials } from '@/lib/auth/demo-config';
-
+import { journalDateFromDate, type JournalDate } from '@/lib/journal/dates';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const DEMO_ACTIVITIES = [
@@ -38,7 +38,7 @@ type DemoPhoto = {
 }
 
 export type DemoSeedEntry = {
-  journalDate: string
+  journalDate: JournalDate
   mood: DemoMood
   note: string
   activityNames: readonly string[]
@@ -56,10 +56,8 @@ const DEMO_PHOTOS: ReadonlyMap<number, DemoPhoto[]> = new Map([
   [75, [{ drivePath: 'photos/demo-sky.jpg', mimeType: 'image/jpeg' }]],
 ]);
 
-function seedEndDateKey(now: Date): string {
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
-    .toISOString()
-    .slice(0, 10);
+function seedEndDateKey(now: Date): JournalDate {
+  return journalDateFromDate(now);
 }
 
 export function buildDemoDataset(now = new Date()): DemoSeedDataset {
@@ -67,9 +65,7 @@ export function buildDemoDataset(now = new Date()): DemoSeedDataset {
   const entries = Array.from({ length: 90 }, (_, index) => {
     const template = ENTRY_TEMPLATES[index % ENTRY_TEMPLATES.length];
     return {
-      journalDate: new Date(endDate.getTime() - (89 - index) * DAY_MS)
-        .toISOString()
-        .slice(0, 10),
+      journalDate: journalDateFromDate(new Date(endDate.getTime() - (89 - index) * DAY_MS)),
       mood: MOOD_CYCLE[index % MOOD_CYCLE.length],
       note: template.note,
       activityNames: template.activityNames,

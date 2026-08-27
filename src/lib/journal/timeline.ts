@@ -5,7 +5,7 @@ import type { PrismaClient } from '@/generated/prisma/client';
 import type { Mood } from '@/generated/prisma/enums';
 import { db } from '@/lib/db';
 import { timelineCacheTag } from '@/lib/journal/cache-tags';
-import { formatDateKey } from '@/lib/journal/dates';
+import { formatDateKey, parseJournalDate, type JournalDate } from '@/lib/journal/dates';
 import { normalizeJournalNote } from '@/lib/journal/notes';
 import { timelineMoodSchema } from '@/lib/journal/schemas';
 
@@ -20,7 +20,7 @@ type TimelineDbEntry = {
 
 export type TimelineEntry = {
   id: string
-  journalDate: string
+  journalDate: JournalDate
   date: string
   mood: Mood
   note: string
@@ -52,10 +52,11 @@ export function parseTimelineFilter(
 }
 
 function formatEntry(entry: TimelineDbEntry): TimelineEntry {
+  const journalDate = parseJournalDate(entry.journalDate);
   return {
     id: entry.id,
-    journalDate: entry.journalDate,
-    date: formatDateKey(entry.journalDate),
+    journalDate,
+    date: formatDateKey(journalDate),
     mood: entry.mood,
     note: normalizeJournalNote(entry.note),
     tags: entry.activities.map((activity) => ({

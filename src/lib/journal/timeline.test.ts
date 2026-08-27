@@ -49,7 +49,7 @@ describe('timeline pagination', () => {
     expect(new Set(ids).size).toBe(55);
     expect(firstPage.entries[0]).toMatchObject({
       journalDate: '2026-02-24',
-      date: 'Tuesday, February 24',
+      date: 'Tuesday, February 24, 2026',
     });
     expect(firstPage.entries[0]).not.toHaveProperty('time');
     expect(firstPage.entries.at(-1)?.note).toBe('Entry 31');

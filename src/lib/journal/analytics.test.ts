@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { parseJournalDate } from '@/lib/journal/dates';
 import { Mood } from '@/generated/prisma/enums';
 import {
   buildCalendarGrid,
-  getEntryDateKey,
   getMonthFromParam,
   getNextMonth,
   getPreviousMonth,
@@ -16,7 +16,7 @@ function entry(
   mood: Mood,
   activities: JournalEntry['activities'] = [],
 ): JournalEntry {
-  return { id, journalDate, mood, activities };
+  return { id, journalDate: parseJournalDate(journalDate), mood, activities };
 }
 
 describe('journal analytics', () => {
@@ -30,6 +30,9 @@ describe('journal analytics', () => {
       key: '2026-08',
       year: 2026,
       month: 8,
+    });
+    expect(getMonthFromParam(undefined, new Date('2026-08-31T23:30:00-07:00'))).toMatchObject({
+      key: '2026-09',
     });
   });
 
@@ -47,7 +50,7 @@ describe('journal analytics', () => {
         entry('entry-2', '2026-08-19', Mood.RAD),
       ],
       month,
-      '2026-08-19',
+      parseJournalDate('2026-08-19'),
     );
 
     expect(grid).toHaveLength(42);
@@ -62,7 +65,6 @@ describe('journal analytics', () => {
       entryIds: ['entry-2'],
       moods: [Mood.RAD],
     });
-    expect(getEntryDateKey(entry('canonical', '2026-08-01', Mood.MEH))).toBe('2026-08-01');
   });
 
   it('summarizes all five moods and ranks activities by entry count', () => {

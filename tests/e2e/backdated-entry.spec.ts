@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 const demoEmail = process.env.PLAYWRIGHT_DEMO_EMAIL;
 const demoPassword = process.env.PLAYWRIGHT_DEMO_PASSWORD;
@@ -7,21 +7,25 @@ if (!demoEmail || !demoPassword) {
   throw new Error('PLAYWRIGHT_DEMO_EMAIL and PLAYWRIGHT_DEMO_PASSWORD are required for the configured smoke suite.');
 }
 
-test('demo user can save an entry for yesterday', async ({ page }) => {
+async function verifyBackdatedEntry(page: Page) {
   const marker = `Automated backdated entry ${Date.now()}`;
-  const { today, yesterday } = await page.evaluate(() => {
+  const { today, yesterday, month } = await page.evaluate(() => {
     const format = (date: Date) => [date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate()]
       .map((part) => String(part).padStart(2, '0'))
       .join('-');
     const todayDate = new Date();
     const yesterdayDate = new Date(todayDate);
     yesterdayDate.setUTCDate(yesterdayDate.getUTCDate() - 1);
-    return { today: format(todayDate), yesterday: format(yesterdayDate) };
+    return {
+      today: format(todayDate),
+      yesterday: format(yesterdayDate),
+      month: format(yesterdayDate).slice(0, 7),
+    };
   });
 
   await page.goto('/');
-  await page.getByLabel('Email').fill(demoEmail);
-  await page.getByLabel('Password').fill(demoPassword);
+  await page.getByLabel('Email').fill(demoEmail!);
+  await page.getByLabel('Password').fill(demoPassword!);
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page).toHaveURL(/\/timeline$/);
 
@@ -82,12 +86,37 @@ test('demo user can save an entry for yesterday', async ({ page }) => {
   await expect(page.getByLabel('Journal Note')).toHaveValue(updatedMarker);
   await page.getByRole('link', { name: 'Back to timeline without saving' }).click();
   await expect(page).toHaveURL(/\/timeline$/);
-
   const updatedEntry = page.getByRole('link', { name: new RegExp(`Mood:.*${updatedMarker}`, 'i') });
   await expect(updatedEntry).toBeVisible();
-  await updatedEntry.click();
+
+  const updatedEntryHref = await updatedEntry.getAttribute('href');
+  expect(updatedEntryHref).toMatch(/^\/timeline\/[^/]+$/);
+
+  await page.goto(`/calendar?month=${month}`);
+  await expect(page.getByRole('heading', { name: 'Calendar', exact: true })).toBeVisible();
+  await expect(page.locator(`[aria-label*="${yesterday}"]`)).toBeVisible();
+
+  await page.goto(`/insights?month=${month}`);
+  await expect(page.getByRole('heading', { name: 'Insights', exact: true })).toBeVisible();
+  await expect(page.locator('[aria-label="Monthly insight summary"]')).toContainText('memories logged');
+
+  await page.goto(updatedEntryHref!);
   await expect(page).toHaveURL(/\/timeline\/[^/]+$/);
   await page.getByRole('button', { name: 'Delete', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Delete', exact: true }).click();
   await expect(page).toHaveURL(/\/timeline$/);
+}
+
+test.describe('backdated entry', () => {
+  test('demo user can save an entry for yesterday', async ({ page }) => {
+    await verifyBackdatedEntry(page);
+  });
+
+  test.describe('mobile', () => {
+    test.use({ viewport: { width: 393, height: 852 } });
+
+    test('demo user can save an entry for yesterday', async ({ page }) => {
+      await verifyBackdatedEntry(page);
+    });
+  });
 });

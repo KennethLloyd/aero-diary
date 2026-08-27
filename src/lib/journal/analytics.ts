@@ -1,11 +1,11 @@
 import { Mood } from '@/generated/prisma/enums';
-import { getTodayDateKey } from '@/lib/journal/dates';
+import { getTodayDateKey, parseJournalDate, type JournalDate } from '@/lib/journal/dates';
 import { monthParamSchema } from '@/lib/journal/schemas';
 
 export { getTodayDateKey } from '@/lib/journal/dates';
 export type JournalEntry = {
   id: string
-  journalDate: string
+  journalDate: JournalDate
   mood: Mood
   activities: {
     activityId: string
@@ -20,7 +20,7 @@ export type CalendarMonth = {
 }
 
 export type CalendarDay = {
-  date: string
+  date: JournalDate
   day: number
   isToday: boolean
   entryIds: string[]
@@ -66,7 +66,6 @@ function makeMonth(year: number, month: number): CalendarMonth {
   };
 }
 
-
 export function getMonthFromParam(
   value: string | string[] | undefined,
   now = new Date(),
@@ -102,12 +101,6 @@ export function formatMonthLabel(month: CalendarMonth): string {
   }).format(new Date(Date.UTC(month.year, month.month - 1, 1)));
 }
 
-
-export function getEntryDateKey(entry: Pick<JournalEntry, 'journalDate'>): string {
-  return entry.journalDate;
-}
-
-
 export function buildCalendarGrid(
   entries: JournalEntry[],
   month: CalendarMonth,
@@ -116,7 +109,7 @@ export function buildCalendarGrid(
   const entriesByDate = new Map<string, { entryIds: string[]; moods: Mood[] }>();
 
   for (const entry of entries) {
-    const date = getEntryDateKey(entry);
+    const date = entry.journalDate;
     if (!date.startsWith(`${month.key}-`)) continue;
 
     const current = entriesByDate.get(date) ?? { entryIds: [], moods: [] };
@@ -133,7 +126,7 @@ export function buildCalendarGrid(
     const day = index - firstWeekday + 1;
     if (day < 1 || day > daysInMonth) return null;
 
-    const date = `${month.key}-${String(day).padStart(2, '0')}`;
+    const date = parseJournalDate(`${month.key}-${String(day).padStart(2, '0')}`);
     const logged = entriesByDate.get(date);
     return {
       date,

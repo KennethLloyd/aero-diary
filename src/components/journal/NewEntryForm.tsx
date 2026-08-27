@@ -12,7 +12,7 @@ import {
   type ChangeEvent,
   type MouseEvent,
 } from 'react';
-import { formatJournalDate, getTodayDateKey } from '@/lib/journal/dates';
+import { formatJournalDate, getTodayDateKey, parseJournalDate, type JournalDate } from '@/lib/journal/dates';
 import {
   createEntry,
   updateEntry,
@@ -54,7 +54,7 @@ export function NewEntryForm({
 }: {
   activities: ActivityOption[]
   entry?: EditableEntry
-  todayDateKey?: string
+  todayDateKey?: JournalDate
 }) {
   const action: (
     prevState: EntryActionState,
@@ -72,7 +72,7 @@ export function NewEntryForm({
     getTodayDateKey,
     () => initialTodayDateKey,
   );
-  const [selectedJournalDate, setSelectedJournalDate] = useState<string>();
+  const [selectedJournalDate, setSelectedJournalDate] = useState<JournalDate>();
   const journalDate = selectedJournalDate ?? browserTodayDate;
   const [polishState, setPolishState] = useState<PolishEntryState>();
   const [polishing, setPolishing] = useState(false);
@@ -289,7 +289,9 @@ export function NewEntryForm({
                     required
                     tabIndex={-1}
                     aria-hidden="true"
-                    onChange={(event) => setSelectedJournalDate(event.target.value)}
+                    onChange={(event) => setSelectedJournalDate(
+                      event.target.value ? parseJournalDate(event.target.value) : undefined,
+                    )}
                   />
                 </>
               )}

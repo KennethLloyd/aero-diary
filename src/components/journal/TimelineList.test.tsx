@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { Mood } from '@/generated/prisma/enums';
+import { parseJournalDate } from '@/lib/journal/dates';
 import { TimelineList } from '@/components/journal/TimelineList';
 import type { TimelinePage } from '@/lib/journal/timeline';
 
@@ -12,8 +13,8 @@ function page(id: string, note: string): TimelinePage {
   return {
     entries: [{
       id,
-      journalDate: '2026-08-25',
-      date: 'Tuesday, August 25',
+      journalDate: parseJournalDate('2026-08-25'),
+      date: 'Tuesday, August 25, 2026',
       mood: Mood.GOOD,
       note,
       tags: [],

@@ -2,6 +2,7 @@ import 'server-only';
 
 import type { PrismaClient } from '@/generated/prisma/client';
 import type { Mood } from '@/generated/prisma/enums';
+import type { JournalDate } from '@/lib/journal/dates';
 
 export type EntryPhotoInput = {
   drivePath: string
@@ -32,7 +33,7 @@ function photoWrites(photos: EntryPhotoInput[]) {
 
 export function createJournalEntry(
   database: PrismaClient,
-  input: EntryMutationInput & { userId: string; journalDate: string },
+  input: EntryMutationInput & { userId: string; journalDate: JournalDate },
 ) {
   return database.entry.create({
     data: {
