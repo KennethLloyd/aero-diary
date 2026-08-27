@@ -17,7 +17,7 @@ async function readMonthlyInsightsCount(page: Page): Promise<number> {
 
 async function verifyBackdatedEntry(page: Page) {
   const marker = `Automated backdated entry ${Date.now()}`;
-  const { today, yesterday, month } = await page.evaluate(() => {
+  const { today, yesterday, yesterdayLabel, month } = await page.evaluate(() => {
     const format = (date: Date) => [date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate()]
       .map((part) => String(part).padStart(2, '0'))
       .join('-');
@@ -27,6 +27,13 @@ async function verifyBackdatedEntry(page: Page) {
     return {
       today: format(todayDate),
       yesterday: format(yesterdayDate),
+      yesterdayLabel: new Intl.DateTimeFormat('en-US', {
+        timeZone: 'UTC',
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      }).format(yesterdayDate),
       month: format(yesterdayDate).slice(0, 7),
     };
   });
@@ -92,8 +99,16 @@ async function verifyBackdatedEntry(page: Page) {
   await page.getByRole('button', { name: 'Save changes' }).click();
   await expect(page).toHaveURL(/\/timeline\/[^/]+$/);
   await expect(page.getByText(updatedMarker)).toBeVisible();
+  await page.getByRole('link', { name: 'Edit' }).click();
+  await expect(page).toHaveURL(/\/timeline\/[^/]+\/edit$/);
+  await expect(page.getByLabel('Journal Note')).toHaveValue(updatedMarker);
+  await expect(page.getByText(yesterdayLabel, { exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Back to timeline without saving' }).click();
+  await expect(page).toHaveURL(/\/timeline$/);
+
   const updatedEntry = page.getByRole('link', { name: new RegExp(`Mood:.*${updatedMarker}`, 'i') });
   await expect(updatedEntry).toBeVisible();
+  await expect(updatedEntry).toContainText(yesterdayLabel);
   const updatedEntryHref = await updatedEntry.getAttribute('href');
   expect(updatedEntryHref).toMatch(/^\/timeline\/[^/]+$/);
   if (!updatedEntryHref) throw new Error('Updated entry link did not include an href.');
