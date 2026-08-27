@@ -44,6 +44,7 @@ async function EditEntryContent({ params }: EditEntryPageProps) {
       activities={activities}
       entry={{
         id: entry.id,
+        journalDate: entry.journalDate,
         mood: entry.mood,
         note: entry.note,
         activityIds: entry.activities.map(({ activityId }) => activityId),

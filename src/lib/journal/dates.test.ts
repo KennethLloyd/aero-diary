@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  addJournalDays,
   formatDateKey,
   formatJournalDate,
   getTodayDateKey,
@@ -31,6 +32,9 @@ describe('journal date utilities', () => {
     expect(() => parseJournalDate('2026-02-30')).toThrow('Invalid journal date.');
   });
 
+  it('moves canonical dates across month boundaries', () => {
+    expect(addJournalDays(parseJournalDate('2026-08-31'), 1)).toBe('2026-09-01');
+  });
   it('rejects only date keys after the current UTC date', () => {
     expect(isFutureDateKey(parseJournalDate('2026-08-24'), now)).toBe(false);
     expect(isFutureDateKey(parseJournalDate('2026-08-25'), now)).toBe(true);

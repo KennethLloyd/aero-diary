@@ -1,7 +1,7 @@
 import type { Prisma, PrismaClient } from '@/generated/prisma/client';
 import { provisionUser } from '@/lib/auth/provision-user';
 import type { DemoCredentials } from '@/lib/auth/demo-config';
-import { journalDateFromDate, type JournalDate } from '@/lib/journal/dates';
+import { addJournalDays, journalDateFromDate, type JournalDate } from '@/lib/journal/dates';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const DEMO_ACTIVITIES = [
@@ -124,10 +124,19 @@ async function isExistingDemoDataset(
   });
   if (!activitiesMatch) return false;
 
+  const expectedFirstDate = expected.entries[0]?.journalDate;
+  const actualFirstDate = entries[0]?.journalDate;
+  if (!expectedFirstDate || !actualFirstDate) return false;
+  const expectedFirstTime = Date.parse(`${expectedFirstDate}T00:00:00.000Z`);
+  const actualFirstTime = Date.parse(`${actualFirstDate}T00:00:00.000Z`);
+  if (Number.isNaN(expectedFirstTime) || Number.isNaN(actualFirstTime)) return false;
+  const dateShift = Math.round((actualFirstTime - expectedFirstTime) / DAY_MS);
+
   return entries.every((entry, index) => {
     const expectedEntry = expected.entries[index];
     if (
-      entry.sourceId !== null
+      entry.journalDate !== addJournalDays(expectedEntry.journalDate, dateShift)
+      || entry.sourceId !== null
       || entry.mood !== expectedEntry.mood
       || entry.note !== expectedEntry.note
     ) {

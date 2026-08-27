@@ -4,7 +4,7 @@ import type { PrismaClient } from '@/generated/prisma/client';
 import type { Mood } from '@/generated/prisma/enums';
 import type { JournalDate } from '@/lib/journal/dates';
 
-export type EntryPhotoInput = {
+type EntryPhotoInput = {
   drivePath: string
   fileId: string | null
   mimeType: string
@@ -31,6 +31,14 @@ function photoWrites(photos: EntryPhotoInput[]) {
   }));
 }
 
+function entryContentWrites(input: EntryMutationInput) {
+  return {
+    mood: input.mood,
+    note: input.note,
+    photos: { create: photoWrites(input.photos) },
+  };
+}
+
 export function createJournalEntry(
   database: PrismaClient,
   input: EntryMutationInput & { userId: string; journalDate: JournalDate },
@@ -39,9 +47,7 @@ export function createJournalEntry(
     data: {
       userId: input.userId,
       journalDate: input.journalDate,
-      mood: input.mood,
-      note: input.note,
-      photos: { create: photoWrites(input.photos) },
+      ...entryContentWrites(input),
       activities: { create: activityWrites(input.activityIds) },
     },
   });
@@ -55,9 +61,7 @@ export function updateJournalEntry(
   return database.entry.update({
     where: { id: entryId },
     data: {
-      mood: input.mood,
-      note: input.note,
-      photos: { create: photoWrites(input.photos) },
+      ...entryContentWrites(input),
       activities: {
         deleteMany: {},
         create: activityWrites(input.activityIds),

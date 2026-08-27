@@ -7,6 +7,14 @@ if (!demoEmail || !demoPassword) {
   throw new Error('PLAYWRIGHT_DEMO_EMAIL and PLAYWRIGHT_DEMO_PASSWORD are required for the configured smoke suite.');
 }
 
+
+async function readMonthlyInsightsCount(page: Page): Promise<number> {
+  const summary = await page.locator('[aria-label="Monthly insight summary"]').textContent();
+  const match = summary?.match(/(\d+)\s+memories logged/);
+  if (!match) throw new Error(`Monthly insight summary did not include a count: ${summary ?? ''}`);
+  return Number(match[1]);
+}
+
 async function verifyBackdatedEntry(page: Page) {
   const marker = `Automated backdated entry ${Date.now()}`;
   const { today, yesterday, month } = await page.evaluate(() => {
@@ -28,6 +36,9 @@ async function verifyBackdatedEntry(page: Page) {
   await page.getByLabel('Password').fill(demoPassword!);
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page).toHaveURL(/\/timeline$/);
+
+  await page.goto(`/insights?month=${month}`);
+  const initialInsightsCount = await readMonthlyInsightsCount(page);
 
   await page.goto('/timeline/new');
   const dateChange = page.locator('.aero-date-change');
@@ -81,25 +92,29 @@ async function verifyBackdatedEntry(page: Page) {
   await page.getByRole('button', { name: 'Save changes' }).click();
   await expect(page).toHaveURL(/\/timeline\/[^/]+$/);
   await expect(page.getByText(updatedMarker)).toBeVisible();
-
-  await page.getByRole('link', { name: 'Edit' }).click();
-  await expect(page.getByLabel('Journal Note')).toHaveValue(updatedMarker);
-  await page.getByRole('link', { name: 'Back to timeline without saving' }).click();
-  await expect(page).toHaveURL(/\/timeline$/);
   const updatedEntry = page.getByRole('link', { name: new RegExp(`Mood:.*${updatedMarker}`, 'i') });
   await expect(updatedEntry).toBeVisible();
-
   const updatedEntryHref = await updatedEntry.getAttribute('href');
   expect(updatedEntryHref).toMatch(/^\/timeline\/[^/]+$/);
+  if (!updatedEntryHref) throw new Error('Updated entry link did not include an href.');
 
   await page.goto(`/calendar?month=${month}`);
   await expect(page.getByRole('heading', { name: 'Calendar', exact: true })).toBeVisible();
-  await expect(page.locator(`[aria-label*="${yesterday}"]`)).toBeVisible();
+  const dateCell = page.locator(`[aria-label*="${yesterday}"]`);
+  await expect(dateCell).toBeVisible();
+  if (await dateCell.evaluate((element) => element.tagName === 'SUMMARY')) {
+    await dateCell.click();
+  }
+  if (await dateCell.evaluate((element) => element.tagName === 'A')) {
+    await expect(dateCell).toHaveAttribute('href', updatedEntryHref);
+  } else {
+    await expect(dateCell.locator(`a[href="${updatedEntryHref}"]`)).toBeVisible();
+  }
 
   await page.goto(`/insights?month=${month}`);
   await expect(page.getByRole('heading', { name: 'Insights', exact: true })).toBeVisible();
   await expect(page.locator('[aria-label="Monthly insight summary"]')).toContainText('memories logged');
-
+  expect(await readMonthlyInsightsCount(page)).toBe(initialInsightsCount + 1);
   await page.goto(updatedEntryHref!);
   await expect(page).toHaveURL(/\/timeline\/[^/]+$/);
   await page.getByRole('button', { name: 'Delete', exact: true }).click();

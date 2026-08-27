@@ -99,4 +99,19 @@ describe('demo seed', () => {
     expect(unchanged?.entries[0]?.note).toBe('This must remain private.');
     expect(await verifyPassword('real-password', unchanged?.passwordHash ?? '')).toBe(true);
   });
+
+  it('refuses a content-matching dataset with inconsistent journal dates', async () => {
+    await seedDemoData(testDb, { email: DEMO_EMAIL, password: DEMO_PASSWORD }, SEED_DATE);
+    const lastEntry = await testDb.entry.findFirst({ orderBy: { journalDate: 'desc' } });
+    expect(lastEntry).not.toBeNull();
+    if (!lastEntry) throw new Error('Expected seeded demo entry.');
+    await testDb.entry.update({
+      where: { id: lastEntry.id },
+      data: { journalDate: '2026-08-23' },
+    });
+
+    await expect(
+      seedDemoData(testDb, { email: DEMO_EMAIL, password: DEMO_PASSWORD }, SEED_DATE),
+    ).rejects.toThrow('Seeding stopped without changing it');
+  });
 });

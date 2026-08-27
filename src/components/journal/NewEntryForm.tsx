@@ -42,11 +42,11 @@ function subscribeToDateChanges(onChange: () => void) {
 
 export type EditableEntry = {
   id: string
+  journalDate: JournalDate
   mood: Mood
   note: string
   activityIds: string[]
 }
-
 export function NewEntryForm({
   activities,
   entry,
@@ -265,7 +265,7 @@ export function NewEntryForm({
             </h1>
             <p className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[#2b4c73]">
               {entry ? (
-                'Updating a saved memory'
+                <span>{formatJournalDate(entry.journalDate, browserTodayDate)}</span>
               ) : (
                 <>
                   <span>{formatJournalDate(journalDate, browserTodayDate)}</span>

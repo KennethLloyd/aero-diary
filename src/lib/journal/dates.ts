@@ -20,6 +20,12 @@ export function parseJournalDate(value: string): JournalDate {
 export function journalDateFromDate(date: Date): JournalDate {
   return parseJournalDate(date.toISOString().slice(0, 10));
 }
+export function addJournalDays(dateKey: JournalDate, days: number): JournalDate {
+  const date = new Date(`${dateKey}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return journalDateFromDate(date);
+}
+
 
 export function getTodayDateKey(now = new Date()): JournalDate {
   return journalDateFromDate(now);
