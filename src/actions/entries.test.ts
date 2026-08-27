@@ -195,6 +195,7 @@ describe('updateEntry action', () => {
     });
     expect(updated).toMatchObject({ mood: Mood.GOOD, note: 'After the edit.' });
     expect(updated.journalDate).toBe(entry.journalDate);
+    expect(updated.activities).toEqual([{ entryId: entry.id, activityId: newActivity.id }]);
     expect(mocks.updateTag).toHaveBeenCalledWith(`journal:${user.id}:timeline`);
     expect(mocks.updateTag).toHaveBeenCalledWith(`journal:${user.id}:entry:${entry.id}`);
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/timeline');
