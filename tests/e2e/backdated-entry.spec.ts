@@ -10,7 +10,7 @@ if (!demoEmail || !demoPassword) {
 
 async function readMonthlyInsightsCount(page: Page): Promise<number> {
   const summary = await page.locator('[aria-label="Monthly insight summary"]').textContent();
-  const match = summary?.match(/(\d+)\s+memories logged/);
+  const match = summary?.match(/(\d+)\s+memor(?:y|ies) logged/);
   if (!match) throw new Error(`Monthly insight summary did not include a count: ${summary ?? ''}`);
   return Number(match[1]);
 }
@@ -119,18 +119,16 @@ async function verifyBackdatedEntry(page: Page) {
   await expect(dateCell).toBeVisible();
   if (await dateCell.evaluate((element) => element.tagName === 'SUMMARY')) {
     await dateCell.click();
-  }
-  if (await dateCell.evaluate((element) => element.tagName === 'A')) {
-    await expect(dateCell).toHaveAttribute('href', updatedEntryHref);
+    await expect(dateCell.locator('xpath=..').locator(`a[href="${updatedEntryHref}"]`)).toBeVisible();
   } else {
-    await expect(dateCell.locator(`a[href="${updatedEntryHref}"]`)).toBeVisible();
+    await expect(dateCell).toHaveAttribute('href', updatedEntryHref);
   }
 
   await page.goto(`/insights?month=${month}`);
   await expect(page.getByRole('heading', { name: 'Insights', exact: true })).toBeVisible();
-  await expect(page.locator('[aria-label="Monthly insight summary"]')).toContainText('memories logged');
+  await expect(page.locator('[aria-label="Monthly insight summary"]')).toContainText(/memor(?:y|ies) logged/);
   expect(await readMonthlyInsightsCount(page)).toBe(initialInsightsCount + 1);
-  await page.goto(updatedEntryHref!);
+  await page.goto(updatedEntryHref);
   await expect(page).toHaveURL(/\/timeline\/[^/]+$/);
   await page.getByRole('button', { name: 'Delete', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Delete', exact: true }).click();

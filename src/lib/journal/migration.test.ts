@@ -9,9 +9,9 @@ function readMigration(name: string): string {
   return readFileSync(path.join(migrationRoot, name, 'migration.sql'), 'utf8');
 }
 
-function readMigrations(excludeTarget = false): string {
+function readMigrations(before?: string): string {
   return readdirSync(migrationRoot)
-    .filter((name) => name !== 'migration_lock.toml' && (!excludeTarget || name !== targetMigration))
+    .filter((name) => name !== 'migration_lock.toml' && (!before || name < before))
     .sort()
     .map((name) => readMigration(name))
     .join('\n');
@@ -21,7 +21,7 @@ describe('journal date migration', () => {
   it('preserves the visible local journal day while removing timestamp fields', () => {
     const database = new Database(':memory:');
     try {
-      database.exec(readMigrations(true));
+      database.exec(readMigrations(targetMigration));
       database.exec(`
         INSERT INTO "User" ("id", "email", "passwordHash")
         VALUES ('user-1', 'user@example.com', 'hash');
