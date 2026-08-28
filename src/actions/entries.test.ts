@@ -3,6 +3,7 @@ import { Mood } from '@/generated/prisma/enums';
 import { resetTestDb, testDb } from '@/test/test-db';
 
 const mocks = vi.hoisted(() => ({
+  after: vi.fn(),
   redirect: vi.fn(),
   revalidatePath: vi.fn(),
   updateTag: vi.fn(),
@@ -10,6 +11,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('next/navigation', () => ({ redirect: mocks.redirect }));
+vi.mock('next/server', () => ({ after: mocks.after }));
 vi.mock('next/cache', () => ({ revalidatePath: mocks.revalidatePath, updateTag: mocks.updateTag }));
 vi.mock('@/lib/dal', () => ({ verifySession: mocks.verifySession }));
 vi.mock('@/lib/db', async () => {
@@ -90,6 +92,18 @@ describe('createEntry action', () => {
     expect(mocks.updateTag).toHaveBeenCalledWith(`journal:${user.id}:timeline`);
     expect(mocks.updateTag).toHaveBeenCalledWith(`journal:${user.id}:entry:${entry.id}`);
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/timeline');
+  });
+  it('creates an entry without activity selection and schedules enrichment', async () => {
+    const user = await testDb.user.create({
+      data: { email: 'capture@example.com', passwordHash: 'x' },
+    });
+    mocks.verifySession.mockResolvedValue({ isAuth: true, userId: user.id });
+
+    await expect(createEntry(undefined, form())).rejects.toThrow(NEXT_REDIRECT);
+
+    const entry = await testDb.entry.findFirstOrThrow({ include: { activities: true } });
+    expect(entry.activities).toEqual([]);
+    expect(mocks.after).toHaveBeenCalledWith(expect.any(Function));
   });
 
   it('persists a backdated entry under the selected canonical calendar date', async () => {

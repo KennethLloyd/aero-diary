@@ -10,13 +10,13 @@ vi.mock('@/actions/entries', () => ({
   updateEntry: vi.fn(),
 }));
 afterEach(() => cleanup());
-function editableEntry(photoCount: number): EditableEntry {
+function editableEntry(photoCount: number, activityIds: string[] = []): EditableEntry {
   return {
     id: 'entry-1',
     journalDate: parseJournalDate('2026-08-28'),
     mood: Mood.GOOD,
     note: 'A note worth keeping.',
-    activityIds: [],
+    activityIds,
     photos: Array.from({ length: photoCount }, (_, index) => ({ id: `photo-${index + 1}` })),
   };
 }
@@ -32,6 +32,44 @@ function changeFiles(input: HTMLInputElement, files: File[]) {
   Object.defineProperty(input, 'files', { configurable: true, value: fileList });
   fireEvent.change(input);
 }
+
+describe('NewEntryForm activity state', () => {
+  it('does not show activity controls while creating an entry', () => {
+    render(
+      <NewEntryForm
+        activities={[
+          { id: 'gaming', name: 'Gaming', emoji: '🎮' },
+          { id: 'dining', name: 'Dining', emoji: '🍽️' },
+        ]}
+      />,
+    );
+
+    expect(screen.queryByRole('heading', { name: 'Activities' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Gaming/ })).not.toBeInTheDocument();
+  });
+
+  it('keeps selected activities visible before revealing the remaining options', () => {
+    const activities = Array.from({ length: 10 }, (_, index) => ({
+      id: `activity-${index + 1}`,
+      name: `Activity ${index + 1}`,
+      emoji: '✨',
+    }));
+    render(
+      <NewEntryForm
+        activities={activities}
+        entry={editableEntry(0, ['activity-10'])}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: /Activity 10/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getAllByRole('button', { name: /Activity/ })).toHaveLength(7);
+    expect(screen.getByRole('button', { name: /Show more/ })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Show more/ }));
+    expect(screen.getAllByRole('button', { name: /Activity/ })).toHaveLength(10);
+    expect(screen.getByRole('button', { name: /Show less/ })).toBeInTheDocument();
+  });
+});
 
 describe('NewEntryForm photo state', () => {
   it('renders existing photos and hides Add photos at capacity', () => {

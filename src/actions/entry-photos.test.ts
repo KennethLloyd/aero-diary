@@ -3,6 +3,7 @@ import { Mood } from '@/generated/prisma/enums';
 import { MAX_PHOTO_TOTAL_SIZE_BYTES } from '@/lib/journal/photos';
 import { resetTestDb, testDb } from '@/test/test-db';
 const mocks = vi.hoisted(() => ({
+  after: vi.fn(),
   deleteById: vi.fn(),
   deletePhotoFile: vi.fn(),
   getPhotoStore: vi.fn(),
@@ -15,6 +16,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('next/navigation', () => ({ redirect: mocks.redirect }));
+vi.mock('next/server', () => ({ after: mocks.after }));
 vi.mock('next/cache', () => ({ revalidatePath: mocks.revalidatePath, updateTag: mocks.updateTag }));
 vi.mock('@/lib/dal', () => ({ verifySession: mocks.verifySession }));
 vi.mock('@/lib/drive/server-store', () => ({ getPhotoStore: mocks.getPhotoStore }));

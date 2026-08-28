@@ -110,6 +110,32 @@ describe('entry workflow', () => {
     expect(saved.userId).toBe(user.id);
     expect(saved.activities).toEqual([{ entryId: created.id, activityId: activity.id }]);
   });
+  it('preserves an archived activity already attached during an edit', async () => {
+    const user = await createUser('archived-edit@example.com');
+    const activity = await testDb.activity.create({
+      data: { userId: user.id, name: 'Old activity', emoji: '🗃️', isArchived: true },
+    });
+    const entry = await testDb.entry.create({
+      data: {
+        userId: user.id,
+        journalDate: '2026-08-18',
+        mood: Mood.GOOD,
+        note: 'Keep this historical tag.',
+        activities: { create: [{ activityId: activity.id }] },
+      },
+    });
+
+    await expect(updateEntryWorkflow(
+      user.id,
+      entry.id,
+      updateInput({ activityIds: [activity.id] }),
+      { ids: [] },
+    )).resolves.toEqual({ id: entry.id });
+
+    await expect(testDb.entryActivity.findMany()).resolves.toEqual([
+      { entryId: entry.id, activityId: activity.id },
+    ]);
+  });
 
   it('rejects a future journal date before writing', async () => {
     const user = await createUser();
