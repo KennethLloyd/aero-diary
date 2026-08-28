@@ -2,23 +2,20 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { db } from '@/lib/db';
 import { verifySession } from '@/lib/dal';
-import type { PrismaClient } from '@/generated/prisma/client';
-import type { PhotoStore } from '@/lib/drive/store';
-import { getPhotoStore } from '@/lib/drive/server-store';
+import {
+  createEntryWorkflow,
+  deleteEntryWorkflow,
+  deletePhotoWorkflow,
+  EntryActivityOwnershipError,
+  EntryDateInFutureError,
+  EntryPhotoCapacityError,
+  EntryPhotoSizeCapacityError,
+  updateEntryWorkflow,
+} from '@/lib/journal/entry-workflow';
+import { StagedPhotoUnavailableError } from '@/lib/journal/photo-staging';
 import { invalidateEntryDetailRead, invalidateJournalReads } from '@/lib/journal/cache';
-import {
-  createJournalEntry,
-  updateJournalEntry,
-} from '@/lib/journal/mutations';
-import { cleanupExpiredStagedPhotos } from '@/lib/journal/photo-staging';
-import { getTodayDateKey, isFutureDateKey } from '@/lib/journal/dates';
-import {
-  MAX_PHOTO_COUNT,
-  MAX_PHOTO_TOTAL_SIZE_BYTES,
-  PHOTO_UPLOAD_ERROR,
-} from '@/lib/journal/photos';
+import { MAX_PHOTO_COUNT, PHOTO_UPLOAD_ERROR } from '@/lib/journal/photos';
 import {
   createEntrySchema,
   entryIdSchema,
@@ -27,6 +24,7 @@ import {
   stagedPhotoIdSchema,
   updateEntrySchema,
 } from '@/lib/journal/schemas';
+
 export type EntryActionState = { error?: string } | undefined
 export type CreateEntryState = EntryActionState
 export type UpdateEntryState = EntryActionState
@@ -42,142 +40,45 @@ const PHOTO_NOT_FOUND = 'Photo not found.';
 const PHOTO_DELETE_FAILED = 'Unable to delete your photo. Please try again.';
 const PHOTO_CAPACITY_ERROR = 'Entries can have up to 10 photos.';
 const PHOTO_SIZE_CAPACITY_ERROR = 'Photos in an entry must be 20 MB or smaller in total.';
-class EntryPhotoSizeCapacityError extends Error {}
-class EntryPhotoCapacityError extends Error {}
-class StagedPhotoUnavailableError extends Error {}
 
-function stagedPhotoSelect() {
+function entryFields(formData: FormData) {
   return {
-    id: true,
-    drivePath: true,
-    driveFileId: true,
-    mimeType: true,
-    sizeBytes: true,
-  } as const;
+    mood: formData.get('mood'),
+    note: formData.get('note'),
+    activityIds: formData.getAll('activityId'),
+    journalDate: formData.get('journalDate') ?? undefined,
+  };
 }
 
-async function findStagedPhotos(userId: string, formData: FormData) {
-  const rawIds = formData.getAll('stagedPhotoId');
-  const parsedIds = rawIds.map((id) => stagedPhotoIdSchema.safeParse(id));
+function updateEntryFields(formData: FormData) {
+  const fields = entryFields(formData);
+  return {
+    mood: fields.mood,
+    note: fields.note,
+    activityIds: fields.activityIds,
+  };
+}
+
+function stagedPhotoSelection(formData: FormData) {
+  const parsedIds = formData.getAll('stagedPhotoId').map((id) => stagedPhotoIdSchema.safeParse(id));
   if (parsedIds.some((parsed) => !parsed.success)) return { error: PHOTO_UPLOAD_ERROR } as const;
 
   const ids = [...new Set(parsedIds.flatMap((parsed) => parsed.success ? [parsed.data] : []))];
   if (ids.length > MAX_PHOTO_COUNT) return { error: PHOTO_UPLOAD_ERROR } as const;
-  if (ids.length === 0) return { data: [], ids } as const;
+  if (ids.length === 0) return { data: { ids } } as const;
 
   const parsedDraftKey = photoStagingKeySchema.safeParse(formData.get('draftKey'));
   if (!parsedDraftKey.success) return { error: PHOTO_UPLOAD_ERROR } as const;
-  let photoStore: PhotoStore | undefined;
-  try {
-    photoStore = getPhotoStore();
-  } catch (error) {
-    console.error('Photo staging cleanup could not access Drive.', error);
-  }
-  await cleanupExpiredStagedPhotos(db, photoStore);
-  const [photos, cancellations] = await db.$transaction([
-    db.stagedPhoto.findMany({
-      where: { id: { in: ids }, userId, draftKey: parsedDraftKey.data },
-      select: stagedPhotoSelect(),
-    }),
-    db.stagedPhotoCancellation.findMany({
-      where: {
-        userId,
-        draftKey: parsedDraftKey.data,
-        stagedPhotoId: { in: ids },
-      },
-      select: { stagedPhotoId: true, expired: true },
-    }),
-  ]);
-  const expiredIds = cancellations.flatMap((cancellation) => (
-    cancellation.expired && cancellation.stagedPhotoId ? [cancellation.stagedPhotoId] : []
-  ));
-  if (photos.length + expiredIds.length !== ids.length) return { error: PHOTO_UPLOAD_ERROR } as const;
-  return { data: photos, ids: photos.map((photo) => photo.id) } as const;
+  return { data: { ids, draftKey: parsedDraftKey.data } } as const;
 }
 
-async function cleanupDeletedPhotos(store: PhotoStore | undefined, photos: { driveFileId: string | null; drivePath: string }[]) {
-  if (!store || photos.length === 0) return;
-  const results = await Promise.allSettled(photos.map((photo) => (
-    photo.driveFileId
-      ? store.delete(photo.drivePath, photo.driveFileId)
-      : store.delete(photo.drivePath)
-  )));
-  results.forEach((result) => {
-    if (result.status === 'rejected') {
-      console.error('Database photo deletion succeeded but Drive cleanup failed.', result.reason);
-    }
-  });
-}
-
-async function getExistingPhotoSizeBytes(
-  photos: { drivePath: string; sizeBytes: number | null }[],
-) {
-  const knownSizeBytes = photos.reduce(
-    (total, photo) => total + (photo.sizeBytes ?? 0),
-    0,
-  );
-  const photosWithoutSize = photos.filter((photo) => photo.sizeBytes === null);
-  if (photosWithoutSize.length === 0) return knownSizeBytes;
-
-  let store: PhotoStore;
-  try {
-    store = getPhotoStore();
-  } catch (error) {
-    console.error('Photo size lookup could not access Drive.', error);
-    return null;
-  }
-  const resolutions = await Promise.allSettled(
-    photosWithoutSize.map((photo) => store.resolve(photo.drivePath)),
-  );
-  const resolvedSizeBytes = resolutions.map((result) => {
-    const sizeBytes = (
-      result.status === 'fulfilled'
-      && result.value.status === 'resolved'
-      ? result.value.sizeBytes
-      : null
-    );
-    return sizeBytes !== null && Number.isSafeInteger(sizeBytes) && sizeBytes >= 0
-      ? sizeBytes
-      : null;
-  });
-  if (resolvedSizeBytes.some((sizeBytes) => sizeBytes === null)) return null;
-  const totalResolvedSizeBytes = resolvedSizeBytes
-    .filter((sizeBytes): sizeBytes is number => sizeBytes !== null)
-    .reduce((total, sizeBytes) => total + sizeBytes, 0);
-  return knownSizeBytes + totalResolvedSizeBytes;
-}
-
-
-type StagedPhotoTransaction = Pick<PrismaClient, 'stagedPhoto' | 'stagedPhotoCancellation'>;
-
-async function consumeStagedPhotos<T extends { id: string }>(
-  transaction: StagedPhotoTransaction,
-  userId: string,
-  staged: { ids: readonly string[]; data: readonly T[] },
-) {
-  if (staged.ids.length === 0) return [...staged.data];
-  const consumed = await transaction.stagedPhoto.deleteMany({
-    where: { id: { in: [...staged.ids] }, userId },
-  });
-  if (consumed.count === staged.ids.length) return [...staged.data];
-
-  const expiredCancellations = await transaction.stagedPhotoCancellation.findMany({
-    where: {
-      userId,
-      stagedPhotoId: { in: [...staged.ids] },
-      expired: true,
-    },
-    select: { stagedPhotoId: true },
-  });
-  const expiredIds = new Set(
-    expiredCancellations.flatMap((cancellation) => (
-      cancellation.stagedPhotoId ? [cancellation.stagedPhotoId] : []
-    )),
-  );
-  if (expiredIds.size !== staged.ids.length - consumed.count) {
-    throw new StagedPhotoUnavailableError();
-  }
-  return staged.data.filter((photo) => !expiredIds.has(photo.id));
+function saveError(error: unknown) {
+  if (error instanceof EntryDateInFutureError) return INVALID_DATE;
+  if (error instanceof EntryActivityOwnershipError) return INVALID_ACTIVITY;
+  if (error instanceof EntryPhotoCapacityError) return PHOTO_CAPACITY_ERROR;
+  if (error instanceof EntryPhotoSizeCapacityError) return PHOTO_SIZE_CAPACITY_ERROR;
+  if (error instanceof StagedPhotoUnavailableError) return PHOTO_UPLOAD_ERROR;
+  return SAVE_FAILED;
 }
 
 export async function createEntry(
@@ -185,61 +86,20 @@ export async function createEntry(
   formData: FormData,
 ): Promise<CreateEntryState> {
   const session = await verifySession();
-  const parsed = createEntrySchema.safeParse({
-    mood: formData.get('mood'),
-    note: formData.get('note'),
-    activityIds: formData.getAll('activityId'),
-    journalDate: formData.get('journalDate') ?? undefined,
-  });
-
+  const parsed = createEntrySchema.safeParse(entryFields(formData));
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? INVALID_ENTRY };
   }
-  const now = new Date();
-  const journalDate = parsed.data.journalDate ?? getTodayDateKey(now);
-  if (isFutureDateKey(journalDate, now)) {
-    return { error: INVALID_DATE };
-  }
 
-  const staged = await findStagedPhotos(session.userId, formData);
+  const staged = stagedPhotoSelection(formData);
   if ('error' in staged) return staged;
 
-  const activityIds = [...new Set(parsed.data.activityIds)];
-  const activities = await db.activity.findMany({
-    where: {
-      id: { in: activityIds },
-      userId: session.userId,
-      isArchived: false,
-    },
-    select: { id: true },
-  });
-  if (activities.length !== activityIds.length) {
-    return { error: INVALID_ACTIVITY };
-  }
-
-  let createdEntryId: string | undefined;
-  let photosToAttach = staged.data;
+  let createdEntryId: string;
   try {
-    const createdEntry = await db.$transaction(async (transaction) => {
-      photosToAttach = await consumeStagedPhotos(transaction, session.userId, staged);
-      return createJournalEntry(transaction, {
-        userId: session.userId,
-        journalDate,
-        mood: parsed.data.mood,
-        note: parsed.data.note,
-        activityIds,
-        photos: photosToAttach.map((photo) => ({
-          drivePath: photo.drivePath,
-          fileId: photo.driveFileId,
-          mimeType: photo.mimeType,
-          sizeBytes: photo.sizeBytes,
-        })),
-      });
-    });
+    const createdEntry = await createEntryWorkflow(session.userId, parsed.data, staged.data);
     createdEntryId = createdEntry.id;
   } catch (error) {
-    if (error instanceof StagedPhotoUnavailableError) return { error: PHOTO_UPLOAD_ERROR };
-    return { error: SAVE_FAILED };
+    return { error: saveError(error) };
   }
 
   invalidateJournalReads(session.userId, createdEntryId);
@@ -254,102 +114,29 @@ export async function updateEntry(
 ): Promise<UpdateEntryState> {
   const session = await verifySession();
   const parsedId = entryIdSchema.safeParse(entryId);
-  if (!parsedId.success) {
-    return { error: ENTRY_NOT_FOUND };
-  }
+  if (!parsedId.success) return { error: ENTRY_NOT_FOUND };
 
-  const parsed = updateEntrySchema.safeParse({
-    mood: formData.get('mood'),
-    note: formData.get('note'),
-    activityIds: formData.getAll('activityId'),
-  });
+  const parsed = updateEntrySchema.safeParse(updateEntryFields(formData));
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? INVALID_ENTRY };
   }
 
-  const staged = await findStagedPhotos(session.userId, formData);
+  const staged = stagedPhotoSelection(formData);
   if ('error' in staged) return staged;
 
-  const entry = await db.entry.findFirst({
-    where: { id: parsedId.data, userId: session.userId },
-    select: { id: true, photos: { select: { id: true, drivePath: true, sizeBytes: true } } },
-  });
-  if (!entry) {
-    return { error: ENTRY_NOT_FOUND };
-  }
-  const existingPhotoSizeBytes = staged.ids.length > 0
-    ? await getExistingPhotoSizeBytes(entry.photos)
-    : 0;
-
-  const activityIds = [...new Set(parsed.data.activityIds)];
-  const activities = await db.activity.findMany({
-    where: {
-      id: { in: activityIds },
-      userId: session.userId,
-      isArchived: false,
-    },
-    select: { id: true },
-  });
-  if (activities.length !== activityIds.length) {
-    return { error: INVALID_ACTIVITY };
-  }
-
-  let photosToAttach = staged.data;
+  let updated: { id: string } | null;
   try {
-    await db.$transaction(async (transaction) => {
-      const currentEntry = await transaction.entry.findFirst({
-        where: { id: entry.id, userId: session.userId },
-        select: { photos: { select: { id: true, sizeBytes: true } } },
-      });
-      if (!currentEntry) throw new Error('Entry was deleted while it was being edited.');
-      photosToAttach = await consumeStagedPhotos(transaction, session.userId, staged);
-      if (currentEntry.photos.length + photosToAttach.length > MAX_PHOTO_COUNT) {
-        throw new EntryPhotoCapacityError();
-      }
-      if (photosToAttach.length > 0) {
-        const currentPhotoIds = new Set(currentEntry.photos.map((photo) => photo.id));
-        const originalPhotoIds = new Set(entry.photos.map((photo) => photo.id));
-        const photoSetChanged = currentPhotoIds.size !== originalPhotoIds.size
-          || [...currentPhotoIds].some((photoId) => !originalPhotoIds.has(photoId));
-        if (photoSetChanged || existingPhotoSizeBytes === null) {
-          throw new EntryPhotoSizeCapacityError();
-        }
-        const currentPhotoSizeBytes = currentEntry.photos.reduce(
-          (total, photo) => total + (photo.sizeBytes ?? 0),
-          0,
-        );
-        const attachedPhotoSizeBytes = photosToAttach.reduce((total, photo) => total + photo.sizeBytes, 0);
-        const existingSizeBytes = currentEntry.photos.every((photo) => photo.sizeBytes !== null)
-          ? currentPhotoSizeBytes
-          : existingPhotoSizeBytes;
-        if (existingSizeBytes + attachedPhotoSizeBytes > MAX_PHOTO_TOTAL_SIZE_BYTES) {
-          throw new EntryPhotoSizeCapacityError();
-        }
-      }
-      await updateJournalEntry(transaction, entry.id, {
-        mood: parsed.data.mood,
-        note: parsed.data.note,
-        activityIds,
-        photos: photosToAttach.map((photo) => ({
-          drivePath: photo.drivePath,
-          fileId: photo.driveFileId,
-          mimeType: photo.mimeType,
-          sizeBytes: photo.sizeBytes,
-        })),
-      });
-    });
+    updated = await updateEntryWorkflow(session.userId, parsedId.data, parsed.data, staged.data);
   } catch (error) {
-    if (error instanceof EntryPhotoCapacityError) return { error: PHOTO_CAPACITY_ERROR };
-    if (error instanceof EntryPhotoSizeCapacityError) return { error: PHOTO_SIZE_CAPACITY_ERROR };
-    if (error instanceof StagedPhotoUnavailableError) return { error: PHOTO_UPLOAD_ERROR };
-    return { error: SAVE_FAILED };
+    return { error: saveError(error) };
   }
+  if (!updated) return { error: ENTRY_NOT_FOUND };
 
-  invalidateJournalReads(session.userId, entry.id);
+  invalidateJournalReads(session.userId, updated.id);
   revalidatePath('/timeline');
-  revalidatePath(`/timeline/${entry.id}`);
-  revalidatePath(`/timeline/${entry.id}/edit`);
-  redirect(`/timeline/${entry.id}`);
+  revalidatePath(`/timeline/${updated.id}`);
+  revalidatePath(`/timeline/${updated.id}/edit`);
+  redirect(`/timeline/${updated.id}`);
 }
 
 export async function deleteEntry(
@@ -361,34 +148,19 @@ export async function deleteEntry(
   void _formData;
   const session = await verifySession();
   const parsedId = entryIdSchema.safeParse(entryId);
-  if (!parsedId.success) {
-    return { error: ENTRY_NOT_FOUND };
-  }
+  if (!parsedId.success) return { error: ENTRY_NOT_FOUND };
 
-  const entry = await db.entry.findFirst({
-    where: { id: parsedId.data, userId: session.userId },
-    select: { id: true, photos: { select: { driveFileId: true, drivePath: true } } },
-  });
-  if (!entry) return { error: ENTRY_NOT_FOUND };
-
+  let deleted: { id: string } | null;
   try {
-    await db.entry.delete({ where: { id: entry.id } });
+    deleted = await deleteEntryWorkflow(session.userId, parsedId.data);
   } catch {
     return { error: 'Unable to delete your entry. Please try again.' };
   }
+  if (!deleted) return { error: ENTRY_NOT_FOUND };
 
-  try {
-    await cleanupDeletedPhotos(
-      entry.photos.length > 0 ? getPhotoStore() : undefined,
-      entry.photos,
-    );
-  } catch (error) {
-    console.error('Entry deletion succeeded but Drive cleanup could not start.', error);
-  }
-
-  invalidateJournalReads(session.userId, parsedId.data);
+  invalidateJournalReads(session.userId, deleted.id);
   revalidatePath('/timeline');
-  revalidatePath(`/timeline/${parsedId.data}`);
+  revalidatePath(`/timeline/${deleted.id}`);
   redirect('/timeline');
 }
 
@@ -403,29 +175,15 @@ export async function deletePhoto(
   const parsedPhotoId = photoIdSchema.safeParse(photoId);
   if (!parsedPhotoId.success) return { error: PHOTO_NOT_FOUND };
 
-  const photo = await db.photo.findFirst({
-    where: {
-      id: parsedPhotoId.data,
-      entry: { userId: session.userId },
-    },
-    select: { driveFileId: true, drivePath: true, entryId: true },
-  });
-  if (!photo) return { error: PHOTO_NOT_FOUND };
-
+  let deleted: { entryId: string } | null;
   try {
-    const result = await db.photo.deleteMany({ where: { id: parsedPhotoId.data } });
-    if (result.count !== 1) return { error: PHOTO_NOT_FOUND };
+    deleted = await deletePhotoWorkflow(session.userId, parsedPhotoId.data);
   } catch {
     return { error: PHOTO_DELETE_FAILED };
   }
+  if (!deleted) return { error: PHOTO_NOT_FOUND };
 
-  try {
-    await cleanupDeletedPhotos(getPhotoStore(), [photo]);
-  } catch (error) {
-    console.error('Photo deletion succeeded but Drive cleanup could not start.', error);
-  }
-
-  invalidateEntryDetailRead(session.userId, photo.entryId);
+  invalidateEntryDetailRead(session.userId, deleted.entryId);
   revalidatePath('/timeline');
-  revalidatePath(`/timeline/${photo.entryId}`);
+  revalidatePath(`/timeline/${deleted.entryId}`);
 }

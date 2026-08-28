@@ -19,6 +19,25 @@ export type StagedPhotoView = {
 
 type StagedPhotoDatabase = Pick<PrismaClient, '$transaction' | 'stagedPhoto' | 'stagedPhotoCancellation'>;
 
+export type StagedPhotoTransaction = Pick<PrismaClient, 'stagedPhoto' | 'stagedPhotoCancellation'>;
+
+export type StagedPhotoSelection = {
+  readonly ids: readonly string[]
+  readonly draftKey?: string
+}
+
+export type StagedPhotoRecord = Pick<
+  StagedPhotoView,
+  'id' | 'drivePath' | 'driveFileId' | 'mimeType' | 'sizeBytes'
+>
+
+export class StagedPhotoUnavailableError extends Error {
+  constructor() {
+    super('A staged photo is no longer available.');
+    this.name = 'StagedPhotoUnavailableError';
+  }
+}
+
 type StagePhotoInput = {
   userId: string
   draftKey: string
@@ -163,6 +182,79 @@ export async function cleanupExpiredStagedPhotos(
       console.error('Expired staged photo was removed but Drive cleanup failed.', result.reason);
     }
   });
+}
+
+
+export async function loadStagedPhotos(
+  database: StagedPhotoDatabase,
+  store: PhotoStore | undefined,
+  userId: string,
+  selection: StagedPhotoSelection,
+): Promise<{ ids: string[]; data: StagedPhotoRecord[] }> {
+  const ids = [...new Set(selection.ids)];
+  if (ids.length === 0) return { ids, data: [] };
+  if (!selection.draftKey) throw new StagedPhotoUnavailableError();
+
+  await cleanupExpiredStagedPhotos(database, store);
+  const [photos, cancellations] = await database.$transaction([
+    database.stagedPhoto.findMany({
+      where: { id: { in: ids }, userId, draftKey: selection.draftKey },
+      select: stagedPhotoSelect(),
+    }),
+    database.stagedPhotoCancellation.findMany({
+      where: {
+        userId,
+        draftKey: selection.draftKey,
+        stagedPhotoId: { in: ids },
+      },
+      select: { stagedPhotoId: true, expired: true },
+    }),
+  ]);
+  const expiredIds = cancellations.flatMap((cancellation) => (
+    cancellation.expired && cancellation.stagedPhotoId ? [cancellation.stagedPhotoId] : []
+  ));
+  if (photos.length + expiredIds.length !== ids.length) {
+    throw new StagedPhotoUnavailableError();
+  }
+
+  const data = photos.map(({ id, drivePath, driveFileId, mimeType, sizeBytes }) => ({
+    id,
+    drivePath,
+    driveFileId,
+    mimeType,
+    sizeBytes,
+  }));
+  return { ids: data.map((photo) => photo.id), data };
+}
+
+export async function consumeStagedPhotos<T extends { id: string }>(
+  transaction: StagedPhotoTransaction,
+  userId: string,
+  staged: { ids: readonly string[]; data: readonly T[] },
+): Promise<T[]> {
+  if (staged.ids.length === 0) return [...staged.data];
+  const consumed = await transaction.stagedPhoto.deleteMany({
+    where: { id: { in: [...staged.ids] }, userId },
+  });
+  if (consumed.count === staged.ids.length) return [...staged.data];
+
+  const expiredCancellations = await transaction.stagedPhotoCancellation.findMany({
+    where: {
+      userId,
+      stagedPhotoId: { in: [...staged.ids] },
+      expired: true,
+    },
+    select: { stagedPhotoId: true },
+  });
+  const expiredIds = new Set(
+    expiredCancellations.flatMap((cancellation) => (
+      cancellation.stagedPhotoId ? [cancellation.stagedPhotoId] : []
+    )),
+  );
+  if (expiredIds.size !== staged.ids.length - consumed.count) {
+    throw new StagedPhotoUnavailableError();
+  }
+  return staged.data.filter((photo) => !expiredIds.has(photo.id));
 }
 
 
