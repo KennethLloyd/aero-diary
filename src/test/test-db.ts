@@ -29,7 +29,7 @@ export async function resetTestDb(): Promise<void> {
   await testDb.session.deleteMany();
   await testDb.entryActivity.deleteMany();
   await testDb.photo.deleteMany();
-  await testDb.entry.deleteMany();
+  await testDb.stagedPhotoCancellation.deleteMany();
   await testDb.activity.deleteMany();
   await testDb.user.deleteMany();
 }

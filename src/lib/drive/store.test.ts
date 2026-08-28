@@ -25,7 +25,7 @@ function folderAndFileResponses(drive: ReturnType<typeof fakeDrive>) {
     if (q?.includes("name = 'photos'")) {
       return { data: { files: [{ id: 'photos-folder', name: 'photos' }] } } as never;
     }
-    return { data: { files: [{ id: 'photo-file', name: 'photo.jpg', mimeType: 'image/jpeg' }] } } as never;
+    return { data: { files: [{ id: 'photo-file', name: 'photo.jpg', mimeType: 'image/jpeg', size: '1234' }] } } as never;
   });
 }
 
@@ -154,6 +154,18 @@ describe('Google Drive photo store', () => {
     await store.resolve('photos/second.jpg');
 
     expect(drive.list).toHaveBeenCalledTimes(4);
+  });
+
+  it('returns Drive byte size when resolving a photo', async () => {
+    const drive = fakeDrive();
+    folderAndFileResponses(drive);
+
+    const store = createPhotoStore(drive as unknown as DriveFilesApi, 'AeroDiary/photos');
+
+    await expect(store.resolve('photos/photo.jpg')).resolves.toMatchObject({
+      status: 'resolved',
+      sizeBytes: 1234,
+    });
   });
 
   it('reports duplicate filenames instead of choosing an arbitrary Drive file', async () => {

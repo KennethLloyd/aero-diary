@@ -27,6 +27,8 @@ model User {
   sessions      Session[]
   entries       Entry[]
   activities    Activity[]
+  stagedPhotos        StagedPhoto[]
+  stagedCancellations StagedPhotoCancellation[]
   createdAt     DateTime  @default(now())
 }
 
@@ -75,7 +77,6 @@ model EntryActivity {
   activity   Activity @relation(fields: [activityId], references: [id], onDelete: Restrict)
   @@id([entryId, activityId])
 }
-
 model Photo {
   id        String   @id @default(cuid())
   entryId   String
@@ -83,5 +84,35 @@ model Photo {
   drivePath String // e.g. "photos/<md5>.jpg" — relative to the AeroDiary Drive folder
   driveFileId String? // Drive file id for unambiguous new-upload reads/deletes
   mimeType  String
+  sizeBytes Int?
   createdAt DateTime @default(now())
+}
+
+model StagedPhoto {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  draftKey    String
+  clientKey   String
+  drivePath   String
+  driveFileId String
+  mimeType    String
+  sizeBytes   Int
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, draftKey, clientKey])
+  @@index([userId, draftKey, createdAt])
+}
+
+model StagedPhotoCancellation {
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  draftKey  String
+  clientKey String
+  stagedPhotoId String?  @unique
+  createdAt     DateTime @default(now())
+  expired       Boolean  @default(false)
+
+  @@id([userId, draftKey, clientKey])
+  @@index([createdAt])
 }

@@ -26,7 +26,7 @@ export type UploadedPhoto = {
 }
 
 export type DrivePhotoResolution =
-  | { status: 'resolved'; drivePath: string; fileId: string; mimeType: string }
+  | { status: 'resolved'; drivePath: string; fileId: string; mimeType: string; sizeBytes: number | null }
   | { status: 'missing'; drivePath: string }
   | { status: 'duplicate'; drivePath: string; fileIds: string[] }
 
@@ -171,7 +171,7 @@ export function createPhotoStore(drive: DriveFilesApi, photosRoot: string): Phot
     if (!folderId) return { status: 'missing', drivePath };
 
     const response = await drive.list({
-      fields: 'files(id,name,mimeType)',
+      fields: 'files(id,name,mimeType,size)',
       pageSize: 1000,
       q: queryForFile(name, folderId),
       spaces: 'drive',
@@ -194,6 +194,7 @@ export function createPhotoStore(drive: DriveFilesApi, photosRoot: string): Phot
       drivePath,
       fileId: id,
       mimeType: file.mimeType ?? 'application/octet-stream',
+      sizeBytes: file.size == null ? null : Number(file.size),
     };
   }
 
