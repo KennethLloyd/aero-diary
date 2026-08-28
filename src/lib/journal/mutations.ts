@@ -8,6 +8,7 @@ type EntryPhotoInput = {
   drivePath: string
   fileId: string | null
   mimeType: string
+  sizeBytes: number | null
 }
 
 type EntryMutationInput = {
@@ -24,10 +25,11 @@ function activityWrites(activityIds: string[]) {
 }
 
 function photoWrites(photos: EntryPhotoInput[]) {
-  return photos.map(({ drivePath, fileId, mimeType }) => ({
+  return photos.map(({ drivePath, fileId, mimeType, sizeBytes }) => ({
     driveFileId: fileId,
     drivePath,
     mimeType,
+    sizeBytes,
   }));
 }
 
@@ -39,8 +41,10 @@ function entryContentWrites(input: EntryMutationInput) {
   };
 }
 
+type JournalDatabase = Pick<PrismaClient, 'entry'>;
+
 export function createJournalEntry(
-  database: PrismaClient,
+  database: JournalDatabase,
   input: EntryMutationInput & { userId: string; journalDate: JournalDate },
 ) {
   return database.entry.create({
@@ -54,7 +58,7 @@ export function createJournalEntry(
 }
 
 export function updateJournalEntry(
-  database: PrismaClient,
+  database: JournalDatabase,
   entryId: string,
   input: EntryMutationInput,
 ) {

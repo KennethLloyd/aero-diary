@@ -48,6 +48,7 @@ async function EditEntryContent({ params }: EditEntryPageProps) {
         mood: entry.mood,
         note: entry.note,
         activityIds: entry.activities.map(({ activityId }) => activityId),
+        photos: entry.photos,
       }}
     />
   );

@@ -49,6 +49,31 @@ export const photoIdSchema = z
   .min(1, { error: 'Photo not found.' })
   .max(100, { error: 'Photo not found.' });
 
+export const stagedPhotoIdSchema = z
+  .string({ error: 'Photo upload not found.' })
+  .trim()
+  .min(1, { error: 'Photo upload not found.' })
+  .max(100, { error: 'Photo upload not found.' });
+
+export const photoStagingKeySchema = z
+  .string({ error: 'Photo upload is invalid.' })
+  .trim()
+  .min(1, { error: 'Photo upload is invalid.' })
+  .max(100, { error: 'Photo upload is invalid.' });
+
+export const photoStageUploadResponseSchema = z.object({
+  id: stagedPhotoIdSchema,
+  status: z.literal('ready'),
+});
+
+export const photoStageDeleteResponseSchema = z.object({
+  deleted: z.literal(true),
+});
+
+export const photoStageErrorResponseSchema = z.object({
+  error: z.string().trim().min(1).max(500),
+});
+
 export const monthParamSchema = z
   .string({ error: 'Invalid month.' })
   .regex(/^\d{4}-(0[1-9]|1[0-2])$/, { error: 'Invalid month.' });
