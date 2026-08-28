@@ -1,3 +1,5 @@
+import 'server-only';
+
 import type { LlmClient } from './llm-client';
 import type { ActivityOption } from './types';
 import { z } from 'zod';
@@ -7,10 +9,10 @@ export const MAX_INFERRED_ACTIVITY_COUNT = 5;
 type ClassificationActivity = Pick<ActivityOption, 'id' | 'name'>;
 
 const classificationResponseSchema = z.object({
-  activityIds: z
-    .array(z.string().trim().min(1).max(100))
-    .max(MAX_INFERRED_ACTIVITY_COUNT),
+  activityIds: z.array(z.unknown()).max(100),
 }).strict();
+
+const inferredActivityIdSchema = z.string().trim().min(1).max(100);
 
 function classificationSystemPrompt(activities: readonly ClassificationActivity[]): string {
   return [
@@ -42,7 +44,13 @@ export function parseInferredActivityIds(
   if (!parsed.success) throw new Error('LLM returned invalid activity classification.');
 
   const availableIds = new Set(activities.map((activity) => activity.id));
-  return [...new Set(parsed.data.activityIds)].filter((activityId) => availableIds.has(activityId));
+  const validIds = parsed.data.activityIds.flatMap((candidate) => {
+    const parsedId = inferredActivityIdSchema.safeParse(candidate);
+    return parsedId.success ? [parsedId.data] : [];
+  });
+  return [...new Set(validIds)]
+    .filter((activityId) => availableIds.has(activityId))
+    .slice(0, MAX_INFERRED_ACTIVITY_COUNT);
 }
 
 export async function classifyJournalActivities(
