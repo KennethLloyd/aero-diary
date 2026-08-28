@@ -1,9 +1,8 @@
 import type { Prisma, PrismaClient } from '@/generated/prisma/client';
 import { provisionUser } from '@/lib/auth/provision-user';
 import type { DemoCredentials } from '@/lib/auth/demo-config';
-
+import { addJournalDays, journalDateFromDate, type JournalDate } from '@/lib/journal/dates';
 const DAY_MS = 24 * 60 * 60 * 1000;
-const DEMO_LOCAL_OFFSET = 8 * 60;
 
 const DEMO_ACTIVITIES = [
   { name: 'Morning walk', emoji: '🚶', sortOrder: 0 },
@@ -39,8 +38,7 @@ type DemoPhoto = {
 }
 
 export type DemoSeedEntry = {
-  date: Date
-  localOffset: number
+  journalDate: JournalDate
   mood: DemoMood
   note: string
   activityNames: readonly string[]
@@ -58,17 +56,16 @@ const DEMO_PHOTOS: ReadonlyMap<number, DemoPhoto[]> = new Map([
   [75, [{ drivePath: 'photos/demo-sky.jpg', mimeType: 'image/jpeg' }]],
 ]);
 
-function seedEndDate(now: Date): Date {
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 12));
+function seedEndDateKey(now: Date): JournalDate {
+  return journalDateFromDate(now);
 }
 
 export function buildDemoDataset(now = new Date()): DemoSeedDataset {
-  const endDate = seedEndDate(now);
+  const endDate = new Date(`${seedEndDateKey(now)}T00:00:00.000Z`);
   const entries = Array.from({ length: 90 }, (_, index) => {
     const template = ENTRY_TEMPLATES[index % ENTRY_TEMPLATES.length];
     return {
-      date: new Date(endDate.getTime() - (89 - index) * DAY_MS),
-      localOffset: DEMO_LOCAL_OFFSET,
+      journalDate: journalDateFromDate(new Date(endDate.getTime() - (89 - index) * DAY_MS)),
       mood: MOOD_CYCLE[index % MOOD_CYCLE.length],
       note: template.note,
       activityNames: template.activityNames,
@@ -96,12 +93,12 @@ async function isExistingDemoDataset(
     }),
     database.entry.findMany({
       where: { userId },
-      orderBy: { date: 'asc' },
+      orderBy: { journalDate: 'asc' },
       select: {
         sourceId: true,
+        journalDate: true,
         mood: true,
         note: true,
-        localOffset: true,
         activities: {
           select: { activity: { select: { name: true, emoji: true } } },
         },
@@ -127,13 +124,21 @@ async function isExistingDemoDataset(
   });
   if (!activitiesMatch) return false;
 
+  const expectedFirstDate = expected.entries[0]?.journalDate;
+  const actualFirstDate = entries[0]?.journalDate;
+  if (!expectedFirstDate || !actualFirstDate) return false;
+  const expectedFirstTime = Date.parse(`${expectedFirstDate}T00:00:00.000Z`);
+  const actualFirstTime = Date.parse(`${actualFirstDate}T00:00:00.000Z`);
+  if (Number.isNaN(expectedFirstTime) || Number.isNaN(actualFirstTime)) return false;
+  const dateShift = Math.round((actualFirstTime - expectedFirstTime) / DAY_MS);
+
   return entries.every((entry, index) => {
     const expectedEntry = expected.entries[index];
     if (
-      entry.sourceId !== null
+      entry.journalDate !== addJournalDays(expectedEntry.journalDate, dateShift)
+      || entry.sourceId !== null
       || entry.mood !== expectedEntry.mood
       || entry.note !== expectedEntry.note
-      || entry.localOffset !== expectedEntry.localOffset
     ) {
       return false;
     }
@@ -214,8 +219,7 @@ export async function seedDemoData(
       await transaction.entry.create({
         data: {
           userId: user.id,
-          date: entryData.date,
-          localOffset: entryData.localOffset,
+          journalDate: entryData.journalDate,
           mood: entryData.mood,
           note: entryData.note,
           activities: {

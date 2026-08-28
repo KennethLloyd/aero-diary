@@ -1,15 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
+  addJournalDays,
+  formatDateKey,
   formatJournalDate,
-  getDateKey,
-  getJournalDateTime,
+  getTodayDateKey,
   isFutureDateKey,
   isValidDateKey,
+  journalDateFromDate,
+  parseJournalDate,
 } from '@/lib/journal/dates';
+
 
 describe('journal date utilities', () => {
   const now = new Date('2026-08-24T15:45:12.345Z');
-  const localOffset = -420;
 
   it('validates real calendar dates rather than only date-shaped strings', () => {
     expect(isValidDateKey('2026-08-24')).toBe(true);
@@ -18,21 +21,29 @@ describe('journal date utilities', () => {
     expect(isValidDateKey('2026-8-24')).toBe(false);
   });
 
-  it('builds a backdated UTC instant that keeps the selected local day', () => {
-    const stored = getJournalDateTime('2026-08-23', now, localOffset);
-
-    expect(stored).toEqual(new Date('2026-08-23T15:45:12.345Z'));
-    expect(getDateKey(stored, localOffset)).toBe('2026-08-23');
+  it('keeps journal dates canonical instead of deriving them from an instant', () => {
+    expect(getTodayDateKey(new Date('2026-08-24T23:45:12.345Z'))).toBe('2026-08-24');
+    expect(getTodayDateKey(new Date('2026-08-25T00:15:12.345Z'))).toBe('2026-08-25');
+    expect(journalDateFromDate(new Date('2026-08-24T23:45:12.345Z'))).toBe('2026-08-24');
   });
 
-  it('rejects only local dates after the current local date', () => {
-    expect(isFutureDateKey('2026-08-24', now, localOffset)).toBe(false);
-    expect(isFutureDateKey('2026-08-25', now, localOffset)).toBe(true);
-    expect(isFutureDateKey('2026-08-23', now, localOffset)).toBe(false);
+  it('parses only valid canonical journal dates', () => {
+    expect(parseJournalDate('2026-08-24')).toBe('2026-08-24');
+    expect(() => parseJournalDate('2026-02-30')).toThrow('Invalid journal date.');
+  });
+
+  it('moves canonical dates across month boundaries', () => {
+    expect(addJournalDays(parseJournalDate('2026-08-31'), 1)).toBe('2026-09-01');
+  });
+  it('rejects only date keys after the current UTC date', () => {
+    expect(isFutureDateKey(parseJournalDate('2026-08-24'), now)).toBe(false);
+    expect(isFutureDateKey(parseJournalDate('2026-08-25'), now)).toBe(true);
+    expect(isFutureDateKey(parseJournalDate('2026-08-23'), now)).toBe(false);
   });
 
   it('formats the selected date with a Today prefix only for today', () => {
-    expect(formatJournalDate('2026-08-24', '2026-08-24')).toBe('Today · Monday, August 24');
-    expect(formatJournalDate('2026-08-23', '2026-08-24')).toBe('Sunday, August 23');
+    expect(formatDateKey(parseJournalDate('2026-08-24'))).toBe('Monday, August 24, 2026');
+    expect(formatJournalDate(parseJournalDate('2026-08-24'), parseJournalDate('2026-08-24'))).toBe('Today · Monday, August 24, 2026');
+    expect(formatJournalDate(parseJournalDate('2026-08-23'), parseJournalDate('2026-08-24'))).toBe('Sunday, August 23, 2026');
   });
 });

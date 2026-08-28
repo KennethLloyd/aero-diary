@@ -21,8 +21,7 @@ describe('timeline pagination', () => {
     await testDb.entry.createMany({
       data: Array.from({ length: 55 }, (_, index) => ({
         userId: user.id,
-        date: new Date(Date.UTC(2026, 0, index + 1)),
-        localOffset: 480,
+        journalDate: new Date(Date.UTC(2026, 0, index + 1)).toISOString().slice(0, 10),
         mood: 'RAD' as const,
         note: `Entry ${index + 1}`,
       })),
@@ -30,8 +29,7 @@ describe('timeline pagination', () => {
     await testDb.entry.create({
       data: {
         userId: otherUser.id,
-        date: new Date('2026-12-31T00:00:00Z'),
-        localOffset: 0,
+        journalDate: '2026-12-31',
         mood: 'AWFUL',
         note: 'Other user entry.',
       },
@@ -49,6 +47,11 @@ describe('timeline pagination', () => {
     expect(thirdPage.entries).toHaveLength(5);
     expect(thirdPage.nextCursor).toBeNull();
     expect(new Set(ids).size).toBe(55);
+    expect(firstPage.entries[0]).toMatchObject({
+      journalDate: '2026-02-24',
+      date: 'Tuesday, February 24, 2026',
+    });
+    expect(firstPage.entries[0]).not.toHaveProperty('time');
     expect(firstPage.entries.at(-1)?.note).toBe('Entry 31');
     expect(secondPage.entries[0]?.note).toBe('Entry 30');
     expect(secondPage.entries.at(-1)?.note).toBe('Entry 6');

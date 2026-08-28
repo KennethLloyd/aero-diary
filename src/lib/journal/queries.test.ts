@@ -26,7 +26,7 @@ describe('journal queries', () => {
     vi.clearAllMocks();
   });
 
-  it('lists only the current user’s entries in the selected local month', async () => {
+  it('lists only the current user’s entries in the selected canonical month', async () => {
     const user = await testDb.user.create({
       data: { email: 'ken@example.com', passwordHash: 'x' },
     });
@@ -40,27 +40,24 @@ describe('journal queries', () => {
     const selectedEntry = await testDb.entry.create({
       data: {
         userId: user.id,
-        date: new Date('2026-07-31T23:30:00.000Z'),
-        localOffset: 120,
+        journalDate: '2026-08-01',
         mood: 'RAD',
-        note: 'Local August entry.',
+        note: 'August entry.',
         activities: { create: [{ activityId: activity.id }] },
       },
     });
     await testDb.entry.create({
       data: {
         userId: user.id,
-        date: new Date('2026-08-31T23:30:00.000Z'),
-        localOffset: 0,
+        journalDate: '2026-08-31',
         mood: 'GOOD',
-        note: 'Local August entry two.',
+        note: 'August entry two.',
       },
     });
     await testDb.entry.create({
       data: {
         userId: user.id,
-        date: new Date('2026-09-01T00:00:00.000Z'),
-        localOffset: 0,
+        journalDate: '2026-09-01',
         mood: 'MEH',
         note: 'September entry.',
       },
@@ -68,8 +65,7 @@ describe('journal queries', () => {
     await testDb.entry.create({
       data: {
         userId: otherUser.id,
-        date: new Date('2026-08-10T00:00:00.000Z'),
-        localOffset: 0,
+        journalDate: '2026-08-10',
         mood: 'AWFUL',
         note: 'Private entry.',
       },
@@ -84,7 +80,7 @@ describe('journal queries', () => {
       expect.arrayContaining([
         expect.objectContaining({
           id: selectedEntry.id,
-          date: selectedEntry.date,
+          journalDate: '2026-08-01',
           activities: [
             {
               activityId: activity.id,
@@ -94,7 +90,7 @@ describe('journal queries', () => {
         }),
         expect.objectContaining({
           mood: 'GOOD',
-          localOffset: 0,
+          journalDate: '2026-08-31',
         }),
       ]),
     );
@@ -133,8 +129,7 @@ describe('journal queries', () => {
     const entry = await testDb.entry.create({
       data: {
         userId: otherUser.id,
-        date: new Date('2026-08-18T10:00:00.000Z'),
-        localOffset: 480,
+        journalDate: '2026-08-18',
         mood: 'RAD',
         note: 'Private note.',
       },

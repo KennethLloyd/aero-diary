@@ -13,14 +13,13 @@ describe('journal schemas', () => {
       note: '  A good day.  ',
       activityIds: ['activity-1'],
       journalDate: ' 2026-08-24 ',
-      localOffset: '480',
     });
 
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.note).toBe('A good day.');
       expect(result.data.journalDate).toBe('2026-08-24');
-      expect(result.data.localOffset).toBe(480);
+      expect(result.data).not.toHaveProperty('localOffset');
     }
   });
 

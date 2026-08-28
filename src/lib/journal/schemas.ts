@@ -1,6 +1,7 @@
 import { z } from 'zod';
-import { isValidDateKey } from '@/lib/journal/dates';
+import { isValidDateKey, parseJournalDate, type JournalDate } from '@/lib/journal/dates';
 import { Mood } from '@/generated/prisma/enums';
+
 const MOOD_VALUES = [
   Mood.AWFUL,
   Mood.BAD,
@@ -14,7 +15,8 @@ export const timelineMoodSchema = z.enum(MOOD_VALUES);
 export const journalDateSchema = z
   .string({ error: 'Choose a valid journal date.' })
   .trim()
-  .refine(isValidDateKey, { error: 'Choose a valid journal date.' });
+  .refine(isValidDateKey, { error: 'Choose a valid journal date.' })
+  .transform((value): JournalDate => parseJournalDate(value));
 
 export const createEntrySchema = z.object({
   mood: z.enum(MOOD_VALUES, { error: 'Choose a mood.' }),
@@ -27,13 +29,9 @@ export const createEntrySchema = z.object({
     .array(z.string().trim().min(1).max(100))
     .max(100, { error: 'Choose fewer activities.' }),
   journalDate: journalDateSchema.optional(),
-  localOffset: z.coerce
-    .number({ error: 'Invalid local time.' })
-    .int()
-    .min(-840)
-    .max(840)
-    .optional(),
 });
+
+export const updateEntrySchema = createEntrySchema.omit({ journalDate: true });
 
 export const polishEntrySchema = createEntrySchema.pick({ note: true });
 

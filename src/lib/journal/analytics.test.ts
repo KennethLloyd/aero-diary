@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { parseJournalDate } from '@/lib/journal/dates';
 import { Mood } from '@/generated/prisma/enums';
 import {
   buildCalendarGrid,
-  getEntryDateKey,
   getMonthFromParam,
   getNextMonth,
   getPreviousMonth,
@@ -12,12 +12,11 @@ import {
 
 function entry(
   id: string,
-  date: string,
+  journalDate: string,
   mood: Mood,
   activities: JournalEntry['activities'] = [],
-  localOffset = 0,
 ): JournalEntry {
-  return { id, date: new Date(date), localOffset, mood, activities };
+  return { id, journalDate: parseJournalDate(journalDate), mood, activities };
 }
 
 describe('journal analytics', () => {
@@ -32,6 +31,9 @@ describe('journal analytics', () => {
       year: 2026,
       month: 8,
     });
+    expect(getMonthFromParam(undefined, new Date('2026-08-31T23:30:00-07:00'))).toMatchObject({
+      key: '2026-09',
+    });
   });
 
   it('moves calendar navigation across year boundaries', () => {
@@ -44,11 +46,11 @@ describe('journal analytics', () => {
     const month = getMonthFromParam('2026-08', new Date('2026-08-19T00:00:00.000Z'));
     const grid = buildCalendarGrid(
       [
-        entry('entry-1', '2026-08-18T10:00:00.000Z', Mood.GOOD, [], 480),
-        entry('entry-2', '2026-08-19T01:00:00.000Z', Mood.RAD),
+        entry('entry-1', '2026-08-18', Mood.GOOD),
+        entry('entry-2', '2026-08-19', Mood.RAD),
       ],
       month,
-      '2026-08-19',
+      parseJournalDate('2026-08-19'),
     );
 
     expect(grid).toHaveLength(42);
@@ -63,21 +65,18 @@ describe('journal analytics', () => {
       entryIds: ['entry-2'],
       moods: [Mood.RAD],
     });
-    expect(getEntryDateKey(entry('local', '2026-07-31T23:30:00.000Z', Mood.MEH, [], 120))).toBe(
-      '2026-08-01',
-    );
   });
 
   it('summarizes all five moods and ranks activities by entry count', () => {
     const insights = summarizeInsights([
-      entry('one', '2026-08-01T00:00:00.000Z', Mood.RAD, [
+      entry('one', '2026-08-01', Mood.RAD, [
         { activityId: 'work', activity: { name: 'Work', emoji: '💻' } },
         { activityId: 'trail', activity: { name: 'Trail', emoji: '🌲' } },
       ]),
-      entry('two', '2026-08-02T00:00:00.000Z', Mood.RAD, [
+      entry('two', '2026-08-02', Mood.RAD, [
         { activityId: 'work', activity: { name: 'Work', emoji: '💻' } },
       ]),
-      entry('three', '2026-08-03T00:00:00.000Z', Mood.BAD, [
+      entry('three', '2026-08-03', Mood.BAD, [
         { activityId: 'trail', activity: { name: 'Trail', emoji: '🌲' } },
       ]),
     ]);

@@ -4,11 +4,8 @@ import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/lib/db';
 import { verifySession } from '@/lib/dal';
 import type { Mood } from '@/generated/prisma/enums';
-import {
-  getEntryDateKey,
-  type CalendarMonth,
-  type JournalEntry,
-} from '@/lib/journal/analytics';
+import { parseJournalDate, type JournalDate } from '@/lib/journal/dates';
+import { type CalendarMonth, type JournalEntry } from '@/lib/journal/analytics';
 import {
   activityOptionsCacheTag,
   calendarCacheTag,
@@ -19,8 +16,8 @@ import type { ActivityOption } from '@/lib/journal/types';
 
 export type EntryDetailView = {
   id: string
-  date: string
-  localOffset: number
+  journalDate: JournalDate
+  updatedAt: string
   mood: Mood
   note: string
   activities: { activityId: string; activity: { emoji: string; name: string } }[]
@@ -66,13 +63,20 @@ export async function getEntriesForMonthForUser(
   cacheLife('journal');
   cacheTag(calendarCacheTag(userId), insightsCacheTag(userId));
 
+  const endYear = month.month === 12 ? month.year + 1 : month.year;
+  const endMonth = month.month === 12 ? 1 : month.month + 1;
   const entries = await db.entry.findMany({
-    where: { userId },
-    orderBy: { date: 'desc' },
+    where: {
+      userId,
+      journalDate: {
+        gte: `${month.key}-01`,
+        lt: `${endYear}-${String(endMonth).padStart(2, '0')}-01`,
+      },
+    },
+    orderBy: [{ journalDate: 'desc' }, { id: 'desc' }],
     select: {
       id: true,
-      date: true,
-      localOffset: true,
+      journalDate: true,
       mood: true,
       activities: {
         select: {
@@ -83,18 +87,15 @@ export async function getEntriesForMonthForUser(
     },
   });
 
-  return entries
-    .filter((entry) => getEntryDateKey(entry).startsWith(`${month.key}-`))
-    .map((entry) => ({
-      id: entry.id,
-      date: new Date(entry.date),
-      localOffset: entry.localOffset,
-      mood: entry.mood,
-      activities: entry.activities.map((activity) => ({
-        activityId: activity.activityId,
-        activity: { ...activity.activity },
-      })),
-    }));
+  return entries.map((entry) => ({
+    id: entry.id,
+    journalDate: parseJournalDate(entry.journalDate),
+    mood: entry.mood,
+    activities: entry.activities.map((activity) => ({
+      activityId: activity.activityId,
+      activity: { ...activity.activity },
+    })),
+  }));
 }
 
 export async function listEntriesForMonth(month: CalendarMonth): Promise<JournalEntry[]> {
@@ -121,8 +122,8 @@ export async function getEntryDetailForUser(
 
   return {
     id: entry.id,
-    date: entry.date.toISOString(),
-    localOffset: entry.localOffset,
+    journalDate: parseJournalDate(entry.journalDate),
+    updatedAt: entry.updatedAt.toISOString(),
     mood: entry.mood,
     note: entry.note,
     activities: entry.activities.map(({ activityId, activity }) => ({

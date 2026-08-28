@@ -9,6 +9,7 @@ import { DeleteEntryDialog } from '@/components/journal/DeleteEntryDialog';
 import { PhotoGallery } from '@/components/journal/PhotoGallery';
 import { verifySession } from '@/lib/dal';
 import { splitJournalNoteParagraphs } from '@/lib/journal/notes';
+import { formatDateKey } from '@/lib/journal/dates';
 import { getEntryDetailForUser } from '@/lib/journal/queries';
 import { entryIdSchema } from '@/lib/journal/schemas';
 import type { Mood } from '@/generated/prisma/enums';
@@ -22,22 +23,6 @@ const MOOD_LABEL: Record<Mood, string> = {
   RAD: 'Rad',
 };
 
-function formatEntryTimestamp(date: Date, localOffset: number) {
-  const local = new Date(date.getTime() + localOffset * 60_000);
-  const dateFormatter = new Intl.DateTimeFormat('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-    timeZone: 'UTC',
-  });
-  const timeFormatter = new Intl.DateTimeFormat('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZone: 'UTC',
-  });
-  return `${dateFormatter.format(local)} · ${timeFormatter.format(local)}`;
-}
 
 type EntryDetailPageProps = {
   params: Promise<{ id: string }>
@@ -89,10 +74,10 @@ async function EntryDetailContent({ params }: EntryDetailPageProps) {
           {/* Metadata & Mood Header */}
           <section className="space-y-3 border-b border-white/60 pb-4" aria-labelledby="entry-mood-heading">
             <time
-              dateTime={entry.date}
+              dateTime={entry.journalDate}
               className="block text-xs font-bold uppercase tracking-wider text-[#2b4c73]"
             >
-              {formatEntryTimestamp(new Date(entry.date), entry.localOffset)}
+              {formatDateKey(entry.journalDate)}
             </time>
 
             <div className="flex items-center gap-3.5 pt-0.5">

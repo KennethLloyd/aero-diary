@@ -87,13 +87,15 @@ export function TimelineList({
             className="aero-card group block p-4 transition-all duration-200 hover:scale-[1.01] hover:shadow-lg active:scale-[0.99]"
           >
             <div className="relative z-10 timeline-entry-layout">
-              {/* Left column: Mood Orb + Date/Time */}
+              {/* Left column: Mood Orb + Date */}
               <div className="timeline-entry-meta">
                 <AeroOrb mood={entry.mood} className="drop-shadow" />
                 <div className="timeline-entry-date-group">
-                  <h3 className="text-sm font-bold text-[#0a2f5c] sm:text-base">{entry.date}</h3>
-                  <time dateTime={entry.dateTime} className="text-xs font-semibold text-[#2b4c73]/80">
-                    {entry.time}
+                  <time
+                    dateTime={entry.journalDate}
+                    className="text-sm font-bold text-[#0a2f5c] sm:text-base"
+                  >
+                    {entry.date}
                   </time>
                 </div>
               </div>

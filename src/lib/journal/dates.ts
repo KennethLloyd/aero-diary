@@ -1,5 +1,6 @@
-const MS_PER_MINUTE = 60_000;
 const DATE_KEY_PATTERN = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+
+export type JournalDate = string & { readonly __journalDateBrand: unique symbol };
 
 export function isValidDateKey(value: string): boolean {
   if (!DATE_KEY_PATTERN.test(value)) return false;
@@ -11,56 +12,42 @@ export function isValidDateKey(value: string): boolean {
     && date.getUTCDate() === day;
 }
 
-export function getDateKey(date: Date, localOffset: number): string {
-  return new Date(date.getTime() + localOffset * MS_PER_MINUTE).toISOString().slice(0, 10);
+export function parseJournalDate(value: string): JournalDate {
+  if (!isValidDateKey(value)) throw new Error('Invalid journal date.');
+  return value as JournalDate;
 }
 
-export function getTodayDateKey(now = new Date(), localOffset = -now.getTimezoneOffset()): string {
-  return getDateKey(now, localOffset);
+export function journalDateFromDate(date: Date): JournalDate {
+  return parseJournalDate(date.toISOString().slice(0, 10));
+}
+export function addJournalDays(dateKey: JournalDate, days: number): JournalDate {
+  const date = new Date(`${dateKey}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return journalDateFromDate(date);
 }
 
-export function getJournalDateTime(
-  dateKey: string,
-  now: Date,
-  localOffset: number,
-): Date {
-  if (!isValidDateKey(dateKey)) throw new Error('Invalid journal date.');
 
-  const [year, month, day] = dateKey.split('-').map(Number);
-  const localNow = new Date(now.getTime() + localOffset * MS_PER_MINUTE);
-  const utcMillis = Date.UTC(
-    year,
-    month - 1,
-    day,
-    localNow.getUTCHours(),
-    localNow.getUTCMinutes(),
-    localNow.getUTCSeconds(),
-    localNow.getUTCMilliseconds(),
-  );
-
-  return new Date(utcMillis - localOffset * MS_PER_MINUTE);
+export function getTodayDateKey(now = new Date()): JournalDate {
+  return journalDateFromDate(now);
 }
 
-export function isFutureDateKey(
-  dateKey: string,
-  now: Date,
-  localOffset: number,
-): boolean {
-  return dateKey > getTodayDateKey(now, localOffset);
+export function isFutureDateKey(dateKey: JournalDate, now: Date): boolean {
+  return dateKey > getTodayDateKey(now);
 }
 
-export function formatDateKey(dateKey: string): string {
+export function formatDateKey(dateKey: JournalDate): string {
   if (!isValidDateKey(dateKey)) return '';
   const [year, month, day] = dateKey.split('-').map(Number);
   return new Intl.DateTimeFormat('en-US', {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
+    year: 'numeric',
     timeZone: 'UTC',
   }).format(new Date(Date.UTC(year, month - 1, day)));
 }
 
-export function formatJournalDate(dateKey: string, todayDateKey: string): string {
+export function formatJournalDate(dateKey: JournalDate, todayDateKey: JournalDate): string {
   const label = formatDateKey(dateKey);
   return dateKey === todayDateKey ? `Today · ${label}` : label;
 }

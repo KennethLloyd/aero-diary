@@ -1,14 +1,9 @@
 'use server';
 
-import { revalidatePath, updateTag } from 'next/cache';
+import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { verifySession } from '@/lib/dal';
-import {
-  activityOptionsCacheTag,
-  calendarCacheTag,
-  insightsCacheTag,
-  timelineCacheTag,
-} from '@/lib/journal/cache-tags';
+import { invalidateActivityReads } from '@/lib/journal/cache';
 import {
   activityIdSchema,
   activitySchema,
@@ -19,12 +14,6 @@ export type ActivityState = { error?: string; success?: string } | undefined
 const DUPLICATE_ACTIVITY = 'An activity with that name already exists.';
 const SAVE_FAILED = 'Unable to save that activity. Please try again.';
 
-function invalidateActivityReads(userId: string) {
-  updateTag(activityOptionsCacheTag(userId));
-  updateTag(timelineCacheTag(userId));
-  updateTag(calendarCacheTag(userId));
-  updateTag(insightsCacheTag(userId));
-}
 
 function activityFormData(formData: FormData) {
   return {

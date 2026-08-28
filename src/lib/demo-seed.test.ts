@@ -46,8 +46,7 @@ describe('demo seed', () => {
     await testDb.entry.create({
       data: {
         userId: real.id,
-        date: SEED_DATE,
-        localOffset: 480,
+        journalDate: '2026-08-21',
         mood: 'RAD',
         note: 'Private journal note.',
         activities: { create: [{ activity: { connect: { id: realActivity.id } } }] },
@@ -82,8 +81,7 @@ describe('demo seed', () => {
     await testDb.entry.create({
       data: {
         userId: real.id,
-        date: SEED_DATE,
-        localOffset: 480,
+        journalDate: '2026-08-21',
         mood: 'GOOD',
         note: 'This must remain private.',
       },
@@ -100,5 +98,20 @@ describe('demo seed', () => {
     expect(unchanged?.entries).toHaveLength(1);
     expect(unchanged?.entries[0]?.note).toBe('This must remain private.');
     expect(await verifyPassword('real-password', unchanged?.passwordHash ?? '')).toBe(true);
+  });
+
+  it('refuses a content-matching dataset with inconsistent journal dates', async () => {
+    await seedDemoData(testDb, { email: DEMO_EMAIL, password: DEMO_PASSWORD }, SEED_DATE);
+    const lastEntry = await testDb.entry.findFirst({ orderBy: { journalDate: 'desc' } });
+    expect(lastEntry).not.toBeNull();
+    if (!lastEntry) throw new Error('Expected seeded demo entry.');
+    await testDb.entry.update({
+      where: { id: lastEntry.id },
+      data: { journalDate: '2026-08-23' },
+    });
+
+    await expect(
+      seedDemoData(testDb, { email: DEMO_EMAIL, password: DEMO_PASSWORD }, SEED_DATE),
+    ).rejects.toThrow('Seeding stopped without changing it');
   });
 });
