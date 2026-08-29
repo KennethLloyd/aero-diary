@@ -2,10 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-
-type AeroDockProps = {
-  hideNearSave?: boolean
-}
+import { useAeroDockVisibility } from '@/components/aero/AeroDockVisibility';
 
 // Bottom navigation for the journal screens with icons + labels.
 const DOCK_ITEMS = [
@@ -16,13 +13,15 @@ const DOCK_ITEMS = [
   { href: '/settings', label: 'Settings', icon: '⚙️', match: (path: string) => path === '/settings' || path.startsWith('/activities') },
 ];
 
-export function AeroDock({ hideNearSave = false }: AeroDockProps) {
+export function AeroDock() {
   const pathname = usePathname();
+  const { hidden } = useAeroDockVisibility();
 
   return (
     <nav
-      className="aero-dock"
-      data-hide-near-save={hideNearSave || undefined}
+      className={`aero-dock${hidden ? ' aero-dock-hidden' : ''}`}
+      aria-hidden={hidden || undefined}
+      inert={hidden || undefined}
       aria-label="Main navigation"
     >
       {DOCK_ITEMS.map((item) => {
