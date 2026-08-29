@@ -54,6 +54,17 @@ test('photo attachments cover empty, partial, and full capacity on mobile and de
         if (photoCount > 0) {
           await expect(page.getByRole('button', { name: 'View photo 1' })).toBeVisible();
           await expect(page.getByRole('button', { name: `View photo ${photoCount}` })).toBeVisible();
+          await page.getByRole('button', { name: 'View photo 1' }).click();
+          const viewer = page.getByRole('dialog');
+          const dock = page.locator('.aero-dock');
+          await expect(viewer).toBeVisible();
+          await expect(dock).toHaveAttribute('aria-hidden', 'true');
+          await expect(dock).toHaveAttribute('inert', '');
+          await page.keyboard.press('Escape');
+          await expect(viewer).not.toBeVisible();
+          await expect(dock).not.toHaveAttribute('aria-hidden');
+          await expect(dock).not.toHaveAttribute('inert');
+          await expect(page.getByRole('button', { name: 'View photo 1' })).toBeFocused();
         }
         await page.getByRole('link', { name: 'Edit' }).click();
         await expect(page).toHaveURL(/\/timeline\/[^/]+\/edit$/);

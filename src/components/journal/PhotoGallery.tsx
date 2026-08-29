@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { useEffect, useRef, useState, type MouseEvent, type RefObject } from 'react';
 import { DeletePhotoButton } from '@/components/journal/DeletePhotoButton';
+import { useAeroDockHidden } from '@/components/aero/AeroDockVisibility';
 
 export type PhotoGalleryPhoto = {
   id: string
@@ -91,7 +92,16 @@ function usePhotoViewerFocus(
       : null;
     const previousBodyOverflow = document.body.style.overflow;
     const dialog = dialogRef.current;
+    const scrollContainer = dialog?.closest<HTMLElement>('.aero-screen-content');
+    const previousContentOverflow = scrollContainer?.style.overflowY;
+    const previousContentOverscrollBehavior = scrollContainer?.style.overscrollBehavior;
+
     document.body.style.overflow = 'hidden';
+    if (scrollContainer) {
+      scrollContainer.style.overflowY = 'hidden';
+      scrollContainer.style.overscrollBehavior = 'none';
+    }
+
     const initialFocus = dialog?.querySelector<HTMLElement>('[data-autofocus]')
       ?? dialog?.querySelector<HTMLElement>(FOCUSABLE);
     initialFocus?.focus();
@@ -105,16 +115,24 @@ function usePhotoViewerFocus(
       }
       if (event.key === 'Tab' && dialog) {
         const focusable = [...dialog.querySelectorAll<HTMLElement>(FOCUSABLE)];
+        if (focusable.length === 0) {
+          event.preventDefault();
+          dialog.focus();
+          return;
+        }
+
         const first = focusable[0];
         const last = focusable.at(-1);
-        if (first && last) {
-          if (event.shiftKey && document.activeElement === first) {
-            event.preventDefault();
-            last.focus();
-          } else if (!event.shiftKey && document.activeElement === last) {
-            event.preventDefault();
-            first.focus();
-          }
+        if (!first || !last) return;
+        if (!dialog.contains(document.activeElement)) {
+          event.preventDefault();
+          (event.shiftKey ? last : first).focus();
+        } else if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
         }
       }
       if (currentIndex === null || photosRef.current.length < 2) return;
@@ -132,6 +150,10 @@ function usePhotoViewerFocus(
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = previousBodyOverflow;
+      if (scrollContainer) {
+        scrollContainer.style.overflowY = previousContentOverflow ?? '';
+        scrollContainer.style.overscrollBehavior = previousContentOverscrollBehavior ?? '';
+      }
       if (previouslyFocused?.isConnected) previouslyFocused.focus();
     };
   }, [activeIndexRef, dialogRef, photosRef, setActiveIndex, viewerOpen]);
@@ -157,6 +179,7 @@ export function PhotoGallery({ photos }: { photos: PhotoGalleryPhoto[] }) {
     setActiveIndex(null);
   }
 
+  useAeroDockHidden('photo-viewer', viewerOpen);
   usePhotoViewerFocus(viewerOpen, dialogRef, closeViewer, activeIndexRef, photosRef, setActiveIndex);
 
   function changePhoto(direction: -1 | 1) {
@@ -199,13 +222,14 @@ export function PhotoGallery({ photos }: { photos: PhotoGalleryPhoto[] }) {
 
       {activePhoto && viewIndex !== null ? (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-[#061b35]/85 p-3 backdrop-blur-md sm:p-6"
+          className="aero-photo-viewer-backdrop fixed inset-0 z-[1100] flex items-center justify-center bg-[#061b35]/85 backdrop-blur-md"
           role="presentation"
           onClick={handleBackdropClick}
         >
           <section
             ref={dialogRef}
             className="aero-photo-viewer flex max-h-[calc(100vh-1.5rem)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl sm:max-h-[calc(100vh-3rem)]"
+            tabIndex={-1}
             role="dialog"
             aria-modal="true"
             aria-labelledby="photo-viewer-title"

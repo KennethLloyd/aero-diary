@@ -21,6 +21,7 @@ import {
 } from '@/actions/entries';
 import { polishEntry, type PolishEntryState } from '@/actions/polish';
 import { AeroButton } from '@/components/aero/AeroButton';
+import { useAeroDockVisibility } from '@/components/aero/AeroDockVisibility';
 import { AeroOrb } from '@/components/aero/AeroOrb';
 import { Mood } from '@/generated/prisma/enums';
 import {
@@ -132,6 +133,7 @@ export function NewEntryForm({
   const removedPhotoKeysRef = useRef(new Set<string>());
   const stagedPhotosRef = useRef(stagedPhotos);
   const draftKeyRef = useRef(draftKey);
+  const { setHidden: setDockHidden } = useAeroDockVisibility();
 
   useEffect(() => {
     stagedPhotosRef.current = stagedPhotos;
@@ -162,27 +164,12 @@ export function NewEntryForm({
 
   useEffect(() => {
     const sentinel = saveSentinelRef.current;
-    if (
-      !sentinel
-      || typeof IntersectionObserver === 'undefined'
-      || typeof MutationObserver === 'undefined'
-    ) return;
+    if (!sentinel || typeof IntersectionObserver === 'undefined') return;
 
     const root = sentinel.closest<HTMLElement>('.aero-screen-content');
     const observer = new IntersectionObserver(
       ([entry]) => {
-        const isNearSave = entry?.isIntersecting ?? false;
-        const dock = document.querySelector<HTMLElement>('.aero-dock[data-hide-near-save]');
-        if (!dock) return;
-
-        dock.classList.toggle('aero-dock-hidden', isNearSave);
-        if (isNearSave) {
-          dock.setAttribute('aria-hidden', 'true');
-          dock.setAttribute('inert', '');
-        } else {
-          dock.removeAttribute('aria-hidden');
-          dock.removeAttribute('inert');
-        }
+        setDockHidden('near-save', entry?.isIntersecting ?? false);
       },
       {
         root,
@@ -190,22 +177,13 @@ export function NewEntryForm({
         threshold: 0.25,
       },
     );
-
-    const connectObserver = () => {
-      const dock = document.querySelector('.aero-dock[data-hide-near-save]');
-      if (!dock) return;
-      observer.observe(sentinel);
-      mutationObserver.disconnect();
-    };
-    const mutationObserver = new MutationObserver(connectObserver);
-    mutationObserver.observe(document.body, { childList: true, subtree: true });
-    connectObserver();
+    observer.observe(sentinel);
 
     return () => {
-      mutationObserver.disconnect();
       observer.disconnect();
+      setDockHidden('near-save', false);
     };
-  }, []);
+  }, [setDockHidden]);
 
   function toggleActivity(activityId: string) {
     setSelectedActivityIds((selected) => {

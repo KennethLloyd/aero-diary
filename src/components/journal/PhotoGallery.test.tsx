@@ -1,10 +1,17 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { AeroDock } from '@/components/aero/AeroDock';
+import { AeroDockVisibilityProvider } from '@/components/aero/AeroDockVisibility';
 import { PhotoGallery } from '@/components/journal/PhotoGallery';
 
 vi.mock('@/actions/entries', () => ({
   deletePhoto: vi.fn(),
 }));
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/timeline',
+}));
+
+afterEach(() => cleanup());
 
 const photos = [
   { id: 'photo-1' },
@@ -30,6 +37,26 @@ describe('PhotoGallery', () => {
     expect(screen.queryByText('No photos attached yet.')).not.toBeInTheDocument();
   });
 
+  it('hides and restores the dock around the immersive viewer', () => {
+    render(
+      <AeroDockVisibilityProvider>
+        <AeroDock />
+        <PhotoGallery photos={photos} />
+      </AeroDockVisibilityProvider>,
+    );
+
+    const dock = screen.getByRole('navigation');
+    fireEvent.click(screen.getAllByRole('button', { name: 'View photo 1' }).at(-1)!);
+
+    expect(dock).toHaveAttribute('aria-hidden', 'true');
+    expect(dock).toHaveAttribute('inert');
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(dock).not.toHaveAttribute('aria-hidden');
+    expect(dock).not.toHaveAttribute('inert');
+  });
+
   it('opens the viewer, navigates with the keyboard, and closes with Escape', () => {
     render(<PhotoGallery photos={photos} />);
 
@@ -47,6 +74,30 @@ describe('PhotoGallery', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
+  it('restores focus and the entry scroll position after closing', () => {
+    const { container } = render(
+      <div className="aero-screen-content" style={{ overflowY: 'auto' }}>
+        <PhotoGallery photos={photos} />
+      </div>,
+    );
+    const scrollRoot = container.firstElementChild as HTMLElement;
+    scrollRoot.scrollTop = 128;
+    const trigger = screen.getByRole('button', { name: 'View photo 1' });
+    trigger.focus();
+    fireEvent.click(trigger);
+
+    expect(document.body.style.overflow).toBe('hidden');
+    expect(scrollRoot.style.overflowY).toBe('hidden');
+    expect(screen.getByRole('dialog')).toHaveAttribute('tabindex', '-1');
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(trigger).toHaveFocus();
+    expect(document.body.style.overflow).toBe('');
+    expect(scrollRoot.style.overflowY).toBe('auto');
+    expect(scrollRoot.scrollTop).toBe(128);
+  });
+
 
   it('renders nothing when there are no photos', () => {
     const { container } = render(<PhotoGallery photos={[]} />);
