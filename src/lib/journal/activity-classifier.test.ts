@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   classifyJournalActivities,
-  MAX_INFERRED_ACTIVITY_COUNT,
   parseInferredActivityIds,
 } from './activity-classifier';
 
@@ -18,16 +17,16 @@ describe('parseInferredActivityIds', () => {
       activities,
     )).toEqual(['gaming-id', 'dining-id']);
   });
-  it('limits the accepted result to the maximum activity count', () => {
+  it('limits the accepted result to ten activities', () => {
     const manyActivities = Array.from(
-      { length: MAX_INFERRED_ACTIVITY_COUNT + 1 },
+      { length: 11 },
       (_, index) => ({ id: `activity-${index}`, name: `Activity ${index}` }),
     );
 
     expect(parseInferredActivityIds(
       JSON.stringify({ activityIds: manyActivities.map((activity) => activity.id) }),
       manyActivities,
-    )).toHaveLength(MAX_INFERRED_ACTIVITY_COUNT);
+    )).toHaveLength(10);
   });
 
   it('ignores malformed IDs without discarding valid classifications', () => {

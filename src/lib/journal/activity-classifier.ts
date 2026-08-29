@@ -4,7 +4,7 @@ import type { LlmClient } from './llm-client';
 import type { ActivityOption } from './types';
 import { z } from 'zod';
 
-export const MAX_INFERRED_ACTIVITY_COUNT = 5;
+export const MAX_INFERRED_ACTIVITY_COUNT = 10;
 
 type ClassificationActivity = Pick<ActivityOption, 'id' | 'name'>;
 
