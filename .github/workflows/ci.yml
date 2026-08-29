@@ -125,6 +125,7 @@ jobs:
             type=sha,format=long,suffix=-migrate
 
       - name: Publish serving image
+        id: publish-runtime
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
           context: .
@@ -135,6 +136,7 @@ jobs:
           target: runtime
 
       - name: Publish migration image
+        id: publish-migrate
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
           context: .
@@ -143,3 +145,47 @@ jobs:
           tags: ${{ steps.meta-migrate.outputs.tags }}
           labels: ${{ steps.meta-migrate.outputs.labels }}
           target: migrate
+
+      - name: Create deployment manifest
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+          RUNTIME_DIGEST: ${{ steps.publish-runtime.outputs.digest }}
+          MIGRATION_DIGEST: ${{ steps.publish-migrate.outputs.digest }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          commit_sha = os.environ["COMMIT_SHA"]
+          runtime_digest = os.environ["RUNTIME_DIGEST"]
+          migration_digest = os.environ["MIGRATION_DIGEST"]
+          if len(commit_sha) != 40 or not all(c in "0123456789abcdef" for c in commit_sha):
+              raise SystemExit("invalid commit SHA")
+          for name, digest in (("runtime", runtime_digest), ("migration", migration_digest)):
+              if (
+                  len(digest) != 71
+                  or not digest.startswith("sha256:")
+                  or not all(c in "0123456789abcdef" for c in digest[7:])
+              ):
+                  raise SystemExit(f"invalid {name} digest")
+
+          manifest = {
+              "commit": commit_sha,
+              "repository": "ghcr.io/kennethlloyd/aero-diary",
+              "runtime_digest": runtime_digest,
+              "migration_digest": migration_digest,
+          }
+          Path("production-image-manifest.json").write_text(
+              json.dumps(manifest, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Upload deployment manifest
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: production-image-manifest
+          path: production-image-manifest.json
+          if-no-files-found: error
+          retention-days: 7
