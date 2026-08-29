@@ -12,7 +12,7 @@ Aero Diary is a self-hosted mood journal for private memories. It uses a bright 
 
 ## Requirements
 
-- Node.js 22.13 or newer.
+- Node.js 22.23.1 or newer.
 - pnpm 11 or newer.
 - SQLite and a Node-compatible deployment environment.
 
@@ -88,7 +88,7 @@ Run the production build with `pnpm build` and serve it with `pnpm start` behind
 
 ## Production container
 
-The repository includes a reproducible, multi-stage Docker build. It uses a digest-pinned Node 22.13 Debian slim base, Next.js standalone output, and a non-root serving process. The serving image is built separately from the migration target so schema changes remain explicit.
+The repository includes a reproducible, multi-stage Docker build. It uses a digest-pinned Node 22.23.1 Debian slim base, Next.js standalone output, and a non-root serving process. The serving image is built separately from the migration target so schema changes remain explicit.
 
 The image never contains runtime secrets or SQLite data. Docker context exclusions protect `.env` files, local databases, generated files, dependencies, build output, and test artifacts. Pass configuration at runtime and keep `data/` outside the image.
 

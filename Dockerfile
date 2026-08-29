@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG NODE_IMAGE=node:22.13.0-bookworm-slim@sha256:f5a0871ab03b035c58bdb3007c3d177b001c2145c18e81817b71624dcf7d8bff
+ARG NODE_IMAGE=node:22.23.1-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3
 
 FROM ${NODE_IMAGE} AS base
 
