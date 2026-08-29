@@ -17,6 +17,7 @@
     "drive:bootstrap": "tsx scripts/bootstrap-google-drive.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "test:e2e": "playwright test"
   },
@@ -24,6 +25,7 @@
     "@node-rs/argon2": "2.1.0",
     "@prisma/adapter-better-sqlite3": "7.9.1",
     "@prisma/client": "7.9.1",
+    "@swc/helpers": "0.5.23",
     "better-sqlite3": "13.0.3",
     "googleapis": "176.0.0",
     "heic-convert": "2.1.0",
