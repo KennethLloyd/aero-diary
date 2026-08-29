@@ -1,0 +1,35 @@
+services:
+  app:
+    build:
+      context: .
+      target: runtime
+    image: ${AERO_DIARY_IMAGE:-aero-diary:local}
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: file:/app/data/aero-diary.db
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+    ports:
+      - "127.0.0.1:${AERO_DIARY_HOST_PORT:-3000}:3000"
+    volumes:
+      - ./data:/app/data
+    user: "${AERO_DIARY_UID:-1000}:${AERO_DIARY_GID:-1000}"
+    restart: unless-stopped
+
+  migrate:
+    profiles:
+      - migrate
+    build:
+      context: .
+      target: migrate
+    image: ${AERO_DIARY_MIGRATION_IMAGE:-aero-diary:local-migrate}
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: file:/app/data/aero-diary.db
+      NODE_ENV: production
+    volumes:
+      - ./data:/app/data
+    user: "${AERO_DIARY_UID:-1000}:${AERO_DIARY_GID:-1000}"
