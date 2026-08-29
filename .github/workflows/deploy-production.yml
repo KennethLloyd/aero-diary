@@ -1,0 +1,106 @@
+name: Deploy Production
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+    branches:
+      - main
+
+permissions: {}
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy production
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: production
+    permissions:
+      actions: read
+      packages: read
+    steps:
+      - name: Download deployment manifest
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+          name: production-image-manifest
+          path: ${{ runner.temp }}/production-image-manifest
+
+      - name: Validate deployment manifest
+        id: manifest
+        env:
+          EXPECTED_SHA: ${{ github.event.workflow_run.head_sha }}
+          MANIFEST_PATH: ${{ runner.temp }}/production-image-manifest/production-image-manifest.json
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          expected_sha = os.environ["EXPECTED_SHA"]
+          data = json.loads(Path(os.environ["MANIFEST_PATH"]).read_text(encoding="utf-8"))
+          expected_keys = {"commit", "repository", "runtime_digest", "migration_digest"}
+          if set(data) != expected_keys:
+              raise SystemExit("deployment manifest keys are invalid")
+          if data["commit"] != expected_sha or not re.fullmatch(r"[0-9a-f]{40}", data["commit"]):
+              raise SystemExit("deployment manifest commit does not match the triggering run")
+          if data["repository"] != "ghcr.io/kennethlloyd/aero-diary":
+              raise SystemExit("deployment manifest repository is not approved")
+          for name in ("runtime_digest", "migration_digest"):
+              if not re.fullmatch(r"sha256:[0-9a-f]{64}", data[name]):
+                  raise SystemExit(f"deployment manifest {name} is invalid")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              for key, value in data.items():
+                  output.write(f"{key}={value}\n")
+          PY
+
+      - name: Deploy through restricted SSH
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ steps.manifest.outputs.commit }}
+          RUNTIME_DIGEST: ${{ steps.manifest.outputs.runtime_digest }}
+          MIGRATION_DIGEST: ${{ steps.manifest.outputs.migration_digest }}
+          IMAGE_REPOSITORY: ${{ steps.manifest.outputs.repository }}
+          PRODUCTION_SSH_HOST: ${{ vars.PRODUCTION_SSH_HOST }}
+          PRODUCTION_SSH_USER: ${{ vars.PRODUCTION_SSH_USER }}
+          PRODUCTION_SSH_KNOWN_HOSTS: ${{ vars.PRODUCTION_SSH_KNOWN_HOSTS }}
+          PRODUCTION_SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
+        run: |
+          set -Eeuo pipefail
+          umask 077
+          ssh_dir="$(mktemp -d)"
+          trap 'rm -rf "$ssh_dir"' EXIT
+          printf '%s\n' "$PRODUCTION_SSH_PRIVATE_KEY" > "$ssh_dir/id_ed25519"
+          printf '%s\n' "$PRODUCTION_SSH_KNOWN_HOSTS" > "$ssh_dir/known_hosts"
+          chmod 600 "$ssh_dir/id_ed25519" "$ssh_dir/known_hosts"
+
+          printf '%s\n%s\n%s\n%s\n%s\n' \
+            "$GITHUB_TOKEN" \
+            "$EXPECTED_SHA" \
+            "$RUNTIME_DIGEST" \
+            "$MIGRATION_DIGEST" \
+            "$IMAGE_REPOSITORY" \
+            | ssh \
+                -T \
+                -i "$ssh_dir/id_ed25519" \
+                -o BatchMode=yes \
+                -o IdentitiesOnly=yes \
+                -o StrictHostKeyChecking=yes \
+                -o UserKnownHostsFile="$ssh_dir/known_hosts" \
+                -o ConnectTimeout=15 \
+                "$PRODUCTION_SSH_USER@$PRODUCTION_SSH_HOST"
