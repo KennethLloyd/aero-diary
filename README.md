@@ -146,7 +146,7 @@ docker image inspect ghcr.io/<owner>/aero-diary:<commit-sha> \
 
 The migration image is pulled and run separately only when applying a reviewed schema change. Compose can use published artifacts instead of local builds by setting `AERO_DIARY_IMAGE` and `AERO_DIARY_MIGRATION_IMAGE` to matching GHCR tag or digest references and using `--no-build`.
 
-Pull request CI builds both Docker targets for the native runner architecture. Main-branch publication builds both `linux/amd64` and `linux/arm64`; the current systemd service, OCI networking, and Tailscale Serve configuration are outside this containerization change.
+Pull request CI builds both Docker targets for `linux/amd64` and `linux/arm64` without pushing images. Main-branch publication builds and pushes both architectures; the current systemd service, OCI networking, and Tailscale Serve configuration are outside this containerization change.
 
 
 ## Privacy and security
