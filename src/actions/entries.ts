@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
 import { redirect } from 'next/navigation';
 import { verifySession } from '@/lib/dal';
 import {
@@ -12,9 +13,11 @@ import {
   EntryPhotoCapacityError,
   EntryPhotoSizeCapacityError,
   updateEntryWorkflow,
+  type CreatedEntry,
 } from '@/lib/journal/entry-workflow';
 import { StagedPhotoUnavailableError } from '@/lib/journal/photo-staging';
 import { invalidateEntryDetailRead, invalidateJournalReads } from '@/lib/journal/cache';
+import { runEntryActivityInference } from '@/lib/journal/activity-inference';
 import { MAX_PHOTO_COUNT, PHOTO_UPLOAD_ERROR } from '@/lib/journal/photos';
 import {
   createEntrySchema,
@@ -94,16 +97,19 @@ export async function createEntry(
   const staged = stagedPhotoSelection(formData);
   if ('error' in staged) return staged;
 
-  let createdEntryId: string;
+  let createdEntry: CreatedEntry;
   try {
-    const createdEntry = await createEntryWorkflow(session.userId, parsed.data, staged.data);
-    createdEntryId = createdEntry.id;
+    createdEntry = await createEntryWorkflow(session.userId, parsed.data, staged.data);
   } catch (error) {
     return { error: saveError(error) };
   }
 
-  invalidateJournalReads(session.userId, createdEntryId);
+  invalidateJournalReads(session.userId, createdEntry.id);
   revalidatePath('/timeline');
+  after(() => runEntryActivityInference(session.userId, createdEntry.id, {
+    note: createdEntry.note,
+    updatedAt: createdEntry.updatedAt,
+  }));
   redirect('/timeline');
 }
 

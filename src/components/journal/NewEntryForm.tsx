@@ -33,6 +33,7 @@ import {
   uploadStagedPhoto,
 } from '@/lib/journal/photo-upload';
 import type { ActivityOption } from '@/lib/journal/types';
+import { rankEditableActivities, EDIT_ACTIVITY_PREVIEW_SIZE } from '@/lib/journal/activity-ranking';
 const MOODS: { value: Mood; label: string }[] = [
   { value: Mood.AWFUL, label: 'Awful' },
   { value: Mood.BAD, label: 'Bad' },
@@ -79,11 +80,11 @@ type StagedPhoto = {
 }
 
 export function NewEntryForm({
-  activities,
+  activities = [],
   entry,
   todayDateKey,
 }: {
-  activities: ActivityOption[]
+  activities?: ActivityOption[]
   entry?: EditableEntry
   todayDateKey?: JournalDate
 }) {
@@ -117,6 +118,7 @@ export function NewEntryForm({
   const [selectedActivityIds, setSelectedActivityIds] = useState<Set<string>>(
     () => new Set(entry?.activityIds ?? []),
   );
+  const [showAllActivities, setShowAllActivities] = useState(false);
   const [existingPhotos, setExistingPhotos] = useState<EditableEntryPhoto[]>(
     () => entry?.photos ?? [],
   );
@@ -418,6 +420,17 @@ export function NewEntryForm({
   const removingExistingPhoto = existingPhotos.some((photo) => photo.removing);
 
   const selectedMoodObj = MOODS.find((m) => m.value === mood) ?? MOODS[3];
+  const rankedActivities = entry
+    ? rankEditableActivities(activities, selectedActivityIds)
+    : [];
+  const selectedActivityCount = rankedActivities.filter((activity) => (
+    selectedActivityIds.has(activity.id)
+  )).length;
+  const collapsedActivityCount = selectedActivityCount + EDIT_ACTIVITY_PREVIEW_SIZE;
+  const visibleActivities = showAllActivities
+    ? rankedActivities
+    : rankedActivities.slice(0, collapsedActivityCount);
+  const hiddenActivityCount = Math.max(0, rankedActivities.length - collapsedActivityCount);
 
   return (
     <div className="aero-entry-shell">
@@ -572,47 +585,71 @@ export function NewEntryForm({
           ) : null}
         </div>
 
-        {/* 3. Activities Selector */}
-        <section className="relative z-10 space-y-2.5" aria-labelledby="activity-heading">
-          <div className="flex items-center justify-between">
-            <h2 id="activity-heading" className="text-xs font-bold uppercase tracking-wider text-[#2b4c73]">
-              What did you do today?
-            </h2>
-            <Link
-              href="/activities"
-              className="text-xs font-semibold text-[#144e9d] hover:underline"
-            >
-              Manage tags
-            </Link>
-          </div>
-          {activities.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5">
-              {activities.map((activity) => {
-                const selected = selectedActivityIds.has(activity.id);
-                return (
+        {entry ? (
+          <section className="relative z-10 space-y-2.5" aria-labelledby="activity-heading">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 id="activity-heading" className="text-xs font-bold uppercase tracking-wider text-[#2b4c73]">
+                  Activities
+                </h2>
+                <p className="mt-1 text-xs font-medium text-[#2b4c73]">
+                  Refine the tags suggested for this memory.
+                </p>
+              </div>
+              <Link
+                href="/activities"
+                className="shrink-0 text-xs font-semibold text-[#144e9d] hover:underline"
+              >
+                Manage tags
+              </Link>
+            </div>
+            {activities.length > 0 ? (
+              <>
+                <div id="activity-options" className="flex flex-wrap gap-1.5">
+                  {visibleActivities.map((activity) => {
+                    const selected = selectedActivityIds.has(activity.id);
+                    return (
+                      <button
+                        key={activity.id}
+                        type="button"
+                        aria-pressed={selected}
+                        className={`activity-chip ${selected ? 'activity-chip-selected' : ''}`}
+                        onClick={() => toggleActivity(activity.id)}
+                      >
+                        <span>{activity.emoji}</span>
+                        <span>{activity.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {hiddenActivityCount > 0 ? (
                   <button
-                    key={activity.id}
                     type="button"
-                    aria-pressed={selected}
-                    className={`activity-chip ${selected ? 'activity-chip-selected' : ''}`}
-                    onClick={() => toggleActivity(activity.id)}
+                    className="aero-link-control text-xs font-bold underline"
+                    aria-controls="activity-options"
+                    aria-expanded={showAllActivities}
+                    onClick={() => setShowAllActivities((showingAll) => !showingAll)}
                   >
-                    <span>{activity.emoji}</span>
-                    <span>{activity.name}</span>
+                    {showAllActivities ? 'Show less' : 'Show more'}
+                    <span className="sr-only">
+                      {showAllActivities
+                        ? ' activities'
+                        : ` activities (${hiddenActivityCount} more)`}
+                    </span>
                   </button>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="rounded-xl border border-white/60 bg-white/40 p-3 text-xs font-semibold text-[#2b4c73]">
-              No activities created yet.{' '}
-              <Link href="/activities" className="font-bold text-[#144e9d] underline">
-                Add your favorite activities
-              </Link>{' '}
-              to quickly tag memories.
-            </div>
-          )}
-        </section>
+                ) : null}
+              </>
+            ) : (
+              <div className="rounded-xl border border-white/60 bg-white/40 p-3 text-xs font-semibold text-[#2b4c73]">
+                No activities created yet.{' '}
+                <Link href="/activities" className="font-bold text-[#144e9d] underline">
+                  Add your favorite activities
+                </Link>{' '}
+                to tag this memory.
+              </div>
+            )}
+          </section>
+        ) : null}
 
         {/* 4. Photos Picker */}
         <section className="relative z-10 space-y-2.5" aria-labelledby="photo-heading">

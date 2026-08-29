@@ -56,6 +56,12 @@ type EntryPhoto = {
   sizeBytes: number | null
 }
 
+export type CreatedEntry = {
+  id: string
+  note: string
+  updatedAt: Date
+}
+
 function photoWrites(photos: readonly EntryPhoto[]) {
   return photos.map((photo) => ({
     drivePath: photo.drivePath,
@@ -94,13 +100,23 @@ async function stagedPhotosFor(
   return loadStagedPhotos(db, store, userId, selection);
 }
 
-async function ownedActivityIds(userId: string, activityIds: readonly string[]) {
+async function ownedActivityIds(
+  userId: string,
+  activityIds: readonly string[],
+  allowedArchivedActivityIds: readonly string[] = [],
+) {
   const ids = [...new Set(activityIds)];
+  if (ids.length === 0) return [];
+
+  const allowedArchivedIds = new Set(allowedArchivedActivityIds);
   const activities = await db.activity.findMany({
     where: {
       id: { in: ids },
       userId,
-      isArchived: false,
+      OR: [
+        { isArchived: false },
+        { isArchived: true, id: { in: [...allowedArchivedIds] } },
+      ],
     },
     select: { id: true },
   });
@@ -181,7 +197,7 @@ export async function createEntryWorkflow(
   userId: string,
   input: CreateEntryInput,
   selection: EntryPhotoSelection,
-) {
+): Promise<CreatedEntry> {
   const journalDate = journalDateFor(input);
   const staged = await stagedPhotosFor(userId, selection);
   const activityIds = await ownedActivityIds(userId, input.activityIds);
@@ -205,14 +221,22 @@ export async function updateEntryWorkflow(
   const staged = await stagedPhotosFor(userId, selection);
   const entry = await db.entry.findFirst({
     where: { id: entryId, userId },
-    select: { id: true, photos: { select: { id: true, drivePath: true, sizeBytes: true } } },
+    select: {
+      id: true,
+      photos: { select: { id: true, drivePath: true, sizeBytes: true } },
+      activities: { select: { activityId: true } },
+    },
   });
   if (!entry) return null;
 
   const existingPhotoSizeBytes = staged.ids.length > 0
     ? await getExistingPhotoSizeBytes(entry.photos)
     : 0;
-  const activityIds = await ownedActivityIds(userId, input.activityIds);
+  const activityIds = await ownedActivityIds(
+    userId,
+    input.activityIds,
+    entry.activities.map((activity) => activity.activityId),
+  );
 
   await db.$transaction(async (transaction) => {
     const currentEntry = await transaction.entry.findFirst({

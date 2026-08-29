@@ -38,10 +38,18 @@ async function EditEntryContent({ params }: EditEntryPageProps) {
   ]);
   if (!entry) notFound();
 
+  const activeActivityIds = new Set(activities.map((activity) => activity.id));
+  const activitiesForEdit = [
+    ...activities,
+    ...entry.activities
+      .filter(({ activityId }) => !activeActivityIds.has(activityId))
+      .map(({ activityId, activity }) => ({ id: activityId, ...activity })),
+  ];
+
   return (
     <NewEntryForm
       key={`${entry.id}:${entry.updatedAt}`}
-      activities={activities}
+      activities={activitiesForEdit}
       entry={{
         id: entry.id,
         journalDate: entry.journalDate,

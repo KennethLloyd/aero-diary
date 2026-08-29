@@ -129,14 +129,8 @@ test.describe('timeline polish mobile', () => {
       await expect(page.getByRole('button', { name: 'Select Good mood' })).toHaveAttribute('aria-pressed', 'true');
       await page.getByRole('button', { name: 'Select Rad mood' }).click();
       await expect(page.getByRole('button', { name: 'Select Rad mood' })).toHaveAttribute('aria-pressed', 'true');
-      const firstActivityChip = page.locator('.activity-chip').first();
-      const activityBefore = await firstActivityChip.boundingBox();
-      await firstActivityChip.click();
-      const activityAfter = await firstActivityChip.boundingBox();
-      expect(activityBefore).not.toBeNull();
-      expect(activityAfter).not.toBeNull();
-      expect(activityAfter?.width).toBeCloseTo(activityBefore?.width ?? 0, 0);
-      expect(activityAfter?.height).toBeCloseTo(activityBefore?.height ?? 0, 0);
+      await expect(form.locator('.activity-chip')).toHaveCount(0);
+      await expect(page.getByRole('heading', { name: 'Activities' })).toHaveCount(0);
       await expect(page.getByText('Journal Note', { exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Save entry' })).toHaveCount(1);
 
@@ -145,14 +139,6 @@ test.describe('timeline polish mobile', () => {
         const dock = document.querySelector('.aero-dock');
         const moodButtons = [...document.querySelectorAll('section[aria-labelledby="mood-heading"] button')]
           .map((button) => button.getBoundingClientRect());
-        const activityChips = [...document.querySelectorAll('.activity-chip')]
-          .map((chip) => {
-            const rect = chip.getBoundingClientRect();
-            const style = getComputedStyle(chip);
-            return { height: rect.height, fontSize: Number.parseFloat(style.fontSize) };
-          });
-        const polishButton = [...document.querySelectorAll('button')]
-          .find((button) => button.textContent?.includes('Polish writing'));
         return {
           documentWidth: document.documentElement.scrollWidth,
           viewportWidth: window.innerWidth,
@@ -160,20 +146,23 @@ test.describe('timeline polish mobile', () => {
           actionBar: Boolean(document.querySelector('.aero-action-bar')),
           dockPosition: dock ? getComputedStyle(dock).position : null,
           smallestMoodButton: Math.min(...moodButtons.map((button) => Math.min(button.width, button.height))),
-          largestActivityChip: Math.max(...activityChips.map((chip) => chip.height)),
-          smallestActivityChip: Math.min(...activityChips.map((chip) => chip.height)),
-          activityChipFontSize: Math.max(...activityChips.map((chip) => chip.fontSize)),
-          polishFontSize: polishButton ? Number.parseFloat(getComputedStyle(polishButton).fontSize) : 0,
+          activityChipCount: document.querySelectorAll('#entry-form .activity-chip').length,
+          polishFontSize: Number.parseFloat(
+            [...document.querySelectorAll('button')]
+              .find((button) => button.textContent?.includes('Polish writing'))
+              ?.ownerDocument.defaultView?.getComputedStyle(
+                [...document.querySelectorAll('button')]
+                  .find((button) => button.textContent?.includes('Polish writing'))!,
+              ).fontSize ?? '0',
+          ),
         };
       });
 
       expect(metrics.documentWidth).toBe(metrics.viewportWidth);
       expect(metrics.saveInForm).toBe(true);
       expect(metrics.actionBar).toBe(false);
+      expect(metrics.activityChipCount).toBe(0);
       expect(metrics.smallestMoodButton).toBeGreaterThanOrEqual(44);
-      expect(metrics.largestActivityChip).toBeLessThanOrEqual(36);
-      expect(metrics.smallestActivityChip).toBeGreaterThanOrEqual(36);
-      expect(metrics.activityChipFontSize).toBeLessThanOrEqual(metrics.polishFontSize);
       expect(metrics.dockPosition).toBe('fixed');
       await expect.poll(() => page.locator('.aero-dock').evaluate((dock) => getComputedStyle(dock).visibility)).toBe('visible');
 
@@ -181,11 +170,11 @@ test.describe('timeline polish mobile', () => {
       await expect.poll(() => page.locator('.aero-dock').evaluate((dock) => getComputedStyle(dock).visibility)).toBe('hidden');
 
       await page.evaluate(() => {
-        const form = document.querySelector<HTMLElement>('.aero-entry-form');
-        if (form) form.scrollTop = 0;
+        document.querySelector<HTMLElement>('[data-entry-save-sentinel]')?.scrollIntoView({ block: 'start' });
       });
       await expect.poll(() => page.locator('.aero-dock').evaluate((dock) => getComputedStyle(dock).visibility)).toBe('visible');
     }
+
 
     for (const width of [393, 412]) {
       await page.setViewportSize({ width, height: 915 });
