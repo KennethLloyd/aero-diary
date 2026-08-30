@@ -23,6 +23,12 @@ describe('parseInferredActivityIds', () => {
       activities,
     )).toEqual(['gaming-id']);
   });
+  it('normalizes the provider reasoning prefix before strict validation', () => {
+    expect(parseInferredActivityIds(
+      '<think>**Formatting exact JSON output**</think>{"activityIds":["coding-id"]}',
+      activities,
+    )).toEqual(['coding-id']);
+  });
   it('does not accept prose around a fenced JSON object', () => {
     expect(() => parseInferredActivityIds(
       '```json\n{"activityIds":["gaming-id"]}\n```\nDone.',

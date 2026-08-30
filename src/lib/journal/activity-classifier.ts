@@ -13,11 +13,13 @@ const classificationResponseSchema = z.object({
 }).strict();
 
 const fencedJsonPattern = /^```(?:json)?\s*([\s\S]*?)\s*```$/i;
+const reasoningPrefixPattern = /^<think>[\s\S]*?<\/think>\s*/i;
 
 function normalizeClassificationResponse(content: string): string {
-  const trimmedContent = content.trim();
-  const fencedJson = fencedJsonPattern.exec(trimmedContent);
-  return fencedJson?.[1]?.trim() ?? trimmedContent;
+  let normalizedContent = content.trim().replace(reasoningPrefixPattern, '').trim();
+  const fencedJson = fencedJsonPattern.exec(normalizedContent);
+  if (fencedJson?.[1]) normalizedContent = fencedJson[1].trim();
+  return normalizedContent.replace(reasoningPrefixPattern, '').trim();
 }
 
 const inferredActivityIdSchema = z.string().trim().min(1).max(100);
