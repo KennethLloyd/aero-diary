@@ -29,6 +29,16 @@ describe('parseInferredActivityIds', () => {
       activities,
     )).toEqual(['coding-id']);
   });
+  it('does not accept incomplete or non-leading reasoning prefixes', () => {
+    for (const content of [
+      '<think>unclosed reasoning{"activityIds":["gaming-id"]}',
+      'Prose before <think>reasoning</think>{"activityIds":["gaming-id"]}',
+    ]) {
+      expect(() => parseInferredActivityIds(content, activities)).toThrow(
+        'LLM returned invalid activity classification JSON.',
+      );
+    }
+  });
   it('does not accept prose around a fenced JSON object', () => {
     expect(() => parseInferredActivityIds(
       '```json\n{"activityIds":["gaming-id"]}\n```\nDone.',
