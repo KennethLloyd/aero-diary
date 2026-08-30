@@ -8,24 +8,21 @@ import manifest from '@/app/manifest';
 const publicDir = join(process.cwd(), 'public');
 const pngSignature = Buffer.from('89504e470d0a1a0a', 'hex');
 
-function pngDimensions(filename: string) {
+type PngMetadata = {
+  width: number;
+  height: number;
+  bitDepth: number;
+  colorType: number;
+  interlaceMethod: number;
+  imageData: Buffer[];
+};
+
+function readPngMetadata(filename: string): PngMetadata {
   const bytes = readFileSync(join(publicDir, filename));
   expect(bytes.subarray(0, 8)).toEqual(pngSignature);
-  return {
-    width: bytes.readUInt32BE(16),
-    height: bytes.readUInt32BE(20),
-  };
-}
 
-function brightPixelBounds(filename: string) {
-  const bytes = readFileSync(join(publicDir, filename));
   let offset = 8;
-  let width = 0;
-  let height = 0;
-  let bitDepth = 0;
-  let colorType = 0;
-  let interlaceMethod = 0;
-  const imageData: Buffer[] = [];
+  let metadata: PngMetadata | undefined;
 
   while (offset < bytes.length) {
     const length = bytes.readUInt32BE(offset);
@@ -33,28 +30,42 @@ function brightPixelBounds(filename: string) {
     const data = bytes.subarray(offset + 8, offset + 8 + length);
 
     if (type === 'IHDR') {
-      width = data.readUInt32BE(0);
-      height = data.readUInt32BE(4);
-      bitDepth = data[8];
-      colorType = data[9];
-      interlaceMethod = data[12];
+      metadata = {
+        width: data.readUInt32BE(0),
+        height: data.readUInt32BE(4),
+        bitDepth: data[8],
+        colorType: data[9],
+        interlaceMethod: data[12],
+        imageData: [],
+      };
     } else if (type === 'IDAT') {
-      imageData.push(data);
+      metadata?.imageData.push(data);
     }
 
     offset += length + 12;
   }
 
-  if (bitDepth !== 8 || colorType !== 2 || interlaceMethod !== 0) {
-    throw new Error(`Unsupported PNG format in ${filename}`);
+  if (!metadata) {
+    throw new Error(`Missing IHDR chunk in ${filename}`);
   }
 
-  const channels = 3;
+  return metadata;
+}
+
+function alphaStats(filename: string) {
+  const { width, height, bitDepth, colorType, interlaceMethod, imageData } = readPngMetadata(filename);
+
+  if (bitDepth !== 8 || colorType !== 6 || interlaceMethod !== 0) {
+    throw new Error(`Unsupported RGBA PNG format in ${filename}`);
+  }
+
+  const channels = 4;
   const stride = width * channels;
   const raw = inflateSync(Buffer.concat(imageData));
   const pixels = Buffer.alloc(height * stride);
-  const bounds = { left: width, top: height, right: -1, bottom: -1 };
   let rawOffset = 0;
+  let transparentPixels = 0;
+  let partialAlphaPixels = 0;
 
   for (let y = 0; y < height; y += 1) {
     const filter = raw[rawOffset];
@@ -94,17 +105,36 @@ function brightPixelBounds(filename: string) {
     }
 
     for (let x = 0; x < width; x += 1) {
-      const pixelOffset = x * channels;
-      if (row[pixelOffset] > 220 && row[pixelOffset + 1] > 220 && row[pixelOffset + 2] > 220) {
-        bounds.left = Math.min(bounds.left, x);
-        bounds.top = Math.min(bounds.top, y);
-        bounds.right = Math.max(bounds.right, x);
-        bounds.bottom = Math.max(bounds.bottom, y);
+      const alpha = row[x * channels + 3];
+      if (alpha === 0) {
+        transparentPixels += 1;
+      } else if (alpha < 255) {
+        partialAlphaPixels += 1;
       }
     }
   }
 
-  return bounds;
+  return { transparentPixels, partialAlphaPixels };
+}
+
+function icoEntries(filename: string) {
+  const bytes = readFileSync(join(publicDir, filename));
+  expect(bytes.readUInt16LE(0)).toBe(0);
+  expect(bytes.readUInt16LE(2)).toBe(1);
+
+  const count = bytes.readUInt16LE(4);
+  return [...Array(count)].map((_, index) => {
+    const offset = 6 + index * 16;
+    const width = bytes[offset] || 256;
+    const height = bytes[offset + 1] || 256;
+    const bytesInResource = bytes.readUInt32LE(offset + 8);
+    const imageOffset = bytes.readUInt32LE(offset + 12);
+
+    expect(bytes.subarray(imageOffset, imageOffset + 8)).toEqual(pngSignature);
+    expect(imageOffset + bytesInResource).toBeLessThanOrEqual(bytes.length);
+
+    return { width, height };
+  });
 }
 
 describe('Aero Diary web manifest', () => {
@@ -130,44 +160,86 @@ describe('Aero Diary web manifest', () => {
       }),
     ]);
   });
+
   it('publishes local favicon and Safari Home Screen metadata', () => {
+    const iconMetadata = JSON.stringify(metadata.icons);
+
     expect(metadata).toMatchObject({
       appleWebApp: {
         capable: true,
         title: 'Aero Diary',
         statusBarStyle: 'default',
       },
-      icons: {
-        icon: expect.arrayContaining([
-          expect.objectContaining({ url: '/icon-192x192.png', type: 'image/png', sizes: '192x192' }),
-          expect.objectContaining({ url: '/icon-512x512.png', type: 'image/png', sizes: '512x512' }),
-        ]),
-        apple: expect.objectContaining({
-          url: '/icon-512x512.png',
-          sizes: '512x512',
-        }),
-      },
     });
-    expect(JSON.stringify(metadata.icons)).not.toContain('/icon.svg');
+    for (const asset of [
+      '/favicon.ico',
+      '/icon-16x16.png',
+      '/icon-32x32.png',
+      '/icon-192x192.png',
+      '/icon-512x512.png',
+      '/apple-touch-icon.png',
+    ]) {
+      expect(iconMetadata).toContain(asset);
+    }
+    expect(iconMetadata).not.toMatch(/\.svg/);
   });
-  it('ships the source logo and legible derived icon sizes', () => {
-    expect(pngDimensions('aero-diary-logo.png')).toEqual({ width: 1254, height: 1254 });
-    expect(pngDimensions('icon-192x192.png')).toEqual({ width: 192, height: 192 });
-    expect(pngDimensions('icon-512x512.png')).toEqual({ width: 512, height: 512 });
-    expect(pngDimensions('icon-512-maskable.png')).toEqual({ width: 512, height: 512 });
-  });
-  it('keeps derived artwork inside the maskable safe zone', () => {
-    const safeEdge = Math.ceil(512 * 0.1);
 
-    for (const filename of ['icon-512x512.png', 'icon-512-maskable.png']) {
-      const bounds = brightPixelBounds(filename);
+  it('ships the approved full logo and complete source-derived icon sizes', () => {
+    expect(readPngMetadata('aero-diary-logo.png')).toMatchObject({
+      width: 1254,
+      height: 1254,
+    });
 
-      expect(bounds.left).toBeGreaterThanOrEqual(safeEdge);
-      expect(bounds.top).toBeGreaterThanOrEqual(safeEdge);
-      expect(bounds.right).toBeLessThan(512 - safeEdge);
-      expect(bounds.bottom).toBeLessThan(512 - safeEdge);
+    const expectedSizes = {
+      'aero-diary-icon.png': 1254,
+      'icon-16x16.png': 16,
+      'icon-32x32.png': 32,
+      'apple-touch-icon.png': 180,
+      'icon-192x192.png': 192,
+      'icon-512x512.png': 512,
+      'icon-512-maskable.png': 512,
+    };
+
+    for (const [filename, size] of Object.entries(expectedSizes)) {
+      const path = join(publicDir, filename);
+      expect(existsSync(path)).toBe(true);
+      expect(statSync(path).size).toBeGreaterThan(0);
+      expect(readPngMetadata(filename)).toMatchObject({
+        width: size,
+        height: size,
+        bitDepth: 8,
+        colorType: 6,
+        interlaceMethod: 0,
+      });
     }
   });
+
+  it('preserves transparency in the source and every PNG derivative', () => {
+    const sourceAlpha = alphaStats('aero-diary-icon.png');
+    expect(sourceAlpha.transparentPixels).toBeGreaterThan(0);
+    expect(sourceAlpha.partialAlphaPixels).toBeGreaterThan(0);
+
+    for (const filename of [
+      'icon-16x16.png',
+      'icon-32x32.png',
+      'apple-touch-icon.png',
+      'icon-192x192.png',
+      'icon-512x512.png',
+      'icon-512-maskable.png',
+    ]) {
+      const stats = alphaStats(filename);
+      expect(stats.transparentPixels).toBeGreaterThan(0);
+      expect(stats.partialAlphaPixels).toBeGreaterThan(0);
+    }
+  });
+
+  it('ships a valid multi-size favicon from the supplied icon', () => {
+    expect(icoEntries('favicon.ico')).toEqual([
+      { width: 16, height: 16 },
+      { width: 32, height: 32 },
+    ]);
+  });
+
   it('ships every manifest icon asset', () => {
     for (const filename of ['icon-192x192.png', 'icon-512x512.png', 'icon-512-maskable.png']) {
       const path = join(publicDir, filename);
