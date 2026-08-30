@@ -47,7 +47,11 @@ export class OpenAiCompatibleLlmAdapter implements LlmClient {
     this.timeoutMs = timeoutMs;
   }
 
-  async complete({ systemPrompt, userPrompt }: LlmRequest): Promise<string> {
+  async complete({
+    systemPrompt,
+    userPrompt,
+    responseFormat,
+  }: LlmRequest): Promise<string> {
     const { controller, timeout } = timeoutController(this.timeoutMs);
 
     try {
@@ -62,6 +66,7 @@ export class OpenAiCompatibleLlmAdapter implements LlmClient {
           ],
           reasoning_effort: this.reasoningEffort,
           max_tokens: this.maxTokens,
+          ...(responseFormat ? { response_format: { type: responseFormat } } : {}),
         }),
         signal: controller.signal,
       });
