@@ -168,11 +168,12 @@ describe('runEntryActivityInference', () => {
     await testDb.activity.create({ data: { userId: user.id, name: 'Gaming', emoji: '🎮' } });
     const entry = await createEntry(user.id);
     mocks.configuredLlmClient.mockReturnValue({
-      complete: vi.fn().mockRejectedValue(new Error('LLM unavailable')),
+      complete: vi.fn().mockResolvedValue('not JSON'),
     });
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     await expect(runEntryActivityInference(user.id, entry.id, snapshot(entry))).resolves.toBeUndefined();
+    expect(await testDb.entryActivity.count()).toBe(0);
     expect(errorSpy).toHaveBeenCalledWith('Automatic activity inference failed.', expect.any(Error));
     errorSpy.mockRestore();
   });

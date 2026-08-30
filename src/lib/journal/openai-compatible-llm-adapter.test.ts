@@ -42,6 +42,30 @@ describe('OpenAiCompatibleLlmAdapter', () => {
       max_tokens: 16384,
     });
   });
+  it('requests native JSON output when the request requires it', async () => {
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({
+      choices: [{ message: { content: '{"activityIds":[]}' } }],
+    }), { status: 200 }));
+
+    const adapter = new OpenAiCompatibleLlmAdapter({
+      baseUrl: 'http://llm.test/v1',
+      model: 'gpt-5.6-luna',
+      reasoningEffort: 'medium',
+      maxTokens: 16384,
+      timeoutMs: 30000,
+    });
+
+    await adapter.complete({
+      systemPrompt: 'Classify this entry.',
+      userPrompt: 'A quiet day.',
+      responseFormat: 'json_object',
+    });
+
+    const [, request] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(String(request.body))).toMatchObject({
+      response_format: { type: 'json_object' },
+    });
+  });
 
   it('rejects an unsuccessful response', async () => {
     fetchMock.mockResolvedValue(new Response('gateway error', { status: 503 }));

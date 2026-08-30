@@ -12,6 +12,16 @@ const classificationResponseSchema = z.object({
   activityIds: z.array(z.unknown()).max(100),
 }).strict();
 
+const fencedJsonPattern = /^```(?:json)?\s*([\s\S]*?)\s*```$/i;
+const reasoningPrefixPattern = /^<think>[\s\S]*?<\/think>\s*/i;
+
+function normalizeClassificationResponse(content: string): string {
+  let normalizedContent = content.trim().replace(reasoningPrefixPattern, '').trim();
+  const fencedJson = fencedJsonPattern.exec(normalizedContent);
+  if (fencedJson?.[1]) normalizedContent = fencedJson[1].trim();
+  return normalizedContent.replace(reasoningPrefixPattern, '').trim();
+}
+
 const inferredActivityIdSchema = z.string().trim().min(1).max(100);
 
 function classificationSystemPrompt(activities: readonly ClassificationActivity[]): string {
@@ -30,7 +40,7 @@ function classificationSystemPrompt(activities: readonly ClassificationActivity[
 
 function parseClassificationResponse(content: string): unknown {
   try {
-    return JSON.parse(content);
+    return JSON.parse(normalizeClassificationResponse(content));
   } catch {
     throw new Error('LLM returned invalid activity classification JSON.');
   }
@@ -63,6 +73,7 @@ export async function classifyJournalActivities(
   const content = await client.complete({
     systemPrompt: classificationSystemPrompt(activities),
     userPrompt: note,
+    responseFormat: 'json_object',
   });
   return parseInferredActivityIds(content, activities);
 }
