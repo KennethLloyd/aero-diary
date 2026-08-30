@@ -718,12 +718,7 @@
     width: clamp(164px, 48vw, 220px);
     height: auto;
     max-width: 100%;
-    border: 1px solid rgba(255, 255, 255, 0.9);
-    border-radius: 24px;
-    box-shadow:
-      0 12px 26px rgba(10, 47, 92, 0.2),
-      inset 0 1px 0 rgba(255, 255, 255, 0.85);
-    object-fit: cover;
+    object-fit: contain;
   }
 
   /* Progress bars. */
