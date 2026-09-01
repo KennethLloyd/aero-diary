@@ -87,14 +87,12 @@ export async function getCachedTimelinePage(
   userId: string,
   cursor?: string,
   filter: TimelineFilter = {},
-  reconcileEntryIds: readonly string[] = [],
 ): Promise<TimelinePage> {
   'use cache';
   cacheLife('journal');
   cacheTag(timelineCacheTag(userId));
-  return listTimelinePage(db, userId, cursor, filter, reconcileEntryIds);
+  return listTimelinePage(db, userId, cursor, filter);
 }
-
 
 export async function listTimelinePage(
   database: PrismaClient,
@@ -136,7 +134,12 @@ export async function listTimelinePage(
   const uniqueReconcileEntryIds = [...new Set(reconcileEntryIds)];
   const reconciliationEntries = uniqueReconcileEntryIds.length > 0
     ? await database.entry.findMany({
-      where: { userId, id: { in: uniqueReconcileEntryIds } },
+      where: {
+        userId,
+        id: { in: uniqueReconcileEntryIds },
+        ...(filter.mood ? { mood: filter.mood } : {}),
+        ...(filter.activityId ? { activities: { some: { activityId: filter.activityId } } } : {}),
+      },
       select: timelineEntrySelect,
     })
     : [];

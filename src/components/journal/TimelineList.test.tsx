@@ -10,6 +10,11 @@ vi.mock('@/actions/timeline', () => ({
   loadTimelinePage: vi.fn(),
 }));
 
+vi.stubGlobal('IntersectionObserver', class {
+  observe() {}
+  disconnect() {}
+});
+
 type TimelineTag = TimelinePage['entries'][number]['tags'][number];
 
 function page(
@@ -147,6 +152,26 @@ describe('TimelineList', () => {
     }
   });
 
+  it('removes a pending entry that no longer matches the active filter', async () => {
+    vi.useFakeTimers();
+    try {
+      const filter = { activityId: 'activity-filter' };
+      vi.mocked(loadTimelinePage).mockResolvedValue({ entries: [], nextCursor: null });
+      render(<TimelineList initialPage={page('entry-1', 'No longer filtered.', {
+        activityInferencePending: true,
+      })} filter={filter} />);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_000);
+      });
+
+      expect(screen.queryByText('No longer filtered.')).not.toBeInTheDocument();
+      expect(loadTimelinePage).toHaveBeenCalledWith(undefined, filter, ['entry-1']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('removes a pending entry when reconciliation confirms it was deleted', async () => {
     vi.useFakeTimers();
     try {
@@ -161,6 +186,37 @@ describe('TimelineList', () => {
 
       expect(screen.queryByText('Deleted entry.')).not.toBeInTheDocument();
       expect(loadTimelinePage).toHaveBeenCalledWith(undefined, {}, ['entry-1']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('repairs the infinite-scroll cursor when the last loaded entry is deleted', async () => {
+    vi.useFakeTimers();
+    try {
+      const olderEntry = page('entry-1', 'Older entry.').entries[0]!;
+      const deletedEntry = page('entry-2', 'Deleted entry.', {
+        activityInferencePending: true,
+      }).entries[0]!;
+      const initialPage = {
+        entries: [olderEntry, deletedEntry],
+        nextCursor: 'entry-2',
+      };
+      const loadMorePage = page('entry-3', 'Oldest entry.');
+      vi.mocked(loadTimelinePage)
+        .mockResolvedValueOnce({ entries: [olderEntry], nextCursor: null })
+        .mockResolvedValueOnce(loadMorePage);
+      render(<TimelineList initialPage={initialPage} />);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_000);
+      });
+      await act(async () => {
+        screen.getByRole('button', { name: 'Load older memories' }).click();
+      });
+
+      expect(loadTimelinePage).toHaveBeenNthCalledWith(2, 'entry-1', {});
+      expect(screen.getByText('Oldest entry.')).toBeVisible();
     } finally {
       vi.useRealTimers();
     }

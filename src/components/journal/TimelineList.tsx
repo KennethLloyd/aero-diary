@@ -5,8 +5,11 @@ import Link from 'next/link';
 import { loadTimelinePage } from '@/actions/timeline';
 import { AeroOrb } from '@/components/aero/AeroOrb';
 import type { TimelineFilter, TimelinePage } from '@/lib/journal/timeline';
+
 const EMPTY_FILTER: TimelineFilter = {};
 const ACTIVITY_INFERENCE_POLL_INTERVAL_MS = 1_000;
+
+type TimelineState = Pick<TimelinePage, 'entries' | 'nextCursor'>;
 
 export function TimelineList({
   initialPage,
@@ -15,8 +18,11 @@ export function TimelineList({
   initialPage: TimelinePage
   filter?: TimelineFilter
 }) {
-  const [entries, setEntries] = useState(initialPage.entries);
-  const [nextCursor, setNextCursor] = useState(initialPage.nextCursor);
+  const [timeline, setTimeline] = useState<TimelineState>({
+    entries: initialPage.entries,
+    nextCursor: initialPage.nextCursor,
+  });
+  const { entries, nextCursor } = timeline;
   const [loadError, setLoadError] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -27,8 +33,10 @@ export function TimelineList({
     startTransition(async () => {
       try {
         const page = await loadTimelinePage(cursor, filter);
-        setEntries((current) => [...current, ...page.entries]);
-        setNextCursor(page.nextCursor);
+        setTimeline((current) => ({
+          entries: [...current.entries, ...page.entries],
+          nextCursor: page.nextCursor,
+        }));
         setLoadError(undefined);
       } catch {
         setLoadError('Unable to load older entries. Please try again.');
@@ -53,11 +61,23 @@ export function TimelineList({
         if (cancelled) return;
 
         const refreshedEntries = new Map(page.entries.map((entry) => [entry.id, entry]));
-        setEntries((current) => current.flatMap((entry) => {
-          const refreshedEntry = refreshedEntries.get(entry.id);
-          if (entry.activityInferencePending && !refreshedEntry) return [];
-          return [refreshedEntry ?? entry];
-        }));
+        setTimeline((current) => {
+          let entries = current.entries.flatMap((entry) => {
+            const refreshedEntry = refreshedEntries.get(entry.id);
+            if (entry.activityInferencePending && !refreshedEntry) return [];
+            return [refreshedEntry ?? entry];
+          });
+          let nextCursor = current.nextCursor;
+          if (nextCursor && !entries.some((entry) => entry.id === nextCursor)) {
+            if (entries.length === 0) {
+              entries = page.entries;
+              nextCursor = page.nextCursor;
+            } else {
+              nextCursor = entries.at(-1)?.id ?? null;
+            }
+          }
+          return { entries, nextCursor };
+        });
         if (reconcileEntryIds.some((entryId) => refreshedEntries.get(entryId)?.activityInferencePending)) {
           timeoutId = window.setTimeout(reconcile, ACTIVITY_INFERENCE_POLL_INTERVAL_MS);
         }

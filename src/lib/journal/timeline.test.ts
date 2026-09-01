@@ -71,6 +71,7 @@ describe('timeline pagination', () => {
         mood: 'GOOD',
         note: 'Pending entry outside the filter.',
         activityInferencePending: true,
+        activities: { create: [{ activityId: activity.id }] },
       },
     });
     for (let index = 0; index < TIMELINE_PAGE_SIZE; index += 1) {
@@ -99,6 +100,33 @@ describe('timeline pagination', () => {
       id: pendingEntry.id,
       activityInferencePending: true,
     });
+    expect(refreshedPage.nextCursor).toBeTruthy();
+  });
+
+  it('omits reconciliation entries that no longer match the active filter', async () => {
+    const user = await testDb.user.create({ data: { email: 'filter-removal@example.com', passwordHash: 'x' } });
+    const activity = await testDb.activity.create({
+      data: { userId: user.id, name: 'Trail', emoji: '🌲' },
+    });
+    const pendingEntry = await testDb.entry.create({
+      data: {
+        userId: user.id,
+        journalDate: '2026-01-01',
+        mood: 'GOOD',
+        note: 'No longer matches.',
+        activityInferencePending: true,
+      },
+    });
+
+    const refreshedPage = await listTimelinePage(
+      testDb,
+      user.id,
+      undefined,
+      { activityId: activity.id },
+      [pendingEntry.id],
+    );
+
+    expect(refreshedPage.entries).toEqual([]);
     expect(refreshedPage.nextCursor).toBeNull();
   });
 });
