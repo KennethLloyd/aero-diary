@@ -52,9 +52,53 @@ describe('timeline pagination', () => {
       date: 'Tuesday, February 24, 2026',
     });
     expect(firstPage.entries[0]).not.toHaveProperty('time');
+    expect(firstPage.entries[0]?.activityInferencePending).toBe(false);
     expect(firstPage.entries.at(-1)?.note).toBe('Entry 31');
     expect(secondPage.entries[0]?.note).toBe('Entry 30');
     expect(secondPage.entries.at(-1)?.note).toBe('Entry 6');
     expect(thirdPage.entries[0]?.note).toBe('Entry 5');
+  });
+
+  it('returns reconciliation entries outside a filtered page', async () => {
+    const user = await testDb.user.create({ data: { email: 'filter@example.com', passwordHash: 'x' } });
+    const activity = await testDb.activity.create({
+      data: { userId: user.id, name: 'Trail', emoji: '🌲' },
+    });
+    const pendingEntry = await testDb.entry.create({
+      data: {
+        userId: user.id,
+        journalDate: '2026-01-01',
+        mood: 'GOOD',
+        note: 'Pending entry outside the filter.',
+        activityInferencePending: true,
+      },
+    });
+    for (let index = 0; index < TIMELINE_PAGE_SIZE; index += 1) {
+      await testDb.entry.create({
+        data: {
+          userId: user.id,
+          journalDate: `2026-02-${String(index + 1).padStart(2, '0')}`,
+          mood: 'GOOD',
+          note: `Filtered entry ${index + 1}`,
+          activities: { create: [{ activityId: activity.id }] },
+        },
+      });
+    }
+
+    const refreshedPage = await listTimelinePage(
+      testDb,
+      user.id,
+      undefined,
+      { activityId: activity.id },
+      [pendingEntry.id],
+    );
+
+    expect(refreshedPage.entries).toHaveLength(TIMELINE_PAGE_SIZE + 1);
+    expect(refreshedPage.entries.map((entry) => entry.id)).toContain(pendingEntry.id);
+    expect(refreshedPage.entries.at(-1)).toMatchObject({
+      id: pendingEntry.id,
+      activityInferencePending: true,
+    });
+    expect(refreshedPage.nextCursor).toBeNull();
   });
 });

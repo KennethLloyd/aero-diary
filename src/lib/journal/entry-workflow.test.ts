@@ -109,6 +109,7 @@ describe('entry workflow', () => {
 
     expect(saved.userId).toBe(user.id);
     expect(saved.activities).toEqual([{ entryId: created.id, activityId: activity.id }]);
+    expect(saved.activityInferencePending).toBe(true);
   });
   it('preserves an archived activity already attached during an edit', async () => {
     const user = await createUser('archived-edit@example.com');
@@ -120,6 +121,7 @@ describe('entry workflow', () => {
         userId: user.id,
         journalDate: '2026-08-18',
         mood: Mood.GOOD,
+        activityInferencePending: true,
         note: 'Keep this historical tag.',
         activities: { create: [{ activityId: activity.id }] },
       },
@@ -135,6 +137,9 @@ describe('entry workflow', () => {
     await expect(testDb.entryActivity.findMany()).resolves.toEqual([
       { entryId: entry.id, activityId: activity.id },
     ]);
+    await expect(testDb.entry.findUnique({ where: { id: entry.id } })).resolves.toMatchObject({
+      activityInferencePending: false,
+    });
   });
 
   it('rejects a future journal date before writing', async () => {

@@ -51,6 +51,7 @@ export function createJournalEntry(
     data: {
       userId: input.userId,
       journalDate: input.journalDate,
+      activityInferencePending: true,
       ...entryContentWrites(input),
       activities: { create: activityWrites(input.activityIds) },
     },
@@ -66,6 +67,7 @@ export function updateJournalEntry(
     where: { id: entryId },
     data: {
       ...entryContentWrites(input),
+      activityInferencePending: false,
       activities: {
         deleteMany: {},
         create: activityWrites(input.activityIds),

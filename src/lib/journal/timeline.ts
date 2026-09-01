@@ -9,6 +9,20 @@ import { formatDateKey, parseJournalDate, type JournalDate } from '@/lib/journal
 import { normalizeJournalNote } from '@/lib/journal/notes';
 import { timelineMoodSchema } from '@/lib/journal/schemas';
 
+const timelineEntrySelect = {
+  id: true,
+  journalDate: true,
+  mood: true,
+  note: true,
+  activityInferencePending: true,
+  activities: {
+    select: {
+      activityId: true,
+      activity: { select: { name: true, emoji: true } },
+    },
+  },
+} as const;
+
 export const TIMELINE_PAGE_SIZE = 25;
 type TimelineDbEntry = {
   id: string
@@ -16,6 +30,7 @@ type TimelineDbEntry = {
   mood: Mood
   note: string
   activities: { activityId: string; activity: { emoji: string; name: string } }[]
+  activityInferencePending: boolean
 }
 
 export type TimelineEntry = {
@@ -25,6 +40,7 @@ export type TimelineEntry = {
   mood: Mood
   note: string
   tags: { id: string; emoji: string; name: string }[]
+  activityInferencePending: boolean
 }
 
 export type TimelinePage = {
@@ -64,24 +80,28 @@ function formatEntry(entry: TimelineDbEntry): TimelineEntry {
       emoji: activity.activity.emoji,
       name: activity.activity.name,
     })),
+    activityInferencePending: entry.activityInferencePending,
   };
 }
 export async function getCachedTimelinePage(
   userId: string,
   cursor?: string,
   filter: TimelineFilter = {},
+  reconcileEntryIds: readonly string[] = [],
 ): Promise<TimelinePage> {
   'use cache';
   cacheLife('journal');
   cacheTag(timelineCacheTag(userId));
-  return listTimelinePage(db, userId, cursor, filter);
+  return listTimelinePage(db, userId, cursor, filter, reconcileEntryIds);
 }
+
 
 export async function listTimelinePage(
   database: PrismaClient,
   userId: string,
   cursor?: string,
   filter: TimelineFilter = {},
+  reconcileEntryIds: readonly string[] = [],
 ): Promise<TimelinePage> {
   const cursorEntry = cursor
     ? await database.entry.findFirst({
@@ -92,7 +112,7 @@ export async function listTimelinePage(
 
   if (cursor && !cursorEntry) throw new Error('Invalid timeline cursor.');
 
-  const entries = await database.entry.findMany({
+  const pageEntriesWithCursor = await database.entry.findMany({
     where: {
       userId,
       ...(filter.mood ? { mood: filter.mood } : {}),
@@ -108,25 +128,23 @@ export async function listTimelinePage(
     },
     orderBy: [{ journalDate: 'desc' }, { id: 'desc' }],
     take: TIMELINE_PAGE_SIZE + 1,
-    select: {
-      id: true,
-      journalDate: true,
-      mood: true,
-      note: true,
-      activities: {
-        select: {
-          activityId: true,
-          activity: { select: { name: true, emoji: true } },
-        },
-      },
-    },
+    select: timelineEntrySelect,
   });
 
-  const hasMore = entries.length > TIMELINE_PAGE_SIZE;
-  const pageEntries = entries.slice(0, TIMELINE_PAGE_SIZE);
+  const hasMore = pageEntriesWithCursor.length > TIMELINE_PAGE_SIZE;
+  const pageEntries = pageEntriesWithCursor.slice(0, TIMELINE_PAGE_SIZE);
+  const uniqueReconcileEntryIds = [...new Set(reconcileEntryIds)];
+  const reconciliationEntries = uniqueReconcileEntryIds.length > 0
+    ? await database.entry.findMany({
+      where: { userId, id: { in: uniqueReconcileEntryIds } },
+      select: timelineEntrySelect,
+    })
+    : [];
+  const mergedEntries = new Map(pageEntries.map((entry) => [entry.id, entry]));
+  reconciliationEntries.forEach((entry) => mergedEntries.set(entry.id, entry));
 
   return {
-    entries: pageEntries.map(formatEntry),
+    entries: [...mergedEntries.values()].map(formatEntry),
     nextCursor: hasMore ? pageEntries.at(-1)?.id ?? null : null,
   };
 }

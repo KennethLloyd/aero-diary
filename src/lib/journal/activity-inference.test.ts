@@ -27,13 +27,18 @@ async function createUser(email = `${crypto.randomUUID()}@example.com`) {
   return testDb.user.create({ data: { email, passwordHash: 'x' } });
 }
 
-async function createEntry(userId: string, note = 'I played games and had dinner.') {
+async function createEntry(
+  userId: string,
+  note = 'I played games and had dinner.',
+  activityInferencePending = false,
+) {
   return testDb.entry.create({
     data: {
       userId,
       journalDate: '2026-08-28',
       mood: Mood.GOOD,
       note,
+      activityInferencePending,
     },
   });
 }
@@ -163,10 +168,43 @@ describe('runEntryActivityInference', () => {
     vi.clearAllMocks();
   });
 
-  it('logs enrichment failures without throwing', async () => {
+  it('clears pending after attaching inferred activities', async () => {
+    const user = await createUser();
+    const activity = await testDb.activity.create({ data: { userId: user.id, name: 'Gaming', emoji: '🎮' } });
+    const entry = await createEntry(user.id, undefined, true);
+    mocks.configuredLlmClient.mockReturnValue({
+      complete: vi.fn().mockResolvedValue(JSON.stringify({ activityIds: [activity.id] })),
+    });
+
+    await expect(runEntryActivityInference(user.id, entry.id, snapshot(entry))).resolves.toBeUndefined();
+
+    await expect(testDb.entry.findUnique({ where: { id: entry.id } })).resolves.toMatchObject({
+      activityInferencePending: false,
+    });
+    await expect(testDb.entryActivity.findMany()).resolves.toEqual([
+      { entryId: entry.id, activityId: activity.id },
+    ]);
+  });
+
+  it('clears pending after empty inference', async () => {
     const user = await createUser();
     await testDb.activity.create({ data: { userId: user.id, name: 'Gaming', emoji: '🎮' } });
-    const entry = await createEntry(user.id);
+    const entry = await createEntry(user.id, 'A quiet day.', true);
+    mocks.configuredLlmClient.mockReturnValue({
+      complete: vi.fn().mockResolvedValue('{"activityIds":[]}'),
+    });
+
+    await expect(runEntryActivityInference(user.id, entry.id, snapshot(entry))).resolves.toBeUndefined();
+
+    await expect(testDb.entry.findUnique({ where: { id: entry.id } })).resolves.toMatchObject({
+      activityInferencePending: false,
+    });
+  });
+
+  it('logs enrichment failures without throwing and clears pending', async () => {
+    const user = await createUser();
+    await testDb.activity.create({ data: { userId: user.id, name: 'Gaming', emoji: '🎮' } });
+    const entry = await createEntry(user.id, undefined, true);
     mocks.configuredLlmClient.mockReturnValue({
       complete: vi.fn().mockResolvedValue('not JSON'),
     });
@@ -174,7 +212,37 @@ describe('runEntryActivityInference', () => {
 
     await expect(runEntryActivityInference(user.id, entry.id, snapshot(entry))).resolves.toBeUndefined();
     expect(await testDb.entryActivity.count()).toBe(0);
+    expect(await testDb.entry.findUnique({ where: { id: entry.id } })).toMatchObject({
+      activityInferencePending: false,
+    });
     expect(errorSpy).toHaveBeenCalledWith('Automatic activity inference failed.', expect.any(Error));
     errorSpy.mockRestore();
+  });
+
+  it('keeps a newer pending snapshot untouched', async () => {
+    const user = await createUser();
+    const entry = await createEntry(user.id, undefined, true);
+    const originalSnapshot = snapshot(entry);
+    await testDb.entry.update({
+      where: { id: entry.id },
+      data: { note: 'The newer note.', activityInferencePending: true },
+    });
+
+    await expect(runEntryActivityInference(user.id, entry.id, originalSnapshot)).resolves.toBeUndefined();
+
+    await expect(testDb.entry.findUnique({ where: { id: entry.id } })).resolves.toMatchObject({
+      note: 'The newer note.',
+      activityInferencePending: true,
+    });
+  });
+
+  it('treats a deleted entry as a terminal inference outcome', async () => {
+    const user = await createUser();
+    const entry = await createEntry(user.id, undefined, true);
+    const originalSnapshot = snapshot(entry);
+    await testDb.entry.delete({ where: { id: entry.id } });
+
+    await expect(runEntryActivityInference(user.id, entry.id, originalSnapshot)).resolves.toBeUndefined();
+    await expect(testDb.entry.findUnique({ where: { id: entry.id } })).resolves.toBeNull();
   });
 });

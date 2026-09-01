@@ -50,6 +50,7 @@ model Entry {
   mood        Mood
   note        String
   isFavorite  Boolean   @default(false)
+  activityInferencePending Boolean  @default(false)
   activities  EntryActivity[]
   photos      Photo[]
   createdAt   DateTime  @default(now())

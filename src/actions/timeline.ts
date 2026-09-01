@@ -10,7 +10,8 @@ import {
 export async function loadTimelinePage(
   cursor?: string,
   filter: TimelineFilter = {},
+  reconcileEntryIds: readonly string[] = [],
 ): Promise<TimelinePage> {
   const session = await verifySession();
-  return getCachedTimelinePage(session.userId, cursor, filter);
+  return getCachedTimelinePage(session.userId, cursor, filter, reconcileEntryIds);
 }

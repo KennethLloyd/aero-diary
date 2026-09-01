@@ -89,6 +89,7 @@ describe('createEntry action', () => {
     });
     expect(entry).toMatchObject({ userId: user.id, mood: Mood.RAD, note: 'A good day to write things down.' });
     expect(entry.activities).toEqual([{ entryId: entry.id, activityId: activity.id }]);
+    expect(entry.activityInferencePending).toBe(true);
     expect(mocks.updateTag).toHaveBeenCalledWith(`journal:${user.id}:timeline`);
     expect(mocks.updateTag).toHaveBeenCalledWith(`journal:${user.id}:entry:${entry.id}`);
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/timeline');
@@ -100,9 +101,10 @@ describe('createEntry action', () => {
     mocks.verifySession.mockResolvedValue({ isAuth: true, userId: user.id });
 
     await expect(createEntry(undefined, form())).rejects.toThrow(NEXT_REDIRECT);
-
     const entry = await testDb.entry.findFirstOrThrow({ include: { activities: true } });
+
     expect(entry.activities).toEqual([]);
+    expect(entry.activityInferencePending).toBe(true);
     expect(mocks.after).toHaveBeenCalledWith(expect.any(Function));
   });
 
@@ -210,6 +212,7 @@ describe('updateEntry action', () => {
     expect(updated).toMatchObject({ mood: Mood.GOOD, note: 'After the edit.' });
     expect(updated.journalDate).toBe(entry.journalDate);
     expect(updated.activities).toEqual([{ entryId: entry.id, activityId: newActivity.id }]);
+    expect(updated.activityInferencePending).toBe(false);
     expect(mocks.updateTag).toHaveBeenCalledWith(`journal:${user.id}:timeline`);
     expect(mocks.updateTag).toHaveBeenCalledWith(`journal:${user.id}:entry:${entry.id}`);
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/timeline');

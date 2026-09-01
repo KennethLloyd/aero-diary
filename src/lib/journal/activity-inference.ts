@@ -22,6 +22,25 @@ function isCurrentEntry(
   return entry.note === snapshot.note && entry.updatedAt.getTime() === snapshot.updatedAt.getTime();
 }
 
+async function completeEntryActivityInference(
+  userId: string,
+  entryId: string,
+  snapshot: EntryInferenceSnapshot,
+): Promise<void> {
+  const result = await db.entry.updateMany({
+    where: {
+      id: entryId,
+      userId,
+      note: snapshot.note,
+      updatedAt: snapshot.updatedAt,
+      activityInferencePending: true,
+    },
+    data: { activityInferencePending: false },
+  });
+  if (result.count > 0) invalidateJournalReads(userId, entryId);
+}
+
+
 export async function inferEntryActivities(
   userId: string,
   entryId: string,
@@ -96,5 +115,11 @@ export async function runEntryActivityInference(
     await inferEntryActivities(userId, entryId, snapshot);
   } catch (error) {
     console.error('Automatic activity inference failed.', error);
+  } finally {
+    try {
+      await completeEntryActivityInference(userId, entryId, snapshot);
+    } catch (error) {
+      console.error('Automatic activity inference completion failed.', error);
+    }
   }
 }

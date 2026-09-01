@@ -5,10 +5,12 @@ import Link from 'next/link';
 import { loadTimelinePage } from '@/actions/timeline';
 import { AeroOrb } from '@/components/aero/AeroOrb';
 import type { TimelineFilter, TimelinePage } from '@/lib/journal/timeline';
+const EMPTY_FILTER: TimelineFilter = {};
+const ACTIVITY_INFERENCE_POLL_INTERVAL_MS = 1_000;
 
 export function TimelineList({
   initialPage,
-  filter = {},
+  filter = EMPTY_FILTER,
 }: {
   initialPage: TimelinePage
   filter?: TimelineFilter
@@ -33,6 +35,43 @@ export function TimelineList({
       }
     });
   }, [filter, isPending, nextCursor, startTransition]);
+
+  const pendingEntryIds = entries
+    .filter((entry) => entry.activityInferencePending)
+    .map((entry) => entry.id);
+  const hasPendingActivityInference = pendingEntryIds.length > 0;
+  const pendingEntryIdsKey = JSON.stringify(pendingEntryIds);
+  useEffect(() => {
+    if (!hasPendingActivityInference) return;
+
+    const reconcileEntryIds = JSON.parse(pendingEntryIdsKey) as string[];
+    let cancelled = false;
+    let timeoutId = 0;
+    const reconcile = async () => {
+      try {
+        const page = await loadTimelinePage(undefined, filter, reconcileEntryIds);
+        if (cancelled) return;
+
+        const refreshedEntries = new Map(page.entries.map((entry) => [entry.id, entry]));
+        setEntries((current) => current.flatMap((entry) => {
+          const refreshedEntry = refreshedEntries.get(entry.id);
+          if (entry.activityInferencePending && !refreshedEntry) return [];
+          return [refreshedEntry ?? entry];
+        }));
+        if (reconcileEntryIds.some((entryId) => refreshedEntries.get(entryId)?.activityInferencePending)) {
+          timeoutId = window.setTimeout(reconcile, ACTIVITY_INFERENCE_POLL_INTERVAL_MS);
+        }
+      } catch {
+        // Keep the saved timeline usable when reconciliation cannot refresh.
+      }
+    };
+
+    timeoutId = window.setTimeout(reconcile, ACTIVITY_INFERENCE_POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [filter, hasPendingActivityInference, pendingEntryIdsKey]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
