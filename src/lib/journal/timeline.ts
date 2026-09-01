@@ -7,7 +7,7 @@ import { db } from '@/lib/db';
 import { timelineCacheTag } from '@/lib/journal/cache-tags';
 import { formatDateKey, parseJournalDate, type JournalDate } from '@/lib/journal/dates';
 import { normalizeJournalNote } from '@/lib/journal/notes';
-import { timelineMoodSchema } from '@/lib/journal/schemas';
+import { timelineFilterSchema, timelineMoodSchema } from '@/lib/journal/schemas';
 
 export const TIMELINE_PAGE_SIZE = 25;
 type TimelineDbEntry = {
@@ -43,11 +43,11 @@ export function parseTimelineFilter(
   const moodValue = Array.isArray(params.mood) ? params.mood[0] : params.mood;
   const activityValue = Array.isArray(params.activity) ? params.activity[0] : params.activity;
   const mood = timelineMoodSchema.safeParse(moodValue);
-  const activityId = activityValue?.trim().slice(0, 100);
+  const activityId = timelineFilterSchema.shape.activityId.safeParse(activityValue);
 
   return {
     ...(mood.success ? { mood: mood.data } : {}),
-    ...(activityId ? { activityId } : {}),
+    ...(activityId.success ? { activityId: activityId.data } : {}),
   };
 }
 
@@ -74,6 +74,14 @@ export async function getCachedTimelinePage(
   'use cache';
   cacheLife('journal');
   cacheTag(timelineCacheTag(userId));
+  return listTimelinePage(db, userId, cursor, filter);
+}
+
+export async function getFreshTimelinePageForUser(
+  userId: string,
+  cursor?: string,
+  filter: TimelineFilter = {},
+): Promise<TimelinePage> {
   return listTimelinePage(db, userId, cursor, filter);
 }
 

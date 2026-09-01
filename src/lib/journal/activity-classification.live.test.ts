@@ -1,4 +1,6 @@
-import 'dotenv/config';
+import { config } from 'dotenv';
+
+config({ path: ['.env.local', '.env'] });
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Mood } from '@/generated/prisma/enums';

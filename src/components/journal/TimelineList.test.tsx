@@ -1,13 +1,27 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Mood } from '@/generated/prisma/enums';
 import { parseJournalDate } from '@/lib/journal/dates';
 import { TimelineList } from '@/components/journal/TimelineList';
 import type { TimelinePage } from '@/lib/journal/timeline';
 
+const navigationMocks = vi.hoisted(() => ({
+  replace: vi.fn(),
+}));
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => navigationMocks,
+}));
 vi.mock('@/actions/timeline', () => ({
   loadTimelinePage: vi.fn(),
+  refreshTimelinePage: vi.fn(),
+  getEntryActivityInferenceStatus: vi.fn(),
 }));
+
+import {
+  getEntryActivityInferenceStatus,
+  refreshTimelinePage,
+} from '@/actions/timeline';
 
 function page(id: string, note: string): TimelinePage {
   return {
@@ -22,7 +36,119 @@ function page(id: string, note: string): TimelinePage {
     nextCursor: null,
   };
 }
+
+const refreshTimelinePageMock = vi.mocked(refreshTimelinePage);
+const getEntryActivityInferenceStatusMock = vi.mocked(getEntryActivityInferenceStatus);
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+  vi.clearAllMocks();
+});
+
 describe('TimelineList', () => {
+  it('reconciles inferred activities after pending enrichment reaches a terminal state', async () => {
+    const originalPage = page('entry-1', 'Original entry.');
+    const freshPage = {
+      ...originalPage,
+      entries: [{
+        ...originalPage.entries[0],
+        tags: [{ id: 'activity-1', emoji: '🌲', name: 'Trail' }],
+      }],
+    };
+    getEntryActivityInferenceStatusMock
+      .mockResolvedValueOnce('pending')
+      .mockResolvedValueOnce('complete');
+    refreshTimelinePageMock.mockResolvedValue(freshPage);
+
+    render(
+      <TimelineList
+        initialPage={originalPage}
+        pendingInferenceId="entry-1"
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText('Trail')).toBeVisible(), { timeout: 2_000 });
+    expect(refreshTimelinePageMock).toHaveBeenCalledWith({});
+  });
+
+  it('retries a transient status read failure before refreshing', async () => {
+    const originalPage = page('entry-1', 'Original entry.');
+    const freshPage = {
+      ...originalPage,
+      entries: [{
+        ...originalPage.entries[0],
+        tags: [{ id: 'activity-1', emoji: '🌲', name: 'Trail' }],
+      }],
+    };
+    getEntryActivityInferenceStatusMock
+      .mockRejectedValueOnce(new Error('temporary status failure'))
+      .mockResolvedValueOnce('complete');
+    refreshTimelinePageMock.mockResolvedValue(freshPage);
+
+    render(
+      <TimelineList
+        initialPage={originalPage}
+        pendingInferenceId="entry-1"
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText('Trail')).toBeVisible(), { timeout: 2_000 });
+    expect(refreshTimelinePageMock).toHaveBeenCalledWith({});
+  });
+
+  it('refreshes once when inference finishes with a failure', async () => {
+    const originalPage = page('entry-1', 'Original entry.');
+    getEntryActivityInferenceStatusMock.mockResolvedValue('failed');
+    refreshTimelinePageMock.mockResolvedValue(originalPage);
+
+    render(
+      <TimelineList
+        initialPage={originalPage}
+        pendingInferenceId="entry-1"
+      />,
+    );
+
+    await waitFor(() => expect(refreshTimelinePageMock).toHaveBeenCalledWith({}), { timeout: 2_000 });
+    expect(getEntryActivityInferenceStatusMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('preserves entries loaded before the enrichment refresh', async () => {
+    const originalPage = {
+      entries: [
+        page('entry-1', 'Original entry.').entries[0],
+        page('entry-2', 'Older entry.').entries[0],
+      ],
+      nextCursor: 'older-cursor',
+    } satisfies TimelinePage;
+    const freshPage = {
+      entries: [{
+        ...originalPage.entries[0],
+        tags: [{ id: 'activity-1', emoji: '🌲', name: 'Trail' }],
+      }],
+      nextCursor: null,
+    } satisfies TimelinePage;
+    getEntryActivityInferenceStatusMock.mockResolvedValue('complete');
+    refreshTimelinePageMock.mockResolvedValue(freshPage);
+    vi.stubGlobal('IntersectionObserver', class {
+      observe() {}
+      disconnect() {}
+    });
+
+    render(
+      <TimelineList
+        initialPage={originalPage}
+        pendingInferenceId="entry-1"
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText('Trail')).toBeVisible(), { timeout: 2_000 });
+    expect(screen.getByText('Older entry.')).toBeVisible();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Load older memories' })).toBeVisible(), {
+      timeout: 2_000,
+    });
+  });
+
   it('mounts a fresh client snapshot when the server snapshot changes', () => {
     const originalPage = page('entry-1', 'Original entry.');
     const freshPage = page('entry-1', 'Fresh entry after redirect.');

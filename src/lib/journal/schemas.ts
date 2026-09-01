@@ -99,3 +99,8 @@ export const activityIdSchema = z
   .trim()
   .min(1, { error: 'Invalid activity.' })
   .max(100, { error: 'Invalid activity.' });
+
+export const timelineFilterSchema = z.object({
+  mood: timelineMoodSchema.optional(),
+  activityId: activityIdSchema.optional(),
+});

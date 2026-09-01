@@ -58,7 +58,7 @@ The seed command manages only the configured demo user's fictional dataset. It c
 | `GOOGLE_DRIVE_CLIENT_SECRET` | No | Google OAuth desktop client secret. |
 | `GOOGLE_DRIVE_REFRESH_TOKEN` | No | Server-side refresh token for Drive access. |
 | `GOOGLE_DRIVE_PHOTOS_ROOT` | No | Drive path for photos. Defaults to `AeroDiary/photos`. |
-| `LLM_BASE_URL` | No | OpenAI-compatible API base URL for entry polishing. |
+| `LLM_BASE_URL` | No | OpenAI-compatible API base URL for server-side LLM actions. |
 | `LLM_MODEL` | No | Model name sent to the configured endpoint. |
 | `LLM_REASONING_EFFORT` | No | Reasoning setting sent to the endpoint. |
 | `LLM_MAX_TOKENS` | No | Maximum polish response tokens. |
@@ -81,6 +81,14 @@ The bootstrap command completes the local consent flow and produces a refresh to
 ### Entry polishing
 
 Set the `LLM_*` variables to an OpenAI-compatible gateway. The **Polish ✨** action sends the draft and the user's optional style standard to that server-side endpoint and returns a suggestion for approval. Users without a style standard use the concise server-side default. Saving an entry remains independent of the polish request.
+
+The opt-in live classifier test can exercise any OpenAI-compatible gateway configured in the local environment:
+
+```bash
+RUN_LIVE_LLM_TESTS=1 pnpm exec vitest run src/lib/journal/activity-classification.live.test.ts --no-file-parallelism
+```
+
+The test verifies response parsing and activity ownership rules. It requires a running gateway and is not part of the normal test suite.
 
 ## Development
 
