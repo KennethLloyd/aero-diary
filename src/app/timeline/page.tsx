@@ -7,10 +7,15 @@ import { TimelineList } from '@/components/journal/TimelineList';
 import { verifySession } from '@/lib/dal';
 import { formatMonthLabel, getMonthFromParam } from '@/lib/journal/analytics';
 import { getCachedTimelinePage, parseTimelineFilter } from '@/lib/journal/timeline';
+import { entryIdSchema } from '@/lib/journal/schemas';
 import TimelineLoading from './loading';
 
 type TimelinePageProps = {
-  searchParams: Promise<{ mood?: string | string[]; activity?: string | string[] }>
+  searchParams: Promise<{
+    mood?: string | string[]
+    activity?: string | string[]
+    pendingInference?: string | string[]
+  }>
 }
 
 export default function TimelinePage({ searchParams }: TimelinePageProps) {
@@ -28,7 +33,12 @@ export default function TimelinePage({ searchParams }: TimelinePageProps) {
 
 async function TimelineContent({ searchParams }: TimelinePageProps) {
   const session = await verifySession();
-  const filter = parseTimelineFilter(await searchParams);
+  const params = await searchParams;
+  const filter = parseTimelineFilter(params);
+  const pendingInferenceValue = Array.isArray(params.pendingInference)
+    ? params.pendingInference[0]
+    : params.pendingInference;
+  const pendingInferenceId = entryIdSchema.safeParse(pendingInferenceValue);
   const initialPage = await getCachedTimelinePage(session.userId, undefined, filter);
   const currentMonth = formatMonthLabel(getMonthFromParam(undefined));
 
@@ -59,6 +69,7 @@ async function TimelineContent({ searchParams }: TimelinePageProps) {
         ].join(':')}
         initialPage={initialPage}
         filter={filter}
+        pendingInferenceId={pendingInferenceId.success ? pendingInferenceId.data : undefined}
       />
     </main>
   );

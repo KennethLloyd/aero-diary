@@ -1,6 +1,7 @@
 import 'server-only';
 
 import type { PrismaClient } from '@/generated/prisma/client';
+import { ActivityInferenceStatus } from '@/generated/prisma/enums';
 import type { Mood } from '@/generated/prisma/enums';
 import type { JournalDate } from '@/lib/journal/dates';
 
@@ -51,6 +52,7 @@ export function createJournalEntry(
     data: {
       userId: input.userId,
       journalDate: input.journalDate,
+      activityInferenceStatus: ActivityInferenceStatus.PENDING,
       ...entryContentWrites(input),
       activities: { create: activityWrites(input.activityIds) },
     },
@@ -65,6 +67,7 @@ export function updateJournalEntry(
   return database.entry.update({
     where: { id: entryId },
     data: {
+      activityInferenceStatus: ActivityInferenceStatus.COMPLETE,
       ...entryContentWrites(input),
       activities: {
         deleteMany: {},

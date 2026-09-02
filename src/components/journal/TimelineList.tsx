@@ -2,22 +2,60 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
-import { loadTimelinePage } from '@/actions/timeline';
+import { useRouter } from 'next/navigation';
+import {
+  getEntryActivityInferenceStatus,
+  loadTimelinePage,
+  refreshTimelinePage,
+} from '@/actions/timeline';
 import { AeroOrb } from '@/components/aero/AeroOrb';
-import type { TimelineFilter, TimelinePage } from '@/lib/journal/timeline';
+import type { TimelineEntry, TimelineFilter, TimelinePage } from '@/lib/journal/timeline';
+
+const EMPTY_FILTER: TimelineFilter = {};
+const INFERENCE_POLL_INTERVAL_MS = 500;
+const MAX_INFERENCE_POLL_ATTEMPTS = 120;
+const PENDING_INFERENCE_PARAM = 'pendingInference';
+
+function mergeRefreshedEntries(
+  currentEntries: TimelineEntry[],
+  refreshedEntries: TimelineEntry[],
+): TimelineEntry[] {
+  const currentIds = new Set(currentEntries.map((entry) => entry.id));
+  const refreshedById = new Map(refreshedEntries.map((entry) => [entry.id, entry]));
+  return [
+    ...refreshedEntries.filter((entry) => !currentIds.has(entry.id)),
+    ...currentEntries.map((entry) => refreshedById.get(entry.id) ?? entry),
+  ];
+}
 
 export function TimelineList({
   initialPage,
-  filter = {},
+  filter = EMPTY_FILTER,
+  pendingInferenceId,
 }: {
   initialPage: TimelinePage
   filter?: TimelineFilter
+  pendingInferenceId?: string
 }) {
   const [entries, setEntries] = useState(initialPage.entries);
   const [nextCursor, setNextCursor] = useState(initialPage.nextCursor);
   const [loadError, setLoadError] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+
+  const refreshTimeline = useCallback(() => {
+    startTransition(() => {
+      void refreshTimelinePage(filter)
+        .then((page) => {
+          setEntries((currentEntries) => mergeRefreshedEntries(currentEntries, page.entries));
+          setLoadError(undefined);
+        })
+        .catch(() => {
+          setLoadError('Unable to refresh your newest memories. Please try again.');
+        });
+    });
+  }, [filter, startTransition]);
 
   const loadMore = useCallback(() => {
     if (!nextCursor || isPending) return;
@@ -25,7 +63,13 @@ export function TimelineList({
     startTransition(async () => {
       try {
         const page = await loadTimelinePage(cursor, filter);
-        setEntries((current) => [...current, ...page.entries]);
+        setEntries((current) => {
+          const currentIds = new Set(current.map((entry) => entry.id));
+          return [
+            ...current,
+            ...page.entries.filter((entry) => !currentIds.has(entry.id)),
+          ];
+        });
         setNextCursor(page.nextCursor);
         setLoadError(undefined);
       } catch {
@@ -48,6 +92,53 @@ export function TimelineList({
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, [loadMore, nextCursor]);
+
+  useEffect(() => {
+    const pendingId = pendingInferenceId ?? '';
+    if (!pendingId) return;
+
+    let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let attempts = 0;
+
+    function clearPendingSignal() {
+      if (typeof window === 'undefined') return;
+      const url = new URL(window.location.href);
+      if (!url.searchParams.has(PENDING_INFERENCE_PARAM)) return;
+      url.searchParams.delete(PENDING_INFERENCE_PARAM);
+      window.history.replaceState(window.history.state, '', url);
+      void router.replace(`${url.pathname}${url.search}${url.hash}`, { scroll: false });
+    }
+
+    async function pollInferenceStatus() {
+      try {
+        const status = await getEntryActivityInferenceStatus(pendingId);
+        if (cancelled) return;
+
+        if (status !== 'pending') {
+          clearPendingSignal();
+          refreshTimeline();
+          return;
+        }
+      } catch {
+        if (cancelled) return;
+      }
+
+      if (cancelled) return;
+      attempts += 1;
+      if (attempts >= MAX_INFERENCE_POLL_ATTEMPTS) {
+        clearPendingSignal();
+        return;
+      }
+      timeoutId = setTimeout(() => void pollInferenceStatus(), INFERENCE_POLL_INTERVAL_MS);
+    }
+
+    void pollInferenceStatus();
+    return () => {
+      cancelled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [pendingInferenceId, refreshTimeline, router]);
 
   if (entries.length === 0) {
     return (

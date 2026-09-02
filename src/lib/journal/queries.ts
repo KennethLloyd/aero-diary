@@ -3,7 +3,7 @@ import 'server-only';
 import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/lib/db';
 import { verifySession } from '@/lib/dal';
-import type { Mood } from '@/generated/prisma/enums';
+import { ActivityInferenceStatus, type Mood } from '@/generated/prisma/enums';
 import { parseJournalDate, type JournalDate } from '@/lib/journal/dates';
 import { type CalendarMonth, type JournalEntry } from '@/lib/journal/analytics';
 import {
@@ -13,6 +13,8 @@ import {
   insightsCacheTag,
 } from '@/lib/journal/cache-tags';
 import type { ActivityOption } from '@/lib/journal/types';
+
+export type EntryActivityInferenceStatus = 'pending' | 'complete' | 'failed';
 
 export type EntryDetailView = {
   id: string
@@ -53,6 +55,26 @@ export async function getArchivedActivitiesForUser(userId: string): Promise<Acti
 export async function listActivities(): Promise<ActivityOption[]> {
   const session = await verifySession();
   return getActivitiesForUser(session.userId);
+}
+
+export async function getEntryActivityInferenceStatusForUser(
+  userId: string,
+  entryId: string,
+): Promise<EntryActivityInferenceStatus> {
+  const entry = await db.entry.findFirst({
+    where: { id: entryId, userId },
+    select: { activityInferenceStatus: true },
+  });
+  if (!entry) return 'complete';
+
+  switch (entry.activityInferenceStatus) {
+    case ActivityInferenceStatus.PENDING:
+      return 'pending';
+    case ActivityInferenceStatus.FAILED:
+      return 'failed';
+    case ActivityInferenceStatus.COMPLETE:
+      return 'complete';
+  }
 }
 
 export async function getEntriesForMonthForUser(

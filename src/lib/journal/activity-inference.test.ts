@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { Mood } from '@/generated/prisma/enums';
+import { ActivityInferenceStatus, Mood } from '@/generated/prisma/enums';
 import { resetTestDb, testDb } from '@/test/test-db';
 import {
   inferEntryActivities,
@@ -27,13 +27,18 @@ async function createUser(email = `${crypto.randomUUID()}@example.com`) {
   return testDb.user.create({ data: { email, passwordHash: 'x' } });
 }
 
-async function createEntry(userId: string, note = 'I played games and had dinner.') {
+async function createEntry(
+  userId: string,
+  note = 'I played games and had dinner.',
+  activityInferenceStatus: ActivityInferenceStatus = ActivityInferenceStatus.COMPLETE,
+) {
   return testDb.entry.create({
     data: {
       userId,
       journalDate: '2026-08-28',
       mood: Mood.GOOD,
       note,
+      activityInferenceStatus,
     },
   });
 }
@@ -166,7 +171,7 @@ describe('runEntryActivityInference', () => {
   it('logs enrichment failures without throwing', async () => {
     const user = await createUser();
     await testDb.activity.create({ data: { userId: user.id, name: 'Gaming', emoji: '🎮' } });
-    const entry = await createEntry(user.id);
+    const entry = await createEntry(user.id, undefined, ActivityInferenceStatus.PENDING);
     mocks.configuredLlmClient.mockReturnValue({
       complete: vi.fn().mockResolvedValue('not JSON'),
     });
@@ -174,7 +179,56 @@ describe('runEntryActivityInference', () => {
 
     await expect(runEntryActivityInference(user.id, entry.id, snapshot(entry))).resolves.toBeUndefined();
     expect(await testDb.entryActivity.count()).toBe(0);
+    await expect(testDb.entry.findUniqueOrThrow({ where: { id: entry.id } })).resolves.toMatchObject({
+      activityInferenceStatus: ActivityInferenceStatus.FAILED,
+    });
     expect(errorSpy).toHaveBeenCalledWith('Automatic activity inference failed.', expect.any(Error));
     errorSpy.mockRestore();
+  });
+
+  it('marks successful enrichment complete so the timeline can reconcile it', async () => {
+    const user = await createUser();
+    const activity = await testDb.activity.create({ data: { userId: user.id, name: 'Gaming', emoji: '🎮' } });
+    const entry = await createEntry(user.id, undefined, ActivityInferenceStatus.PENDING);
+    mocks.configuredLlmClient.mockReturnValue({
+      complete: vi.fn().mockResolvedValue(JSON.stringify({ activityIds: [activity.id] })),
+    });
+
+    await runEntryActivityInference(user.id, entry.id, snapshot(entry));
+
+    await expect(testDb.entry.findUniqueOrThrow({ where: { id: entry.id } })).resolves.toMatchObject({
+      activityInferenceStatus: ActivityInferenceStatus.COMPLETE,
+    });
+    expect(mocks.invalidateJournalReads).toHaveBeenCalledWith(user.id, entry.id);
+  });
+
+  it('marks empty enrichment complete so the client stops polling', async () => {
+    const user = await createUser();
+    const entry = await createEntry(user.id, undefined, ActivityInferenceStatus.PENDING);
+
+    await runEntryActivityInference(user.id, entry.id, snapshot(entry));
+
+    await expect(testDb.entry.findUniqueOrThrow({ where: { id: entry.id } })).resolves.toMatchObject({
+      activityInferenceStatus: ActivityInferenceStatus.COMPLETE,
+    });
+    expect(mocks.invalidateJournalReads).not.toHaveBeenCalled();
+  });
+
+  it('marks a superseded pending inference complete without attaching stale activities', async () => {
+    const user = await createUser();
+    const gaming = await testDb.activity.create({ data: { userId: user.id, name: 'Gaming', emoji: '🎮' } });
+    const entry = await createEntry(user.id, 'The old note.', ActivityInferenceStatus.PENDING);
+    const oldSnapshot = snapshot(entry);
+    await testDb.entry.update({
+      where: { id: entry.id },
+      data: { note: 'The note after a direct edit.' },
+    });
+
+    await runEntryActivityInference(user.id, entry.id, oldSnapshot);
+
+    await expect(testDb.entry.findUniqueOrThrow({ where: { id: entry.id } })).resolves.toMatchObject({
+      activityInferenceStatus: ActivityInferenceStatus.COMPLETE,
+    });
+    expect(await testDb.entryActivity.count({ where: { activityId: gaming.id } })).toBe(0);
   });
 });

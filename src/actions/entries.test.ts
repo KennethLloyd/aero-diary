@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { Mood } from '@/generated/prisma/enums';
+import { ActivityInferenceStatus, Mood } from '@/generated/prisma/enums';
 import { resetTestDb, testDb } from '@/test/test-db';
 
 const mocks = vi.hoisted(() => ({
@@ -103,7 +103,9 @@ describe('createEntry action', () => {
 
     const entry = await testDb.entry.findFirstOrThrow({ include: { activities: true } });
     expect(entry.activities).toEqual([]);
+    expect(entry.activityInferenceStatus).toBe(ActivityInferenceStatus.PENDING);
     expect(mocks.after).toHaveBeenCalledWith(expect.any(Function));
+    expect(mocks.redirect).toHaveBeenCalledWith(`/timeline?pendingInference=${entry.id}`);
   });
 
   it('persists a backdated entry under the selected canonical calendar date', async () => {
@@ -194,6 +196,7 @@ describe('updateEntry action', () => {
         journalDate: '2026-08-18',
         mood: Mood.BAD,
         note: 'Before the edit.',
+        activityInferenceStatus: ActivityInferenceStatus.PENDING,
         activities: { create: [{ activityId: oldActivity.id }] },
       },
     });
@@ -207,7 +210,11 @@ describe('updateEntry action', () => {
       where: { id: entry.id },
       include: { activities: true },
     });
-    expect(updated).toMatchObject({ mood: Mood.GOOD, note: 'After the edit.' });
+    expect(updated).toMatchObject({
+      mood: Mood.GOOD,
+      note: 'After the edit.',
+      activityInferenceStatus: ActivityInferenceStatus.COMPLETE,
+    });
     expect(updated.journalDate).toBe(entry.journalDate);
     expect(updated.activities).toEqual([{ entryId: entry.id, activityId: newActivity.id }]);
     expect(mocks.updateTag).toHaveBeenCalledWith(`journal:${user.id}:timeline`);
@@ -247,6 +254,7 @@ describe('updateEntry action', () => {
         journalDate: '2026-08-18',
         mood: Mood.BAD,
         note: 'Private note.',
+        activityInferenceStatus: ActivityInferenceStatus.PENDING,
       },
     });
     mocks.verifySession.mockResolvedValue({ isAuth: true, userId: user.id });

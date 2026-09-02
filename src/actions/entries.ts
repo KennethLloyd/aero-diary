@@ -110,7 +110,7 @@ export async function createEntry(
     note: createdEntry.note,
     updatedAt: createdEntry.updatedAt,
   }));
-  redirect('/timeline');
+  redirect(`/timeline?pendingInference=${encodeURIComponent(createdEntry.id)}`);
 }
 
 export async function updateEntry(
