@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Mood } from '@/generated/prisma/enums';
 import { resetTestDb, testDb } from '@/test/test-db';
 import type { PhotoStore } from '@/lib/drive/store';
-import { MAX_PHOTO_TOTAL_SIZE_BYTES } from '@/lib/journal/photos';
 import {
   createEntryWorkflow,
   deleteEntryWorkflow,
@@ -10,7 +9,6 @@ import {
   EntryActivityOwnershipError,
   EntryDateInFutureError,
   EntryPhotoCapacityError,
-  EntryPhotoSizeCapacityError,
   updateEntryWorkflow,
 } from '@/lib/journal/entry-workflow';
 import { StagedPhotoUnavailableError } from '@/lib/journal/photo-staging';
@@ -19,7 +17,6 @@ import { createEntrySchema, updateEntrySchema } from '@/lib/journal/schemas';
 const mocks = vi.hoisted(() => ({
   deletePhoto: vi.fn(),
   getPhotoStore: vi.fn(),
-  resolve: vi.fn(),
 }));
 
 vi.mock('@/lib/db', async () => {
@@ -33,7 +30,7 @@ function createStore() {
     delete: mocks.deletePhoto,
     deleteById: vi.fn(),
     download: vi.fn(),
-    resolve: mocks.resolve,
+    resolve: vi.fn(),
     upload: vi.fn(),
   } as unknown as PhotoStore;
 }
@@ -82,13 +79,6 @@ describe('entry workflow', () => {
     await resetTestDb();
     vi.clearAllMocks();
     mocks.getPhotoStore.mockReturnValue(createStore());
-    mocks.resolve.mockResolvedValue({
-      status: 'resolved',
-      drivePath: 'photos/existing.jpg',
-      fileId: 'drive-existing',
-      mimeType: 'image/jpeg',
-      sizeBytes: 1,
-    });
   });
 
   it('creates an owned entry from typed input', async () => {
@@ -196,7 +186,7 @@ describe('entry workflow', () => {
     expect(await testDb.photo.count()).toBe(1);
   });
 
-  it('does not attach an eleventh photo while editing a full entry', async () => {
+  it('does not attach a twenty-first photo while editing a full entry', async () => {
     const user = await createUser('full@example.com');
     const entry = await testDb.entry.create({
       data: {
@@ -205,7 +195,7 @@ describe('entry workflow', () => {
         mood: Mood.RAD,
         note: 'Already full.',
         photos: {
-          create: Array.from({ length: 10 }, (_, index) => ({
+          create: Array.from({ length: 20 }, (_, index) => ({
             drivePath: `photos/existing-${index}.jpg`,
             mimeType: 'image/jpeg',
           })),
@@ -220,23 +210,23 @@ describe('entry workflow', () => {
       updateInput(),
       { draftKey: staged.draftKey, ids: [staged.id] },
     )).rejects.toBeInstanceOf(EntryPhotoCapacityError);
-    expect(await testDb.photo.count({ where: { entryId: entry.id } })).toBe(10);
+    expect(await testDb.photo.count({ where: { entryId: entry.id } })).toBe(20);
     expect(await testDb.stagedPhoto.findUnique({ where: { id: staged.id } })).not.toBeNull();
   });
 
-  it('enforces the combined 20 MB photo limit while editing', async () => {
+  it('accepts photos whose combined size exceeds 20 MB while editing', async () => {
     const user = await createUser('size@example.com');
     const entry = await testDb.entry.create({
       data: {
         userId: user.id,
         journalDate: '2026-08-18',
         mood: Mood.RAD,
-        note: 'Size limit.',
+        note: 'Large photos are allowed.',
         photos: {
           create: {
             drivePath: 'photos/large-existing.jpg',
             mimeType: 'image/jpeg',
-            sizeBytes: MAX_PHOTO_TOTAL_SIZE_BYTES - 1_000_000,
+            sizeBytes: 20 * 1024 * 1024 - 1,
           },
         },
       },
@@ -248,9 +238,14 @@ describe('entry workflow', () => {
       entry.id,
       updateInput(),
       { draftKey: staged.draftKey, ids: [staged.id] },
-    )).rejects.toBeInstanceOf(EntryPhotoSizeCapacityError);
-    expect(await testDb.photo.count({ where: { entryId: entry.id } })).toBe(1);
-    expect(await testDb.stagedPhoto.findUnique({ where: { id: staged.id } })).not.toBeNull();
+    )).resolves.toEqual({ id: entry.id });
+    expect(await testDb.photo.count({ where: { entryId: entry.id } })).toBe(2);
+    expect(await testDb.photo.findMany({
+      where: { entryId: entry.id },
+      orderBy: { createdAt: 'asc' },
+      select: { sizeBytes: true },
+    })).toEqual([{ sizeBytes: 20 * 1024 * 1024 - 1 }, { sizeBytes: 1_000_001 }]);
+    expect(await testDb.stagedPhoto.findUnique({ where: { id: staged.id } })).toBeNull();
   });
 
   it('attaches staged photos when saving an edit', async () => {

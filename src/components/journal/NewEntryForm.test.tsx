@@ -72,22 +72,31 @@ describe('NewEntryForm activity state', () => {
 });
 
 describe('NewEntryForm photo state', () => {
-  it('renders existing photos and hides Add photos at capacity', () => {
-    render(<NewEntryForm activities={[]} entry={editableEntry(10)} />);
+  it('shows the updated capacity and supported HEIF helper copy', () => {
+    render(<NewEntryForm activities={[]} />);
 
-    expect(screen.getByText('10 of 10 photos')).toBeInTheDocument();
-    expect(screen.getAllByRole('img', { name: /Attached photo/ })).toHaveLength(10);
-    expect(screen.getAllByRole('button', { name: /Remove attached photo/ })).toHaveLength(10);
+    expect(screen.getByText('0 of 20 photos')).toBeInTheDocument();
+    expect(screen.getByText(
+      'Select JPEG, PNG, HEIC, or HEIF photos. Transfers continue while you write.',
+    )).toBeInTheDocument();
+  });
+
+  it('renders twenty existing photos and hides Add photos at capacity', () => {
+    render(<NewEntryForm activities={[]} entry={editableEntry(20)} />);
+
+    expect(screen.getByText('20 of 20 photos')).toBeInTheDocument();
+    expect(screen.getAllByRole('img', { name: /Attached photo/ })).toHaveLength(20);
+    expect(screen.getAllByRole('button', { name: /Remove attached photo/ })).toHaveLength(20);
     expect(screen.queryByRole('button', { name: 'Add photos' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Add more photos' })).not.toBeInTheDocument();
   });
   it('updates capacity when an existing photo is removed', async () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
-    render(<NewEntryForm activities={[]} entry={editableEntry(9)} />);
+    render(<NewEntryForm activities={[]} entry={editableEntry(19)} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove attached photo 1' }));
 
-    await waitFor(() => expect(screen.getByText('8 of 10 photos')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('18 of 20 photos')).toBeInTheDocument());
     expect(screen.getByRole('button', { name: 'Add more photos' })).toBeInTheDocument();
     confirm.mockRestore();
   });
@@ -105,7 +114,7 @@ describe('NewEntryForm photo state', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
 
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument());
-    expect(screen.getByText('1 of 10 photos')).toBeInTheDocument();
+    expect(screen.getByText('1 of 20 photos')).toBeInTheDocument();
     fetchMock.mockRestore();
   });
 
@@ -161,7 +170,7 @@ describe('NewEntryForm photo state', () => {
       screen.getByLabelText('Select photos') as HTMLInputElement,
       [new File(['photo'], 'photo.jpg', { type: 'image/jpeg' })],
     );
-    await waitFor(() => expect(screen.getByText('1 of 10 photos')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('1 of 20 photos')).toBeInTheDocument());
     cleanup();
 
     await waitFor(() => expect(fetchMock).toHaveBeenLastCalledWith(

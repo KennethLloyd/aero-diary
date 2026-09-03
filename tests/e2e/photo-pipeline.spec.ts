@@ -15,7 +15,7 @@ test('photo attachments cover empty, partial, and full capacity on mobile and de
     { name: 'mobile', width: 393, height: 852 },
     { name: 'desktop', width: 1280, height: 900 },
   ];
-  const photoCounts = [0, 1, 3, 10];
+  const photoCounts = [0, 1, 3, 20];
 
   await page.goto('/');
   await page.getByLabel('Email').fill(demoEmail);
@@ -37,8 +37,8 @@ test('photo attachments cover empty, partial, and full capacity on mobile and de
           );
         }
 
-        await expect(page.getByText(`${photoCount} of 10 photos`)).toBeVisible({ timeout: 120_000 });
-        if (photoCount === 10) {
+        await expect(page.getByText(`${photoCount} of 20 photos`)).toBeVisible({ timeout: 120_000 });
+        if (photoCount === 20) {
           await expect(page.getByRole('button', { name: 'Add more photos' })).not.toBeVisible();
         }
         await expect(page.getByRole('button', { name: 'Save entry' })).toBeEnabled();
@@ -68,19 +68,19 @@ test('photo attachments cover empty, partial, and full capacity on mobile and de
         }
         await page.getByRole('link', { name: 'Edit' }).click();
         await expect(page).toHaveURL(/\/timeline\/[^/]+\/edit$/);
-        await expect(page.getByText(`${photoCount} of 10 photos`)).toBeVisible();
+        await expect(page.getByText(`${photoCount} of 20 photos`)).toBeVisible();
         if (photoCount > 0) {
           await expect(page.getByRole('img', { name: 'Attached photo 1' })).toBeVisible();
         }
-        if (photoCount === 10) {
+        if (photoCount === 20) {
           await expect(page.getByRole('button', { name: 'Add more photos' })).not.toBeVisible();
         }
         if (photoCount === 1) {
           page.once('dialog', (dialog) => dialog.accept());
           await page.getByRole('button', { name: 'Remove attached photo 1' }).click();
-          await expect(page.getByText('0 of 10 photos')).toBeVisible();
+          await expect(page.getByText('0 of 20 photos')).toBeVisible();
           await page.locator('input[type="file"]').setInputFiles(fixture);
-          await expect(page.getByText('1 of 10 photos')).toBeVisible({ timeout: 120_000 });
+          await expect(page.getByText('1 of 20 photos')).toBeVisible({ timeout: 120_000 });
           await expect(page.getByRole('button', { name: 'Save entry' })).toBeEnabled();
           await page.getByRole('button', { name: 'Save entry' }).click();
           await expect(page).toHaveURL(detailUrl);

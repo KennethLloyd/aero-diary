@@ -1,10 +1,10 @@
 import 'server-only';
 
 import type { PrismaClient } from '@/generated/prisma/client';
-import { MAX_PHOTO_COUNT, MAX_PHOTO_TOTAL_SIZE_BYTES } from '@/lib/journal/photos';
+import { MAX_PHOTO_COUNT } from '@/lib/journal/photos';
 import type { PhotoStore, UploadedPhoto } from '@/lib/drive/store';
 
-export const PHOTO_STAGE_CAPACITY_ERROR = 'You can attach up to 10 photos and 20 MB per entry.';
+export const PHOTO_STAGE_CAPACITY_ERROR = 'You can attach up to 20 photos per entry.';
 
 export const PHOTO_STAGE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -74,16 +74,8 @@ function toView(photo: StagedPhotoView): StagedPhotoView {
   return { ...photo };
 }
 
-async function stagedUsage(database: StagedPhotoDatabase, userId: string, draftKey: string) {
-  const where = { userId, draftKey };
-  const [count, aggregate] = await Promise.all([
-    database.stagedPhoto.count({ where }),
-    database.stagedPhoto.aggregate({
-      where,
-      _sum: { sizeBytes: true },
-    }),
-  ]);
-  return { count, sizeBytes: aggregate._sum.sizeBytes ?? 0 };
+async function stagedPhotoCount(database: StagedPhotoDatabase, userId: string, draftKey: string) {
+  return database.stagedPhoto.count({ where: { userId, draftKey } });
 }
 
 async function cleanupUploadedPhoto(store: PhotoStore, photo: UploadedPhoto) {
@@ -287,11 +279,8 @@ export async function stagePhoto(
   });
   if (cancellation) throw new PhotoStageCancelledError();
 
-  const usage = await stagedUsage(database, input.userId, input.draftKey);
-  if (
-    usage.count >= MAX_PHOTO_COUNT
-    || usage.sizeBytes + input.file.size > MAX_PHOTO_TOTAL_SIZE_BYTES
-  ) {
+  const stagedCount = await stagedPhotoCount(database, input.userId, input.draftKey);
+  if (stagedCount >= MAX_PHOTO_COUNT) {
     throw new PhotoStageCapacityError();
   }
 
@@ -324,11 +313,8 @@ export async function stagePhoto(
       });
     });
 
-    const finalUsage = await stagedUsage(database, input.userId, input.draftKey);
-    if (
-      finalUsage.count > MAX_PHOTO_COUNT
-      || finalUsage.sizeBytes > MAX_PHOTO_TOTAL_SIZE_BYTES
-    ) {
+    const finalStagedCount = await stagedPhotoCount(database, input.userId, input.draftKey);
+    if (finalStagedCount > MAX_PHOTO_COUNT) {
       await database.stagedPhoto.delete({ where: { id: created.id } });
       throw new PhotoStageCapacityError();
     }

@@ -158,10 +158,10 @@ describe('staged photo workflow', () => {
     expect(await testDb.stagedPhoto.count()).toBe(0);
   });
 
-  it('rejects a new stage after ten staged photos without calling Drive', async () => {
+  it('rejects a new stage after twenty staged photos without calling Drive', async () => {
     const user = await createUser();
     const store = createStore();
-    await Promise.all(Array.from({ length: 10 }, (_, index) => testDb.stagedPhoto.create({
+    await Promise.all(Array.from({ length: 20 }, (_, index) => testDb.stagedPhoto.create({
       data: {
         userId: user.id,
         draftKey: 'draft-1',
@@ -176,7 +176,7 @@ describe('staged photo workflow', () => {
     await expect(stagePhoto(testDb, store, {
       userId: user.id,
       draftKey: 'draft-1',
-      clientKey: 'eleventh',
+      clientKey: 'twenty-first',
       file: new File(['photo'], 'photo.jpg', { type: 'image/jpeg' }),
     })).rejects.toBeInstanceOf(PhotoStageCapacityError);
     expect(store.upload).not.toHaveBeenCalled();

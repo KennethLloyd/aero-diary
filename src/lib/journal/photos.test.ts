@@ -2,8 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   MAX_PHOTO_COUNT,
   MAX_PHOTO_SIZE_BYTES,
-  MAX_PHOTO_TOTAL_SIZE_BYTES,
-  PHOTO_TOTAL_SIZE_ERROR,
   parsePhotoFiles,
 } from '@/lib/journal/photos';
 
@@ -23,13 +21,13 @@ describe('parsePhotoFiles', () => {
     expect(result.data).toHaveLength(1);
   });
 
-  it('accepts exactly ten photos', () => {
+  it('accepts exactly twenty photos', () => {
     const files = Array.from(
       { length: MAX_PHOTO_COUNT },
       (_, index) => new File([String(index)], `${index}.jpg`, { type: 'image/jpeg' }),
     );
 
-    expect(parsePhotoFiles(values(...files)).data).toHaveLength(10);
+    expect(parsePhotoFiles(values(...files)).data).toHaveLength(20);
   });
 
   it('accepts PNG photos', () => {
@@ -77,13 +75,13 @@ describe('parsePhotoFiles', () => {
     });
   });
 
-  it('rejects a batch larger than the server action upload limit', () => {
+  it('accepts valid photos whose combined size exceeds 20 MB', () => {
     const files = [
-      new File([new Uint8Array(Math.floor(MAX_PHOTO_TOTAL_SIZE_BYTES / 3))], 'one.jpg', { type: 'image/jpeg' }),
-      new File([new Uint8Array(Math.floor(MAX_PHOTO_TOTAL_SIZE_BYTES / 3))], 'two.jpg', { type: 'image/jpeg' }),
-      new File([new Uint8Array(Math.floor(MAX_PHOTO_TOTAL_SIZE_BYTES / 3) + 4)], 'three.jpg', { type: 'image/jpeg' }),
+      new File([new Uint8Array(8 * 1024 * 1024)], 'one.jpg', { type: 'image/jpeg' }),
+      new File([new Uint8Array(8 * 1024 * 1024)], 'two.jpg', { type: 'image/jpeg' }),
+      new File([new Uint8Array(8 * 1024 * 1024)], 'three.jpg', { type: 'image/jpeg' }),
     ];
 
-    expect(parsePhotoFiles(values(...files))).toEqual({ error: PHOTO_TOTAL_SIZE_ERROR });
+    expect(parsePhotoFiles(values(...files)).data).toHaveLength(3);
   });
 });

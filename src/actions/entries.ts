@@ -11,7 +11,6 @@ import {
   EntryActivityOwnershipError,
   EntryDateInFutureError,
   EntryPhotoCapacityError,
-  EntryPhotoSizeCapacityError,
   updateEntryWorkflow,
   type CreatedEntry,
 } from '@/lib/journal/entry-workflow';
@@ -41,8 +40,7 @@ const SAVE_FAILED = 'Unable to save your entry. Please try again.';
 const ENTRY_NOT_FOUND = 'Entry not found.';
 const PHOTO_NOT_FOUND = 'Photo not found.';
 const PHOTO_DELETE_FAILED = 'Unable to delete your photo. Please try again.';
-const PHOTO_CAPACITY_ERROR = 'Entries can have up to 10 photos.';
-const PHOTO_SIZE_CAPACITY_ERROR = 'Photos in an entry must be 20 MB or smaller in total.';
+const PHOTO_CAPACITY_ERROR = 'Entries can have up to 20 photos.';
 
 function entryFields(formData: FormData) {
   return {
@@ -79,7 +77,6 @@ function saveError(error: unknown) {
   if (error instanceof EntryDateInFutureError) return INVALID_DATE;
   if (error instanceof EntryActivityOwnershipError) return INVALID_ACTIVITY;
   if (error instanceof EntryPhotoCapacityError) return PHOTO_CAPACITY_ERROR;
-  if (error instanceof EntryPhotoSizeCapacityError) return PHOTO_SIZE_CAPACITY_ERROR;
   if (error instanceof StagedPhotoUnavailableError) return PHOTO_UPLOAD_ERROR;
   return SAVE_FAILED;
 }
