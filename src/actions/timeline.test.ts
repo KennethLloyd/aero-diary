@@ -70,4 +70,29 @@ describe('getEntryActivityInferenceStatus action', () => {
       entries: [expect.objectContaining({ note: 'Visible entry.' })],
     });
   });
+
+  it('keeps valid filters when an overlong query is inactive', async () => {
+    const user = await testDb.user.create({ data: { email: 'query-owner@example.com', passwordHash: 'x' } });
+    await testDb.entry.create({
+      data: {
+        userId: user.id,
+        journalDate: '2026-08-31',
+        mood: 'GOOD',
+        note: 'Visible good entry.',
+      },
+    });
+    await testDb.entry.create({
+      data: {
+        userId: user.id,
+        journalDate: '2026-08-30',
+        mood: 'RAD',
+        note: 'Hidden rad entry.',
+      },
+    });
+    mocks.verifySession.mockResolvedValue({ isAuth: true, userId: user.id });
+
+    await expect(refreshTimelinePage({ mood: 'GOOD', query: 'x'.repeat(201) })).resolves.toMatchObject({
+      entries: [expect.objectContaining({ note: 'Visible good entry.' })],
+    });
+  });
 });

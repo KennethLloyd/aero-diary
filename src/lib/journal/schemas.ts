@@ -103,4 +103,7 @@ export const activityIdSchema = z
 export const timelineFilterSchema = z.object({
   mood: timelineMoodSchema.optional(),
   activityId: activityIdSchema.optional(),
+  query: z.string().trim().min(1).max(200).optional(),
 });
+
+export const timelineQuerySchema = timelineFilterSchema.shape.query;

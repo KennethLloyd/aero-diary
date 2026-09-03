@@ -47,6 +47,35 @@ afterEach(() => {
 });
 
 describe('TimelineList', () => {
+  it('centers and highlights the first matching note phrase while keeping the card link', () => {
+    const searchedPage = page(
+      'entry-1',
+      'A long reflection before the quiet phrase appears, followed by a gentle close.',
+    );
+
+    render(
+      <TimelineList
+        initialPage={searchedPage}
+        filter={{ query: 'QUIET PHRASE' }}
+      />,
+    );
+
+    expect(screen.getByRole('link', { name: /quiet phrase/i })).toHaveAttribute('href', '/timeline/entry-1');
+    expect(screen.getByText('quiet phrase', { exact: true }).tagName).toBe('MARK');
+  });
+
+  it('shows a search-specific no-results state', () => {
+    render(
+      <TimelineList
+        initialPage={{ entries: [], nextCursor: null }}
+        filter={{ query: 'missing phrase' }}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { name: 'No matching memories found' })).toBeVisible();
+    expect(screen.getByText('Try a different phrase or return to your full memory timeline.')).toBeVisible();
+  });
+
   it('reconciles inferred activities after pending enrichment reaches a terminal state', async () => {
     const originalPage = page('entry-1', 'Original entry.');
     const freshPage = {

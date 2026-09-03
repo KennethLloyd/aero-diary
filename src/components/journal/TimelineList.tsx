@@ -9,6 +9,7 @@ import {
   refreshTimelinePage,
 } from '@/actions/timeline';
 import { AeroOrb } from '@/components/aero/AeroOrb';
+import { getJournalNoteExcerpt } from '@/lib/journal/notes';
 import type { TimelineEntry, TimelineFilter, TimelinePage } from '@/lib/journal/timeline';
 
 const EMPTY_FILTER: TimelineFilter = {};
@@ -26,6 +27,22 @@ function mergeRefreshedEntries(
     ...refreshedEntries.filter((entry) => !currentIds.has(entry.id)),
     ...currentEntries.map((entry) => refreshedById.get(entry.id) ?? entry),
   ];
+}
+
+function TimelineNote({ note, query }: { note: string; query?: string }) {
+  const excerpt = getJournalNoteExcerpt(note, query);
+
+  return (
+    <p className="line-clamp-3 text-sm font-medium leading-relaxed text-[#1a2c42]">
+      {excerpt.before}
+      {excerpt.match ? (
+        <mark className="rounded bg-[#fff19a]/85 px-0.5 text-[#0a2f5c]">
+          {excerpt.match}
+        </mark>
+      ) : null}
+      {excerpt.after}
+    </p>
+  );
 }
 
 export function TimelineList({
@@ -140,6 +157,8 @@ export function TimelineList({
     };
   }, [pendingInferenceId, refreshTimeline, router]);
 
+  const hasFilter = Boolean(filter.mood || filter.activityId || filter.query);
+
   if (entries.length === 0) {
     return (
       <section className="aero-card p-8 text-center">
@@ -147,18 +166,20 @@ export function TimelineList({
           ✨
         </div>
         <h2 className="text-xl font-bold text-[#0a2f5c]">
-          {filter.mood || filter.activityId ? 'No matching memories found' : 'Your journal is waiting'}
+          {hasFilter ? 'No matching memories found' : 'Your journal is waiting'}
         </h2>
         <p className="mx-auto mt-2 max-w-sm text-sm font-medium text-[#2b4c73]">
-          {filter.mood || filter.activityId
-            ? 'Try adjusting your filters or return to your full memory timeline.'
+          {hasFilter
+            ? filter.query
+              ? 'Try a different phrase or return to your full memory timeline.'
+              : 'Try adjusting your filters or return to your full memory timeline.'
             : 'Capture how today feels and your memories will be preserved here.'}
         </p>
         <div className="mt-5 flex flex-wrap justify-center gap-2.5">
           <Link href="/timeline/new" className="aero-btn">
             + Write an entry
           </Link>
-          {filter.mood || filter.activityId ? (
+          {hasFilter ? (
             <Link href="/timeline" className="aero-btn aero-btn-white">
               View all memories
             </Link>
@@ -193,9 +214,7 @@ export function TimelineList({
 
               {/* Right column: Note Excerpt + Activities */}
               <div className="timeline-entry-body flex flex-col justify-center">
-                <p className="line-clamp-3 text-sm font-medium leading-relaxed text-[#1a2c42]">
-                  {entry.note}
-                </p>
+                <TimelineNote note={entry.note} query={filter.query} />
                 {entry.tags.length > 0 ? (
                   <div className="mt-2.5 flex flex-wrap items-center gap-1.5" aria-label="Activities">
                     {entry.tags.slice(0, 3).map((tag) => (

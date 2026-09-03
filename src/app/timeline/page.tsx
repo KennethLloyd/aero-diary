@@ -14,6 +14,7 @@ type TimelinePageProps = {
   searchParams: Promise<{
     mood?: string | string[]
     activity?: string | string[]
+    q?: string | string[]
     pendingInference?: string | string[]
   }>
 }
@@ -41,6 +42,7 @@ async function TimelineContent({ searchParams }: TimelinePageProps) {
   const pendingInferenceId = entryIdSchema.safeParse(pendingInferenceValue);
   const initialPage = await getCachedTimelinePage(session.userId, undefined, filter);
   const currentMonth = formatMonthLabel(getMonthFromParam(undefined));
+  const hasFilter = Boolean(filter.mood || filter.activityId || filter.query);
 
   return (
     <main className="aero-page relative z-10 mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-4 sm:py-6 md:pt-8">
@@ -48,7 +50,7 @@ async function TimelineContent({ searchParams }: TimelinePageProps) {
         <div>
           <AeroTitle>Timeline</AeroTitle>
           <p className="mt-0.5 text-xs font-semibold text-[#2b4c73] drop-shadow-xs">
-            {filter.mood || filter.activityId ? 'Filtered memories' : currentMonth}
+            {filter.query ? `Search results for “${filter.query}”` : hasFilter ? 'Filtered memories' : currentMonth}
           </p>
         </div>
         <Link
@@ -60,6 +62,35 @@ async function TimelineContent({ searchParams }: TimelinePageProps) {
           <span>New</span>
         </Link>
       </header>
+
+      <form
+        method="get"
+        action="/timeline"
+        className="aero-card flex flex-col gap-2.5 p-3 sm:p-4"
+        aria-label="Search timeline"
+      >
+        <div className="min-w-0 flex-1">
+          <label htmlFor="timeline-search" className="text-sm font-bold text-[#0a2f5c]">
+            Search your notes
+          </label>
+          <div className="mt-1.5 flex gap-2">
+            <input
+              id="timeline-search"
+              name="q"
+              type="search"
+              defaultValue={filter.query ?? ''}
+              maxLength={200}
+              placeholder="Try a phrase from a memory"
+              className="aero-input min-w-0 flex-1"
+            />
+            <button type="submit" className="aero-btn shrink-0 px-4 text-sm">
+              Search
+            </button>
+          </div>
+        </div>
+        {filter.mood ? <input type="hidden" name="mood" value={filter.mood} /> : null}
+        {filter.activityId ? <input type="hidden" name="activity" value={filter.activityId} /> : null}
+      </form>
 
       <TimelineList
         key={[
