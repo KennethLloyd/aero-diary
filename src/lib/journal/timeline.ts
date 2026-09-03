@@ -63,6 +63,14 @@ export function parseTimelineFilter(
   };
 }
 
+export function getTimelineClearSearchHref(filter: TimelineFilter): string {
+  const params = new URLSearchParams();
+  if (filter.mood) params.set('mood', filter.mood);
+  if (filter.activityId) params.set('activity', filter.activityId);
+  const search = params.toString();
+  return search ? `/timeline?${search}` : '/timeline';
+}
+
 function formatEntry(entry: TimelineDbEntry): TimelineEntry {
   const journalDate = parseJournalDate(entry.journalDate);
   return {

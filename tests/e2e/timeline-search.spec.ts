@@ -48,6 +48,14 @@ test.describe('timeline search desktop', () => {
     await expect(page.getByText('Search results for “a”', { exact: true })).toBeVisible();
     await expect(page.locator('[aria-label="Mood: Good"]')).toHaveCount(await timelineCards(page).count());
 
+    const clearSearch = page.getByRole('link', { name: 'Clear search', exact: true });
+    await expect(clearSearch).toBeVisible();
+    await expect(clearSearch).toHaveAttribute('href', '/timeline?mood=GOOD');
+    await clearSearch.click();
+    await expect(page).toHaveURL(/\/timeline\?mood=GOOD$/);
+    await expect(page.getByLabel('Search your notes')).toHaveValue('');
+    await expect(page.getByText('Filtered memories', { exact: true })).toBeVisible();
+
     await submitSearch(page, 'phrase-that-is-not-in-this-journal');
     await expect(page.getByRole('heading', { name: 'No matching memories found' })).toBeVisible();
     await expect(page.getByText('Try a different phrase or return to your full memory timeline.')).toBeVisible();
@@ -75,6 +83,13 @@ test.describe('timeline search mobile', () => {
 
     await expect(page).toHaveURL(/\/timeline\?q=a$/);
     await expect(page.locator('mark').first()).toBeVisible();
+    const clearSearch = page.getByRole('link', { name: 'Clear search', exact: true });
+    await expect(clearSearch).toBeVisible();
+    await expect(clearSearch).toHaveAttribute('href', '/timeline');
+    await clearSearch.click();
+    await expect(page).toHaveURL(/\/timeline$/);
+    await expect(page.getByLabel('Search your notes')).toHaveValue('');
+    await expect(page.getByText('Search results for “a”', { exact: true })).not.toBeVisible();
     const metrics = await page.evaluate(() => ({
       documentWidth: document.documentElement.scrollWidth,
       viewportWidth: window.innerWidth,

@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { resetTestDb, testDb } from '@/test/test-db';
-import { listTimelinePage, parseTimelineFilter, TIMELINE_PAGE_SIZE } from '@/lib/journal/timeline';
+import {
+  getTimelineClearSearchHref,
+  listTimelinePage,
+  parseTimelineFilter,
+  TIMELINE_PAGE_SIZE,
+} from '@/lib/journal/timeline';
 
 describe('timeline pagination', () => {
   it('parses safe mood and activity filters for actionable insight links', () => {
@@ -22,6 +27,15 @@ describe('timeline pagination', () => {
     expect(parseTimelineFilter({ mood: 'GOOD', q: 'x'.repeat(201) })).toEqual({
       mood: 'GOOD',
     });
+  });
+
+  it('builds a clear-search URL without dropping valid deep-link filters', () => {
+    expect(getTimelineClearSearchHref(parseTimelineFilter({
+      mood: 'GOOD',
+      activity: 'activity-1',
+      q: 'quiet morning',
+    }))).toBe('/timeline?mood=GOOD&activity=activity-1');
+    expect(getTimelineClearSearchHref(parseTimelineFilter({ q: 'quiet morning' }))).toBe('/timeline');
   });
 
   beforeEach(async () => {

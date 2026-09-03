@@ -6,7 +6,11 @@ import { AeroTitle } from '@/components/aero/AeroTitle';
 import { TimelineList } from '@/components/journal/TimelineList';
 import { verifySession } from '@/lib/dal';
 import { formatMonthLabel, getMonthFromParam } from '@/lib/journal/analytics';
-import { getCachedTimelinePage, parseTimelineFilter } from '@/lib/journal/timeline';
+import {
+  getCachedTimelinePage,
+  getTimelineClearSearchHref,
+  parseTimelineFilter,
+} from '@/lib/journal/timeline';
 import { entryIdSchema } from '@/lib/journal/schemas';
 import TimelineLoading from './loading';
 
@@ -73,19 +77,29 @@ async function TimelineContent({ searchParams }: TimelinePageProps) {
           <label htmlFor="timeline-search" className="text-sm font-bold text-[#0a2f5c]">
             Search your notes
           </label>
-          <div className="mt-1.5 flex gap-2">
-            <input
-              id="timeline-search"
-              name="q"
-              type="search"
-              defaultValue={filter.query ?? ''}
-              maxLength={200}
-              placeholder="Try a phrase from a memory"
-              className="aero-input min-w-0 flex-1"
-            />
-            <button type="submit" className="aero-btn shrink-0 px-4 text-sm">
-              Search
-            </button>
+          <div className="mt-1.5 flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="flex min-w-0 flex-1 gap-2">
+              <input
+                id="timeline-search"
+                name="q"
+                type="search"
+                defaultValue={filter.query ?? ''}
+                maxLength={200}
+                placeholder="Try a phrase from a memory"
+                className="aero-input min-w-0 flex-1"
+              />
+              <button type="submit" className="aero-btn shrink-0 px-4 text-sm">
+                Search
+              </button>
+            </div>
+            {filter.query ? (
+              <Link
+                href={getTimelineClearSearchHref(filter)}
+                className="aero-link-control self-end whitespace-nowrap text-sm font-bold text-[#144e9d] underline decoration-dotted underline-offset-4 sm:self-auto"
+              >
+                Clear search
+              </Link>
+            ) : null}
           </div>
         </div>
         {filter.mood ? <input type="hidden" name="mood" value={filter.mood} /> : null}
