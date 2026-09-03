@@ -1,15 +1,13 @@
 import { z } from 'zod';
 
-export const MAX_PHOTO_COUNT = 10;
+export const MAX_PHOTO_COUNT = 20;
 export const MAX_PHOTO_SIZE_BYTES = 10 * 1024 * 1024;
-export const MAX_PHOTO_TOTAL_SIZE_BYTES = 20 * 1024 * 1024;
 const SUPPORTED_PHOTO_TYPES = new Set(['image/jpeg', 'image/png']);
 const HEIF_PHOTO_TYPES = new Set(['image/heic', 'image/heif']);
 export const PHOTO_TYPE_ERROR = 'Photos must be JPEG, PNG, HEIC, or HEIF images.';
 
 export const PHOTO_UPLOAD_ERROR = 'Unable to save your photos. Please try again.';
 export const PHOTO_COUNT_ERROR = `Attach ${MAX_PHOTO_COUNT} photos or fewer.`;
-export const PHOTO_TOTAL_SIZE_ERROR = 'Photos must be 20 MB or smaller in total.';
 
 function isFile(value: unknown): value is File {
   return Boolean(
@@ -61,10 +59,6 @@ export function parsePhotoFiles(values: FormDataEntryValue[]) {
   const parsed = z
     .array(photoFileSchema)
     .max(MAX_PHOTO_COUNT, { error: PHOTO_COUNT_ERROR })
-    .refine(
-      (files) => files.reduce((total, file) => total + file.size, 0) <= MAX_PHOTO_TOTAL_SIZE_BYTES,
-      { error: PHOTO_TOTAL_SIZE_ERROR },
-    )
     .safeParse(values.filter((value) => !isBlankFile(value)));
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? PHOTO_UPLOAD_ERROR } as const;

@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Mood } from '@/generated/prisma/enums';
-import { MAX_PHOTO_TOTAL_SIZE_BYTES } from '@/lib/journal/photos';
 import { resetTestDb, testDb } from '@/test/test-db';
 const mocks = vi.hoisted(() => ({
   after: vi.fn(),
@@ -139,7 +138,7 @@ describe('entry photo actions', () => {
     expect(await testDb.entry.count({ where: { userId: user.id } })).toBe(1);
     expect(await testDb.photo.count()).toBe(1);
   });
-  it('does not attach an eleventh photo while editing a full entry', async () => {
+  it('does not attach a twenty-first photo while editing a full entry', async () => {
     const user = await testDb.user.create({
       data: { email: 'ken@example.com', passwordHash: 'x' },
     });
@@ -150,7 +149,7 @@ describe('entry photo actions', () => {
         mood: Mood.RAD,
         note: 'Already full.',
         photos: {
-          create: Array.from({ length: 10 }, (_, index) => ({
+          create: Array.from({ length: 20 }, (_, index) => ({
             drivePath: `photos/existing-${index}.jpg`,
             mimeType: 'image/jpeg',
           })),
@@ -166,12 +165,12 @@ describe('entry photo actions', () => {
 
     const state = await updateEntry(entry.id, undefined, form(undefined, staged.id));
 
-    expect(state).toEqual({ error: 'Entries can have up to 10 photos.' });
-    expect(await testDb.photo.count({ where: { entryId: entry.id } })).toBe(10);
+    expect(state).toEqual({ error: 'Entries can have up to 20 photos.' });
+    expect(await testDb.photo.count({ where: { entryId: entry.id } })).toBe(20);
     expect(await testDb.stagedPhoto.count({ where: { id: staged.id } })).toBe(1);
   });
 
-  it('enforces the combined 20 MB photo limit while editing', async () => {
+  it('accepts photos whose combined size exceeds 20 MB while editing', async () => {
     const user = await testDb.user.create({
       data: { email: 'size@example.com', passwordHash: 'x' },
     });
@@ -180,12 +179,12 @@ describe('entry photo actions', () => {
         userId: user.id,
         journalDate: '2026-08-18',
         mood: Mood.RAD,
-        note: 'Size limit.',
+        note: 'Large photos are allowed.',
         photos: {
           create: {
             drivePath: 'photos/large-existing.jpg',
             mimeType: 'image/jpeg',
-            sizeBytes: MAX_PHOTO_TOTAL_SIZE_BYTES - 1_000_000,
+            sizeBytes: 20 * 1024 * 1024 - 1,
           },
         },
       },
@@ -203,11 +202,14 @@ describe('entry photo actions', () => {
       },
     });
 
-    const state = await updateEntry(entry.id, undefined, form(undefined, staged.id));
-
-    expect(state).toEqual({ error: 'Photos in an entry must be 20 MB or smaller in total.' });
-    expect(await testDb.photo.count({ where: { entryId: entry.id } })).toBe(1);
-    expect(await testDb.stagedPhoto.findUnique({ where: { id: staged.id } })).not.toBeNull();
+    await expect(updateEntry(entry.id, undefined, form(undefined, staged.id))).rejects.toThrow(NEXT_REDIRECT);
+    expect(await testDb.photo.count({ where: { entryId: entry.id } })).toBe(2);
+    expect(await testDb.photo.findMany({
+      where: { entryId: entry.id },
+      orderBy: { createdAt: 'asc' },
+      select: { sizeBytes: true },
+    })).toEqual([{ sizeBytes: 20 * 1024 * 1024 - 1 }, { sizeBytes: 1_000_001 }]);
+    expect(await testDb.stagedPhoto.findUnique({ where: { id: staged.id } })).toBeNull();
   });
 
   it('attaches staged photos when saving an edit', async () => {

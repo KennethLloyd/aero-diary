@@ -296,7 +296,7 @@ export function NewEntryForm({
     setPhotoError(undefined);
     const available = MAX_PHOTO_COUNT - existingPhotos.length - stagedPhotos.length;
     if (available <= 0) {
-      setPhotoError('This entry already has 10 photos.');
+      setPhotoError('This entry already has 20 photos.');
       return;
     }
     const activeDraftKey = draftKey || createClientKey();
@@ -761,7 +761,7 @@ export function NewEntryForm({
           ) : null}
           {uploadingPhotoCount === 0 && removingPhotoCount === 0 && totalPhotoCount < MAX_PHOTO_COUNT ? (
             <p className="text-xs font-medium text-[#2b4c73]">
-              Select JPEG, PNG, or HEIC photos. Transfers continue while you write.
+              Select JPEG, PNG, HEIC, or HEIF photos. Transfers continue while you write.
             </p>
           ) : null}
         </section>

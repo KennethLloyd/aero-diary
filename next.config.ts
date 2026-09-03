@@ -10,11 +10,6 @@ const nextConfig: NextConfig = {
       expire: 604_800,
     },
   },
-  experimental: {
-    serverActions: {
-      bodySizeLimit: '25mb',
-    },
-  },
 };
 
 export default nextConfig;
