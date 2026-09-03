@@ -14,8 +14,15 @@ import {
 import { entryIdSchema, timelineFilterSchema } from '@/lib/journal/schemas';
 
 function parseTimelineActionFilter(filter: TimelineFilter): TimelineFilter {
-  const parsed = timelineFilterSchema.safeParse(filter);
-  return parsed.success ? parsed.data : {};
+  const mood = timelineFilterSchema.shape.mood.safeParse(filter.mood);
+  const activityId = timelineFilterSchema.shape.activityId.safeParse(filter.activityId);
+  const query = timelineFilterSchema.shape.query.safeParse(filter.query);
+
+  return {
+    ...(mood.success ? { mood: mood.data } : {}),
+    ...(activityId.success ? { activityId: activityId.data } : {}),
+    ...(query.success ? { query: query.data } : {}),
+  };
 }
 
 export async function loadTimelinePage(

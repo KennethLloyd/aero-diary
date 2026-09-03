@@ -1,13 +1,17 @@
 import 'server-only';
 
 import { cacheLife, cacheTag } from 'next/cache';
-import type { PrismaClient } from '@/generated/prisma/client';
+import { Prisma, type PrismaClient } from '@/generated/prisma/client';
 import type { Mood } from '@/generated/prisma/enums';
 import { db } from '@/lib/db';
 import { timelineCacheTag } from '@/lib/journal/cache-tags';
 import { formatDateKey, parseJournalDate, type JournalDate } from '@/lib/journal/dates';
 import { normalizeJournalNote } from '@/lib/journal/notes';
-import { timelineFilterSchema, timelineMoodSchema } from '@/lib/journal/schemas';
+import {
+  activityIdSchema,
+  timelineMoodSchema,
+  timelineQuerySchema,
+} from '@/lib/journal/schemas';
 
 export const TIMELINE_PAGE_SIZE = 25;
 type TimelineDbEntry = {
@@ -35,20 +39,36 @@ export type TimelinePage = {
 export type TimelineFilter = {
   mood?: Mood
   activityId?: string
+  query?: string
 }
 
 export function parseTimelineFilter(
-  params: { mood?: string | string[]; activity?: string | string[] },
+  params: {
+    mood?: string | string[]
+    activity?: string | string[]
+    q?: string | string[]
+  },
 ): TimelineFilter {
   const moodValue = Array.isArray(params.mood) ? params.mood[0] : params.mood;
   const activityValue = Array.isArray(params.activity) ? params.activity[0] : params.activity;
+  const queryValue = Array.isArray(params.q) ? params.q[0] : params.q;
   const mood = timelineMoodSchema.safeParse(moodValue);
-  const activityId = timelineFilterSchema.shape.activityId.safeParse(activityValue);
+  const activityId = activityIdSchema.safeParse(activityValue);
+  const query = timelineQuerySchema.safeParse(queryValue);
 
   return {
     ...(mood.success ? { mood: mood.data } : {}),
     ...(activityId.success ? { activityId: activityId.data } : {}),
+    ...(query.success ? { query: query.data } : {}),
   };
+}
+
+export function getTimelineClearSearchHref(filter: TimelineFilter): string {
+  const params = new URLSearchParams();
+  if (filter.mood) params.set('mood', filter.mood);
+  if (filter.activityId) params.set('activity', filter.activityId);
+  const search = params.toString();
+  return search ? `/timeline?${search}` : '/timeline';
 }
 
 function formatEntry(entry: TimelineDbEntry): TimelineEntry {
@@ -66,6 +86,14 @@ function formatEntry(entry: TimelineDbEntry): TimelineEntry {
     })),
   };
 }
+
+function escapeLikePattern(value: string): string {
+  return value
+    .replaceAll('\\', '\\\\')
+    .replaceAll('%', '\\%')
+    .replaceAll('_', '\\_');
+}
+
 export async function getCachedTimelinePage(
   userId: string,
   cursor?: string,
@@ -100,9 +128,19 @@ export async function listTimelinePage(
 
   if (cursor && !cursorEntry) throw new Error('Invalid timeline cursor.');
 
+  const matchingEntryIds = filter.query
+    ? (await database.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+      SELECT "id"
+      FROM "Entry"
+      WHERE "userId" = ${userId}
+        AND LOWER("note") LIKE LOWER(${`%${escapeLikePattern(filter.query)}%`}) ESCAPE '\\'
+    `)).map((entry) => entry.id)
+    : undefined;
+
   const entries = await database.entry.findMany({
     where: {
       userId,
+      ...(matchingEntryIds ? { id: { in: matchingEntryIds } } : {}),
       ...(filter.mood ? { mood: filter.mood } : {}),
       ...(filter.activityId ? { activities: { some: { activityId: filter.activityId } } } : {}),
       ...(cursorEntry
