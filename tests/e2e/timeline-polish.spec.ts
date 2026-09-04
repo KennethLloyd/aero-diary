@@ -9,6 +9,14 @@ if (!demoEmail || !demoPassword) {
 
 const timelineCards = (page: Page) => page.locator('main a[href^="/timeline/"]:not([href="/timeline/new"])');
 
+const dockLayoutRoutes = [
+  { route: '/timeline', target: 'main a[href^="/timeline/"]:not([href="/timeline/new"])' },
+  { route: '/calendar', target: 'main > section[aria-labelledby="calendar-heading"]' },
+  { route: '/insights', target: 'main > section[aria-labelledby="top-activities-heading"]' },
+  { route: '/activities', target: 'main > div > section:last-of-type' },
+  { route: '/settings', target: 'main > div > section:last-of-type' },
+] as const;
+
 async function signIn(page: Page) {
   await page.goto('/');
   await page.getByLabel('Email').fill(demoEmail!);
@@ -17,11 +25,60 @@ async function signIn(page: Page) {
   await expect(page).toHaveURL(/\/timeline$/);
 }
 
+async function verifyFloatingDock(page: Page, route: string, targetSelector: string) {
+  await page.goto(route);
+  await page.locator(targetSelector).first().waitFor({ state: 'attached' });
+  const dock = page.locator('.aero-dock');
+  await expect(dock).toBeVisible();
+
+  const metrics = await page.evaluate((selector) => {
+    const screen = document.querySelector<HTMLElement>('.aero-screen');
+    const root = document.querySelector<HTMLElement>('.aero-screen-content');
+    const dockElement = document.querySelector<HTMLElement>('.aero-dock');
+    const target = document.querySelector<HTMLElement>(selector);
+    if (!screen || !root || !dockElement || !target) return null;
+
+    const initialDockTop = dockElement.getBoundingClientRect().top;
+    root.scrollTop = Math.max(0, Math.floor((root.scrollHeight - root.clientHeight) / 2));
+    const scrolledDockTop = dockElement.getBoundingClientRect().top;
+    root.scrollTop = root.scrollHeight;
+
+    const screenRect = screen.getBoundingClientRect();
+    const rootRect = root.getBoundingClientRect();
+    const dockRect = dockElement.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+
+    return {
+      dockPosition: getComputedStyle(dockElement).position,
+      documentWidth: document.documentElement.scrollWidth,
+      viewportWidth: window.innerWidth,
+      screenHeight: screenRect.height,
+      rootHeight: rootRect.height,
+      rootScrollHeight: root.scrollHeight,
+      rootClientHeight: root.clientHeight,
+      dockCenterOffset: Math.abs((dockRect.left + dockRect.right) / 2 - window.innerWidth / 2),
+      dockBottomGap: window.innerHeight - dockRect.bottom,
+      dockTopDeltaWhileScrolling: Math.abs(scrolledDockTop - initialDockTop),
+      targetBottom: targetRect.bottom,
+      dockTop: dockRect.top,
+    };
+  }, targetSelector);
+
+  expect(metrics).not.toBeNull();
+  expect(metrics?.dockPosition).toBe('fixed');
+  expect(metrics?.documentWidth).toBeLessThanOrEqual(metrics?.viewportWidth ?? 0);
+  expect(metrics?.rootHeight).toBeCloseTo(metrics?.screenHeight ?? 0, 0);
+  expect(metrics?.rootScrollHeight).toBeGreaterThanOrEqual(metrics?.rootClientHeight ?? 0);
+  expect(metrics?.dockCenterOffset).toBeLessThanOrEqual(1);
+  expect(metrics?.dockBottomGap).toBeGreaterThanOrEqual(0);
+  expect(metrics?.dockTopDeltaWhileScrolling).toBeLessThanOrEqual(1);
+  expect(metrics?.targetBottom).toBeLessThanOrEqual((metrics?.dockTop ?? 0) + 1);
+}
+
 async function verifyTimelineFlow(page: Page) {
   await signIn(page);
 
-  const expectedDockPosition = (page.viewportSize()?.width ?? 0) < 640 ? 'fixed' : 'relative';
-  await expect.poll(() => page.locator('.aero-dock').evaluate((dock) => getComputedStyle(dock).position)).toBe(expectedDockPosition);
+  await expect.poll(() => page.locator('.aero-dock').evaluate((dock) => getComputedStyle(dock).position)).toBe('fixed');
 
   const cards = timelineCards(page);
   await expect(cards).toHaveCount(25);
@@ -102,6 +159,26 @@ test.describe('timeline polish desktop', () => {
 
     await expect(page).toHaveURL(/\/timeline$/);
     await expect(page.getByText(uniqueNote, { exact: true })).toBeVisible();
+  });
+
+  test('keeps the shared dock fixed and content clear across responsive layouts', async ({ page }) => {
+    test.setTimeout(180_000);
+    await signIn(page);
+
+    for (const viewport of [
+      { width: 393, height: 852 },
+      { width: 639, height: 852 },
+      { width: 640, height: 852 },
+      { width: 768, height: 900 },
+      { width: 1280, height: 600 },
+      { width: 1280, height: 900 },
+      { width: 2560, height: 1440 },
+    ]) {
+      await page.setViewportSize(viewport);
+      for (const { route, target } of dockLayoutRoutes) {
+        await verifyFloatingDock(page, route, target);
+      }
+    }
   });
 
 });
