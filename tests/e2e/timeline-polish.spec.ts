@@ -9,6 +9,17 @@ if (!demoEmail || !demoPassword) {
 
 const timelineCards = (page: Page) => page.locator('main a[href^="/timeline/"]:not([href="/timeline/new"])');
 
+const dockLayoutRoutes = [
+  { route: '/timeline', target: 'main a[href^="/timeline/"]:not([href="/timeline/new"])' },
+  { route: '/calendar', target: 'main > section[aria-labelledby="calendar-heading"] > :last-child' },
+  { route: '/insights', target: 'main > section[aria-labelledby="top-activities-heading"] a:last-of-type' },
+  {
+    route: '/activities',
+    target: 'main > div > section:last-of-type :is(li:last-child, form button[type="submit"])',
+  },
+  { route: '/settings', target: 'main > div > section:last-of-type form button[type="submit"]' },
+] as const;
+
 async function signIn(page: Page) {
   await page.goto('/');
   await page.getByLabel('Email').fill(demoEmail!);
@@ -17,11 +28,102 @@ async function signIn(page: Page) {
   await expect(page).toHaveURL(/\/timeline$/);
 }
 
+async function verifyFloatingDock(page: Page, route: string, targetSelector: string) {
+  await page.goto(route);
+  await expect(page.locator(targetSelector).last()).toBeVisible();
+  const dock = page.locator('.aero-dock');
+  await expect(dock).toBeVisible();
+
+  async function readMetrics() {
+    return page.evaluate(async (selector) => {
+      const screen = document.querySelector<HTMLElement>('.aero-screen');
+      const root = document.querySelector<HTMLElement>('.aero-screen-content');
+      const dockElement = document.querySelector<HTMLElement>('.aero-dock');
+      if (!screen || !root || !dockElement) return null;
+
+      const initialDockTop = dockElement.getBoundingClientRect().top;
+      root.scrollTop = Math.max(0, Math.floor((root.scrollHeight - root.clientHeight) / 2));
+      const scrolledDockTop = dockElement.getBoundingClientRect().top;
+      root.scrollTop = root.scrollHeight;
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      });
+
+      const targets = document.querySelectorAll<HTMLElement>(selector);
+      const target = targets.item(targets.length - 1);
+      if (!target) return null;
+
+      const screenRect = screen.getBoundingClientRect();
+      const rootRect = root.getBoundingClientRect();
+      const dockRect = dockElement.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+
+      return {
+        dockPosition: getComputedStyle(dockElement).position,
+        documentWidth: document.documentElement.scrollWidth,
+        viewportWidth: window.innerWidth,
+        screenHeight: screenRect.height,
+        rootHeight: rootRect.height,
+        rootScrollHeight: root.scrollHeight,
+        rootClientHeight: root.clientHeight,
+        dockCenterOffset: Math.abs((dockRect.left + dockRect.right) / 2 - window.innerWidth / 2),
+        dockBottomGap: window.innerHeight - dockRect.bottom,
+        dockTopDeltaWhileScrolling: Math.abs(scrolledDockTop - initialDockTop),
+        targetCount: targets.length,
+        targetTop: targetRect.top,
+        targetBottom: targetRect.bottom,
+        dockTop: dockRect.top,
+        targetInScrollViewport:
+          targetRect.top >= rootRect.top - 1 && targetRect.bottom <= rootRect.bottom + 1,
+        targetAboveDock: targetRect.bottom <= dockRect.top + 1,
+      };
+    }, targetSelector);
+  }
+
+  let previousLayoutSignature: string | undefined;
+  let stableLayoutSamples = 0;
+  await expect.poll(
+    async () => {
+      const metrics = await readMetrics();
+      const layoutSignature = metrics
+        ? [
+          metrics.targetCount,
+          metrics.rootScrollHeight,
+          Math.round(metrics.targetTop),
+          Math.round(metrics.targetBottom),
+        ].join(':')
+        : '';
+      stableLayoutSamples = layoutSignature && layoutSignature === previousLayoutSignature
+        ? stableLayoutSamples + 1
+        : 0;
+      previousLayoutSignature = layoutSignature;
+      return Boolean(metrics?.targetInScrollViewport && metrics?.targetAboveDock && stableLayoutSamples >= 1);
+    },
+    {
+      timeout: 15_000,
+      intervals: [100, 250, 500],
+      message: `Expected the final ${route} target to settle above the floating dock in the scroll viewport`,
+    },
+  ).toBe(true);
+
+  const metrics = await readMetrics();
+
+  expect(metrics).not.toBeNull();
+  expect(metrics?.dockPosition).toBe('fixed');
+  expect(metrics?.documentWidth).toBeLessThanOrEqual(metrics?.viewportWidth ?? 0);
+  expect(metrics?.rootHeight).toBeCloseTo(metrics?.screenHeight ?? 0, 0);
+  expect(metrics?.rootScrollHeight).toBeGreaterThanOrEqual(metrics?.rootClientHeight ?? 0);
+  expect(metrics?.dockCenterOffset).toBeLessThanOrEqual(1);
+  expect(metrics?.dockBottomGap).toBeGreaterThanOrEqual(0);
+  expect(metrics?.dockTopDeltaWhileScrolling).toBeLessThanOrEqual(1);
+  expect(metrics?.targetInScrollViewport).toBe(true);
+  expect(metrics?.targetAboveDock).toBe(true);
+}
+
 async function verifyTimelineFlow(page: Page) {
   await signIn(page);
 
-  const expectedDockPosition = (page.viewportSize()?.width ?? 0) < 640 ? 'fixed' : 'relative';
-  await expect.poll(() => page.locator('.aero-dock').evaluate((dock) => getComputedStyle(dock).position)).toBe(expectedDockPosition);
+  await expect.poll(() => page.locator('.aero-dock').evaluate((dock) => getComputedStyle(dock).position)).toBe('fixed');
 
   const cards = timelineCards(page);
   await expect(cards).toHaveCount(25);
@@ -102,6 +204,26 @@ test.describe('timeline polish desktop', () => {
 
     await expect(page).toHaveURL(/\/timeline$/);
     await expect(page.getByText(uniqueNote, { exact: true })).toBeVisible();
+  });
+
+  test('keeps the shared dock fixed and content clear across responsive layouts', async ({ page }) => {
+    test.setTimeout(180_000);
+    await signIn(page);
+
+    for (const viewport of [
+      { width: 393, height: 852 },
+      { width: 639, height: 852 },
+      { width: 640, height: 852 },
+      { width: 768, height: 900 },
+      { width: 1280, height: 600 },
+      { width: 1280, height: 900 },
+      { width: 2560, height: 1440 },
+    ]) {
+      await page.setViewportSize(viewport);
+      for (const { route, target } of dockLayoutRoutes) {
+        await verifyFloatingDock(page, route, target);
+      }
+    }
   });
 
 });

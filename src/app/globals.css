@@ -485,8 +485,7 @@
      BOTTOM NAVIGATION DOCK
      ---------------------------------------------------- */
   .aero-screen {
-    display: grid;
-    grid-template-rows: minmax(0, 1fr) auto;
+    position: relative;
     height: 100dvh;
     min-height: 100vh;
     overflow: hidden;
@@ -494,18 +493,23 @@
   .aero-screen-content {
     min-width: 0;
     min-height: 0;
+    height: 100%;
     padding-top: env(safe-area-inset-top);
     overflow-x: hidden;
     overflow-y: auto;
   }
   .aero-dock {
-    position: relative;
-    align-self: center;
+    position: fixed;
+    left: 50%;
+    bottom: var(--aero-dock-bottom);
     display: flex;
+    width: max-content;
+    max-width: calc(100vw - 1.5rem);
     align-items: center;
     gap: 6px;
     min-height: var(--aero-dock-height);
     padding: 6px 12px;
+    transform: translateX(-50%);
     background: linear-gradient(
       180deg,
       rgba(255, 255, 255, 0.88) 0%,
@@ -521,7 +525,7 @@
     -webkit-backdrop-filter: blur(16px);
     isolation: isolate;
     z-index: 1000;
-    margin: 0 auto max(12px, env(safe-area-inset-bottom));
+    margin: 0;
     transition:
       opacity 0.18s ease,
       transform 0.18s ease,
@@ -531,7 +535,7 @@
     visibility: hidden;
     opacity: 0;
     pointer-events: none;
-    transform: translateY(0.75rem) scale(0.98);
+    transform: translate(-50%, 0.75rem) scale(0.98);
   }
 
   .dock-item {
@@ -1112,18 +1116,8 @@
 
 @media (max-width: 639px) {
   .aero-dock {
-    position: fixed;
-    left: 50%;
-    bottom: var(--aero-dock-bottom);
-    width: max-content;
-    max-width: calc(100vw - 1.5rem);
-    transform: translateX(-50%);
-    margin: 0;
     gap: 4px;
     padding: 5px 8px;
-  }
-  .aero-dock-hidden {
-    transform: translate(-50%, 0.75rem) scale(0.98);
   }
 
   .dock-item {
