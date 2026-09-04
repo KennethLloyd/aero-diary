@@ -11,10 +11,13 @@ const timelineCards = (page: Page) => page.locator('main a[href^="/timeline/"]:n
 
 const dockLayoutRoutes = [
   { route: '/timeline', target: 'main a[href^="/timeline/"]:not([href="/timeline/new"])' },
-  { route: '/calendar', target: 'main > section[aria-labelledby="calendar-heading"]' },
-  { route: '/insights', target: 'main > section[aria-labelledby="top-activities-heading"]' },
-  { route: '/activities', target: 'main > div > section:last-of-type' },
-  { route: '/settings', target: 'main > div > section:last-of-type' },
+  { route: '/calendar', target: 'main > section[aria-labelledby="calendar-heading"] > :last-child' },
+  { route: '/insights', target: 'main > section[aria-labelledby="top-activities-heading"] a:last-of-type' },
+  {
+    route: '/activities',
+    target: 'main > div > section:last-of-type :is(li:last-child, form button[type="submit"])',
+  },
+  { route: '/settings', target: 'main > div > section:last-of-type form button[type="submit"]' },
 ] as const;
 
 async function signIn(page: Page) {
@@ -27,42 +30,83 @@ async function signIn(page: Page) {
 
 async function verifyFloatingDock(page: Page, route: string, targetSelector: string) {
   await page.goto(route);
-  await page.locator(targetSelector).first().waitFor({ state: 'attached' });
+  await expect(page.locator(targetSelector).last()).toBeVisible();
   const dock = page.locator('.aero-dock');
   await expect(dock).toBeVisible();
 
-  const metrics = await page.evaluate((selector) => {
-    const screen = document.querySelector<HTMLElement>('.aero-screen');
-    const root = document.querySelector<HTMLElement>('.aero-screen-content');
-    const dockElement = document.querySelector<HTMLElement>('.aero-dock');
-    const target = document.querySelector<HTMLElement>(selector);
-    if (!screen || !root || !dockElement || !target) return null;
+  async function readMetrics() {
+    return page.evaluate(async (selector) => {
+      const screen = document.querySelector<HTMLElement>('.aero-screen');
+      const root = document.querySelector<HTMLElement>('.aero-screen-content');
+      const dockElement = document.querySelector<HTMLElement>('.aero-dock');
+      if (!screen || !root || !dockElement) return null;
 
-    const initialDockTop = dockElement.getBoundingClientRect().top;
-    root.scrollTop = Math.max(0, Math.floor((root.scrollHeight - root.clientHeight) / 2));
-    const scrolledDockTop = dockElement.getBoundingClientRect().top;
-    root.scrollTop = root.scrollHeight;
+      const initialDockTop = dockElement.getBoundingClientRect().top;
+      root.scrollTop = Math.max(0, Math.floor((root.scrollHeight - root.clientHeight) / 2));
+      const scrolledDockTop = dockElement.getBoundingClientRect().top;
+      root.scrollTop = root.scrollHeight;
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      });
 
-    const screenRect = screen.getBoundingClientRect();
-    const rootRect = root.getBoundingClientRect();
-    const dockRect = dockElement.getBoundingClientRect();
-    const targetRect = target.getBoundingClientRect();
+      const targets = document.querySelectorAll<HTMLElement>(selector);
+      const target = targets.item(targets.length - 1);
+      if (!target) return null;
 
-    return {
-      dockPosition: getComputedStyle(dockElement).position,
-      documentWidth: document.documentElement.scrollWidth,
-      viewportWidth: window.innerWidth,
-      screenHeight: screenRect.height,
-      rootHeight: rootRect.height,
-      rootScrollHeight: root.scrollHeight,
-      rootClientHeight: root.clientHeight,
-      dockCenterOffset: Math.abs((dockRect.left + dockRect.right) / 2 - window.innerWidth / 2),
-      dockBottomGap: window.innerHeight - dockRect.bottom,
-      dockTopDeltaWhileScrolling: Math.abs(scrolledDockTop - initialDockTop),
-      targetBottom: targetRect.bottom,
-      dockTop: dockRect.top,
-    };
-  }, targetSelector);
+      const screenRect = screen.getBoundingClientRect();
+      const rootRect = root.getBoundingClientRect();
+      const dockRect = dockElement.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+
+      return {
+        dockPosition: getComputedStyle(dockElement).position,
+        documentWidth: document.documentElement.scrollWidth,
+        viewportWidth: window.innerWidth,
+        screenHeight: screenRect.height,
+        rootHeight: rootRect.height,
+        rootScrollHeight: root.scrollHeight,
+        rootClientHeight: root.clientHeight,
+        dockCenterOffset: Math.abs((dockRect.left + dockRect.right) / 2 - window.innerWidth / 2),
+        dockBottomGap: window.innerHeight - dockRect.bottom,
+        dockTopDeltaWhileScrolling: Math.abs(scrolledDockTop - initialDockTop),
+        targetCount: targets.length,
+        targetTop: targetRect.top,
+        targetBottom: targetRect.bottom,
+        dockTop: dockRect.top,
+        targetInScrollViewport:
+          targetRect.top >= rootRect.top - 1 && targetRect.bottom <= rootRect.bottom + 1,
+        targetAboveDock: targetRect.bottom <= dockRect.top + 1,
+      };
+    }, targetSelector);
+  }
+
+  let previousLayoutSignature: string | undefined;
+  let stableLayoutSamples = 0;
+  await expect.poll(
+    async () => {
+      const metrics = await readMetrics();
+      const layoutSignature = metrics
+        ? [
+          metrics.targetCount,
+          metrics.rootScrollHeight,
+          Math.round(metrics.targetTop),
+          Math.round(metrics.targetBottom),
+        ].join(':')
+        : '';
+      stableLayoutSamples = layoutSignature && layoutSignature === previousLayoutSignature
+        ? stableLayoutSamples + 1
+        : 0;
+      previousLayoutSignature = layoutSignature;
+      return Boolean(metrics?.targetInScrollViewport && metrics?.targetAboveDock && stableLayoutSamples >= 1);
+    },
+    {
+      timeout: 15_000,
+      intervals: [100, 250, 500],
+      message: `Expected the final ${route} target to settle above the floating dock in the scroll viewport`,
+    },
+  ).toBe(true);
+
+  const metrics = await readMetrics();
 
   expect(metrics).not.toBeNull();
   expect(metrics?.dockPosition).toBe('fixed');
@@ -72,7 +116,8 @@ async function verifyFloatingDock(page: Page, route: string, targetSelector: str
   expect(metrics?.dockCenterOffset).toBeLessThanOrEqual(1);
   expect(metrics?.dockBottomGap).toBeGreaterThanOrEqual(0);
   expect(metrics?.dockTopDeltaWhileScrolling).toBeLessThanOrEqual(1);
-  expect(metrics?.targetBottom).toBeLessThanOrEqual((metrics?.dockTop ?? 0) + 1);
+  expect(metrics?.targetInScrollViewport).toBe(true);
+  expect(metrics?.targetAboveDock).toBe(true);
 }
 
 async function verifyTimelineFlow(page: Page) {
