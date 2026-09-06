@@ -108,6 +108,7 @@ for identity in 1000 1001; do
     exit "$status"
   }
   container_id=$(printf '%s\n' "$runtime_start_output" | tail -n 1)
+  echo "Runtime acceptance container started: $container_id."
 
   port=$(docker port "$container_id" 3000/tcp 2>/dev/null | sed 's/.*://')
   if [ -z "$port" ]; then
@@ -115,6 +116,7 @@ for identity in 1000 1001; do
     docker logs "$container_id" >&2 || true
     exit 1
   fi
+  echo "Runtime acceptance container port: $port."
   ready=no
   attempt=0
   while [ "$attempt" -lt 60 ]; do
