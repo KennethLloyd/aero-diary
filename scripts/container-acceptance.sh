@@ -132,8 +132,12 @@ for identity in 1000 1001; do
     exit 1
   }
 
-  process_table=$(docker top "$container_id" -eo user,group,pid,args)
-  echo "$process_table" | awk -v identity="$identity" '$1 == identity && $2 == identity { found = 1 } END { exit found ? 0 : 1 }'
+  process_identity=$(docker exec "$container_id" /bin/sh -c "awk '/^Uid:/{uid=\$3} /^Gid:/{gid=\$3} END{print sprintf(\"%s:%s\", uid, gid)}' /proc/1/status")
+  [ "$process_identity" = "$identity:$identity" ] || {
+    echo "unexpected process identity for $identity: $process_identity" >&2
+    docker logs "$container_id" >&2 || true
+    exit 1
+  }
   groups=$(docker exec "$container_id" /bin/sh -c "awk '/^Groups:/{print \$0}' /proc/1/status")
   group_count=$(echo "$groups" | awk '{ print NF - 1 }')
   [ "$group_count" -eq 0 ] || {
