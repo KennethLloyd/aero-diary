@@ -18,12 +18,37 @@ command -v pnpm >/dev/null 2>&1 || {
 
 work_dir=$(mktemp -d "${TMPDIR:-/tmp}/aero-diary-container.XXXXXX")
 container_id=''
+data_dir=''
+
+cleanup_data_dir() {
+  data_path=$1
+
+  [ -n "$data_path" ] || return 0
+  [ -d "$data_path" ] || return 0
+
+  # The acceptance flow deliberately gives this temporary bind mount to the
+  # simulated container identity. Let a short-lived root container remove the
+  # identity-owned SQLite files before the host-side cleanup removes the
+  # temporary directory. This keeps the ownership test intact without making
+  # the test data world-writable or changing the production image contract.
+  docker run --rm \
+    --user 0:0 \
+    --entrypoint /bin/sh \
+    --volume "$data_path:/app/data" \
+    "$runtime_image" \
+    -c 'rm -rf -- /app/data/aero-diary.db /app/data/aero-diary.db-*'
+}
 
 cleanup() {
+  status=$?
   if [ -n "$container_id" ]; then
     docker rm --force "$container_id" >/dev/null 2>&1 || true
   fi
-  rm -rf "$work_dir"
+  if [ -n "$data_dir" ]; then
+    cleanup_data_dir "$data_dir" || status=1
+  fi
+  rm -rf "$work_dir" || status=1
+  exit "$status"
 }
 trap cleanup EXIT INT TERM
 
@@ -106,6 +131,8 @@ for identity in 1000 1001; do
 
   docker rm --force "$container_id" >/dev/null
   container_id=''
+  cleanup_data_dir "$data_dir"
+  data_dir=''
 done
 
 echo 'Container acceptance passed for 1000:1000 and 1001:1001.'
