@@ -67,7 +67,7 @@ for identity in 1000 1001; do
     --env AERO_DIARY_UID="$identity" \
     --env AERO_DIARY_GID="$identity" \
     --volume "$data_dir:/app/data" \
-    "$migration_image" >/dev/null
+    "$migration_image"
 
   # Seed one ordinary authenticated user without adding provisioning tools to
   # the production image. This process intentionally runs as the configured
