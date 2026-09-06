@@ -9,6 +9,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN apt-get update \
   && apt-get install --no-install-recommends --yes ca-certificates openssl \
   && rm -rf /var/lib/apt/lists/*
+RUN test "$(id -u node)" = "1000" \
+  && test "$(id -g node)" = "1000"
 
 FROM base AS pnpm
 
@@ -41,7 +43,6 @@ COPY --from=deps /app/prisma.config.ts ./
 COPY --from=deps /app/prisma ./prisma
 
 ENV NODE_ENV=production
-RUN mkdir -p /app/data && chown node:node /app/data
 USER node
 
 CMD ["node_modules/.bin/prisma", "migrate", "deploy"]
@@ -58,8 +59,18 @@ COPY --from=builder --chown=node:node /app/public ./public
 COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 
-RUN mkdir -p /app/data && chown node:node /app/data
+RUN mkdir -p \
+    /app/.next/server/app \
+    /app/.next/server/pages \
+    /app/.next/cache \
+  && chown node:node \
+    /app/.next/server/app \
+    /app/.next/server/pages \
+    /app/.next/cache
 USER node
+RUN test -w /app/.next/server/app \
+  && test -w /app/.next/server/pages \
+  && test -w /app/.next/cache
 
 EXPOSE 3000
 
