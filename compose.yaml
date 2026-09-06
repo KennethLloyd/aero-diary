@@ -15,7 +15,6 @@ services:
       - "127.0.0.1:${AERO_DIARY_HOST_PORT:-3000}:3000"
     volumes:
       - ./data:/app/data
-    user: "${AERO_DIARY_UID:-1000}:${AERO_DIARY_GID:-1000}"
     restart: unless-stopped
 
   migrate:
@@ -32,4 +31,3 @@ services:
       NODE_ENV: production
     volumes:
       - ./data:/app/data
-    user: "${AERO_DIARY_UID:-1000}:${AERO_DIARY_GID:-1000}"

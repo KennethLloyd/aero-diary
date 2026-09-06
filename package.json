@@ -19,7 +19,8 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:container": "sh scripts/container-acceptance.sh"
   },
   "dependencies": {
     "@node-rs/argon2": "2.1.0",

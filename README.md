@@ -146,6 +146,8 @@ Aero Diary exposes `GET /api/health`. It returns a healthy response only when SQ
 
 The repository includes a reproducible, multi-stage Docker build with separate `runtime` and `migrate` targets. It uses a digest-pinned Node 22.23.1 Debian slim base, Next.js standalone output, and a non-root serving process. The serving image is built separately from the migration target so schema changes remain explicit.
 
+Both images always run as the base image's fixed non-root `node` identity (`1000:1000`). The image prepares only the Next.js runtime paths that may be updated after startup: `.next/server/app`, `.next/server/pages`, and `.next/cache`. It never changes ownership or permissions under `/app/data`; SQLite remains host-controlled and must be prepared for `1000:1000` before the first run.
+
 The image contains neither runtime secrets nor SQLite data. Docker context exclusions protect environment files, local databases, generated files, dependencies, build output, and test artifacts. Pass configuration at runtime and keep `data/` outside the image.
 
 ### Local Compose
@@ -157,12 +159,16 @@ cp .env.example .env
 mkdir -p data
 ```
 
-Compose uses `file:/app/data/aero-diary.db` inside the container, mounts `./data` at `/app/data`, and binds the app to `127.0.0.1:3000` by default. If the host account is not UID/GID `1000`, export the values before building or starting:
+Compose uses `file:/app/data/aero-diary.db` inside the container, mounts `./data` at `/app/data`, and binds the app to `127.0.0.1:3000` by default. The container runs as `1000:1000`, so prepare a Linux bind mount once before migrating:
 
 ```bash
-export AERO_DIARY_UID="$(id -u)"
-export AERO_DIARY_GID="$(id -g)"
+mkdir -p data
+sudo chown -R 1000:1000 data
+sudo chmod 700 data
+./scripts/verify-container-storage.sh data
 ```
+
+The ownership preparation is intentionally explicit and one-time. Do not make the data directory world-writable, add a Compose `user:` override, or add Docker `--user` to a normal deployment. A deployment wrapper should verify that `data/` and any existing `aero-diary.db*` files are owned by `1000:1000` and fail with guidance if they are not; the application image never repairs mounted storage. A Docker named volume is an alternative when the host does not support a prepared bind mount.
 
 Run the migration target before starting the serving image:
 
@@ -183,7 +189,6 @@ docker run --rm \
   --env DATABASE_URL=file:/app/data/aero-diary.db \
   --env NODE_ENV=production \
   --publish 127.0.0.1:3000:3000 \
-  --user "$(id -u):$(id -g)" \
   --volume "$PWD/data:/app/data" \
   aero-diary:local
 ```
