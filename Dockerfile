@@ -68,6 +68,9 @@ RUN mkdir -p \
     /app/.next/server/pages \
     /app/.next/cache
 USER node
+RUN test -w /app/.next/server/app \
+  && test -w /app/.next/server/pages \
+  && test -w /app/.next/cache
 
 EXPOSE 3000
 

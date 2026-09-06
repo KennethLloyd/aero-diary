@@ -165,7 +165,6 @@ Compose uses `file:/app/data/aero-diary.db` inside the container, mounts `./data
 mkdir -p data
 sudo chown -R 1000:1000 data
 sudo chmod 700 data
-./scripts/verify-container-storage.sh data
 ```
 
 The ownership preparation is intentionally explicit and one-time. Do not make the data directory world-writable, add a Compose `user:` override, or add Docker `--user` to a normal deployment. A deployment wrapper should verify that `data/` and any existing `aero-diary.db*` files are owned by `1000:1000` and fail with guidance if they are not; the application image never repairs mounted storage. A Docker named volume is an alternative when the host does not support a prepared bind mount.
