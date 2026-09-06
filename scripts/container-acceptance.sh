@@ -8,6 +8,14 @@ demo_email=${PLAYWRIGHT_DEMO_EMAIL:-container-smoke@example.com}
 demo_password=${PLAYWRIGHT_DEMO_PASSWORD:-container-smoke-password}
 smoke_password_hash=$(SMOKE_PASSWORD="$demo_password" node -e 'const { hash } = require("@node-rs/argon2"); hash(process.env.SMOKE_PASSWORD, { memoryCost: 19456, timeCost: 2, parallelism: 1 }).then(console.log).catch((error) => { console.error(error); process.exit(1); })')
 
+sql_escape() {
+  printf '%s' "$1" | sed "s/'/''/g"
+}
+
+smoke_email_sql=$(sql_escape "$demo_email")
+smoke_password_hash_sql=$(sql_escape "$smoke_password_hash")
+smoke_user_sql="INSERT INTO User (id, email, passwordHash, name) VALUES ('container-smoke-user', '$smoke_email_sql', '$smoke_password_hash_sql', 'Container Smoke');"
+
 command -v docker >/dev/null 2>&1 || {
   echo 'container acceptance requires Docker.' >&2
   exit 1
@@ -73,14 +81,13 @@ for identity in 1000 1001; do
   # Seed one ordinary authenticated user without adding provisioning tools to
   # the production image. This process intentionally runs as the configured
   # identity, just like the app and migration commands.
-  docker run --rm \
+  printf '%s\n' "$smoke_user_sql" | docker run --rm -i \
     --user "$identity:$identity" \
-    --env SMOKE_EMAIL="$demo_email" \
-    --env SMOKE_PASSWORD_HASH="$smoke_password_hash" \
+    --env DATABASE_URL=file:/app/data/aero-diary.db \
     --volume "$data_dir:/app/data" \
-    --entrypoint node \
+    --entrypoint /app/node_modules/.bin/prisma \
     "$migration_image" \
-    -e 'const Database = require("better-sqlite3"); const db = new Database("/app/data/aero-diary.db"); const passwordHash = process.env.SMOKE_PASSWORD_HASH; if (!passwordHash) throw new Error("SMOKE_PASSWORD_HASH is required"); db.prepare("INSERT INTO User (id, email, passwordHash, name) VALUES (?, ?, ?, ?)").run("container-smoke-user", process.env.SMOKE_EMAIL, passwordHash, "Container Smoke"); db.close();'
+    db execute --stdin
 
   container_id=$(docker run --detach \
     --publish 127.0.0.1::3000 \
