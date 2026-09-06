@@ -6,6 +6,7 @@ runtime_image=${CONTAINER_RUNTIME_IMAGE:-aero-diary:test-runtime}
 migration_image=${CONTAINER_MIGRATION_IMAGE:-aero-diary:test-migrate}
 demo_email=${PLAYWRIGHT_DEMO_EMAIL:-container-smoke@example.com}
 demo_password=${PLAYWRIGHT_DEMO_PASSWORD:-container-smoke-password}
+smoke_password_hash=$(SMOKE_PASSWORD="$demo_password" node -e 'const { hash } = require("@node-rs/argon2"); hash(process.env.SMOKE_PASSWORD, { memoryCost: 19456, timeCost: 2, parallelism: 1 }).then(console.log).catch((error) => { console.error(error); process.exit(1); })')
 
 command -v docker >/dev/null 2>&1 || {
   echo 'container acceptance requires Docker.' >&2
@@ -75,11 +76,11 @@ for identity in 1000 1001; do
   docker run --rm \
     --user "$identity:$identity" \
     --env SMOKE_EMAIL="$demo_email" \
-    --env SMOKE_PASSWORD="$demo_password" \
+    --env SMOKE_PASSWORD_HASH="$smoke_password_hash" \
     --volume "$data_dir:/app/data" \
     --entrypoint node \
     "$migration_image" \
-    -e 'const Database = require("better-sqlite3"); const { hash } = require("@node-rs/argon2"); (async () => { const db = new Database("/app/data/aero-diary.db"); const passwordHash = await hash(process.env.SMOKE_PASSWORD, { memoryCost: 19456, timeCost: 2, parallelism: 1 }); db.prepare("INSERT INTO User (id, email, passwordHash, name) VALUES (?, ?, ?, ?)").run("container-smoke-user", process.env.SMOKE_EMAIL, passwordHash, "Container Smoke"); db.close(); })().catch((error) => { console.error(error); process.exit(1); });'
+    -e 'const Database = require("better-sqlite3"); const db = new Database("/app/data/aero-diary.db"); const passwordHash = process.env.SMOKE_PASSWORD_HASH; if (!passwordHash) throw new Error("SMOKE_PASSWORD_HASH is required"); db.prepare("INSERT INTO User (id, email, passwordHash, name) VALUES (?, ?, ?, ?)").run("container-smoke-user", process.env.SMOKE_EMAIL, passwordHash, "Container Smoke"); db.close();'
 
   container_id=$(docker run --detach \
     --publish 127.0.0.1::3000 \
