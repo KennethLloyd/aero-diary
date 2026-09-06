@@ -47,11 +47,11 @@ The seed command manages only the configured demo user's fictional dataset. It c
 
 ## Environment configuration
 
-`.env.example` is the configuration template and the authoritative list of supported variables. Copy it to `.env.local` for local development or to `.env` for Compose. All variables are read server-side; secrets never use `NEXT_PUBLIC_*` variables.
+`.env.example` is the configuration template and the authoritative list of supported variables. Copy it to `.env.local` for local development or configure the same variables in the deployment environment. All variables are read server-side; secrets never use `NEXT_PUBLIC_*` variables.
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `DATABASE_URL` | Yes | SQLite URL. Use `file:./data/aero-diary.db` locally and `file:/app/data/aero-diary.db` in the container. |
+| `DATABASE_URL` | Yes | SQLite URL. Use `file:./data/aero-diary.db` locally and point production at the persistent application mount. |
 | `DEMO_EMAIL` | No | Email for the optional configured demo account. |
 | `DEMO_PASSWORD` | No | Password for the optional configured demo account. |
 | `GOOGLE_DRIVE_CLIENT_ID` | No | Google OAuth desktop client ID for photo storage. |
@@ -142,72 +142,6 @@ Run it behind the reverse proxy or private-network setup appropriate for the env
 
 Aero Diary exposes `GET /api/health`. It returns a healthy response only when SQLite is usable and returns HTTP 503 otherwise.
 
-## Production container
-
-The repository includes a reproducible, multi-stage Docker build with separate `runtime` and `migrate` targets. It uses a digest-pinned Node 22.23.1 Debian slim base, Next.js standalone output, and a non-root serving process. The serving image is built separately from the migration target so schema changes remain explicit.
-
-Both images always run as the base image's fixed non-root `node` identity (`1000:1000`). The image prepares only the Next.js runtime paths that may be updated after startup: `.next/server/app`, `.next/server/pages`, and `.next/cache`. It never changes ownership or permissions under `/app/data`; SQLite remains host-controlled and must be prepared for `1000:1000` before the first run.
-
-The image contains neither runtime secrets nor SQLite data. Docker context exclusions protect environment files, local databases, generated files, dependencies, build output, and test artifacts. Pass configuration at runtime and keep `data/` outside the image.
-
-### Local Compose
-
-Copy the environment template and create the persistent database directory:
-
-```bash
-cp .env.example .env
-mkdir -p data
-```
-
-Compose uses `file:/app/data/aero-diary.db` inside the container, mounts `./data` at `/app/data`, and binds the app to `127.0.0.1:3000` by default. The container runs as `1000:1000`, so prepare a Linux bind mount once before migrating:
-
-```bash
-mkdir -p data
-sudo chown -R 1000:1000 data
-sudo chmod 700 data
-```
-
-The ownership preparation is intentionally explicit and one-time. Do not make the data directory world-writable, add a Compose `user:` override, or add Docker `--user` to a normal deployment. A deployment wrapper should verify that `data/` and any existing `aero-diary.db*` files are owned by `1000:1000` and fail with guidance if they are not; the application image never repairs mounted storage. A Docker named volume is an alternative when the host does not support a prepared bind mount.
-
-Run the migration target before starting the serving image:
-
-```bash
-docker compose --profile migrate build migrate
-docker compose --profile migrate run --rm migrate
-docker compose up --build app
-```
-
-The app image starts only the Next.js standalone server. It does not seed data or run migrations automatically. Back up an existing SQLite database before applying migrations.
-
-To build and run the serving image directly:
-
-```bash
-docker build --target runtime --tag aero-diary:local .
-docker run --rm \
-  --env-file .env \
-  --env DATABASE_URL=file:/app/data/aero-diary.db \
-  --env NODE_ENV=production \
-  --publish 127.0.0.1:3000:3000 \
-  --volume "$PWD/data:/app/data" \
-  aero-diary:local
-```
-
-### GHCR images
-
-Successful pushes to `main` publish the serving image to `ghcr.io/<owner>/aero-diary` with `latest` and a full commit-SHA tag. A matching migration image uses the same package and the `<commit-sha>-migrate` tag. Both images publish `linux/amd64` and `linux/arm64` variants.
-
-For a reproducible pull, use the commit tag to locate the image and deploy the resolved digest rather than `latest`:
-
-```bash
-docker pull ghcr.io/<owner>/aero-diary:<commit-sha>
-docker image inspect ghcr.io/<owner>/aero-diary:<commit-sha> \
-  --format '{{index .RepoDigests 0}}'
-```
-
-Pull and run the migration image separately when applying a reviewed schema change. Compose can use published artifacts instead of local builds by setting `AERO_DIARY_IMAGE` and `AERO_DIARY_MIGRATION_IMAGE` to matching GHCR tag or digest references and using `--no-build`.
-
-Pull request CI builds both Docker targets without pushing images. Main-branch publication builds and pushes the published image variants.
-
 ## Privacy and security
 
 Journal entries, activity vocabularies, photos, session tokens, style standards, and provider credentials are private data. Every protected read and mutation authenticates the caller. User-scoped cached reads use the authenticated user ID as their cache key and tag namespace.
@@ -226,4 +160,4 @@ Mood-specific gradients, photo-viewer surfaces, and one-off page compositions in
 
 - Read `CONTEXT.md` before changing domain behavior, authentication, data ownership, photos, entry polishing, or the Aero design system. It defines the repository's vocabulary and invariants.
 - Read `AGENTS.md` before issue or pull-request work. It defines the branch, review, architecture, and verification workflow.
-- Use `package.json`, `.env.example`, `Dockerfile`, `compose.yaml`, and `.github/workflows/` as the sources of truth for scripts, configuration, container behavior, and CI.
+- Use `package.json`, `.env.example`, `next.config.ts`, and `.github/workflows/` as the sources of truth for scripts, configuration, application behavior, and CI.
