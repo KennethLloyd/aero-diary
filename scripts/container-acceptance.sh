@@ -89,7 +89,8 @@ for identity in 1000 1001; do
     "$migration_image" \
     db execute --stdin
 
-  container_id=$(docker run --detach \
+  echo "Starting runtime acceptance container for $identity:$identity."
+  if ! container_id=$(docker run --detach \
     --publish 127.0.0.1::3000 \
     --env DATABASE_URL=file:/app/data/aero-diary.db \
     --env AERO_DIARY_UID="$identity" \
@@ -100,9 +101,17 @@ for identity in 1000 1001; do
     --env LLM_MAX_TOKENS=1 \
     --env LLM_TIMEOUT_MS=1000 \
     --volume "$data_dir:/app/data" \
-    "$runtime_image")
+    "$runtime_image"); then
+    echo "Could not start the runtime acceptance container for $identity:$identity." >&2
+    exit 1
+  fi
 
-  port=$(docker port "$container_id" 3000/tcp | sed 's/.*://')
+  port=$(docker port "$container_id" 3000/tcp 2>/dev/null | sed 's/.*://')
+  if [ -z "$port" ]; then
+    echo "Runtime acceptance container did not publish port 3000 for $identity:$identity." >&2
+    docker logs "$container_id" >&2 || true
+    exit 1
+  fi
   ready=no
   attempt=0
   while [ "$attempt" -lt 60 ]; do
