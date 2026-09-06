@@ -90,7 +90,7 @@ for identity in 1000 1001; do
     db execute --stdin
 
   echo "Starting runtime acceptance container for $identity:$identity."
-  if ! container_id=$(docker run --detach \
+  runtime_start_output=$(docker run --detach \
     --publish 127.0.0.1::3000 \
     --env DATABASE_URL=file:/app/data/aero-diary.db \
     --env AERO_DIARY_UID="$identity" \
@@ -101,10 +101,13 @@ for identity in 1000 1001; do
     --env LLM_MAX_TOKENS=1 \
     --env LLM_TIMEOUT_MS=1000 \
     --volume "$data_dir:/app/data" \
-    "$runtime_image"); then
+    "$runtime_image" 2>&1) || {
+    status=$?
     echo "Could not start the runtime acceptance container for $identity:$identity." >&2
-    exit 1
-  fi
+    printf '%s\n' "$runtime_start_output" >&2
+    exit "$status"
+  }
+  container_id=$(printf '%s\n' "$runtime_start_output" | tail -n 1)
 
   port=$(docker port "$container_id" 3000/tcp 2>/dev/null | sed 's/.*://')
   if [ -z "$port" ]; then
