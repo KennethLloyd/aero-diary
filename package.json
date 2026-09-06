@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
+    "test:container": "scripts/container-acceptance.sh",
     "create-user": "tsx scripts/create-user.ts",
     "db:seed": "tsx scripts/seed.ts",
     "drive:bootstrap": "tsx scripts/bootstrap-google-drive.ts",

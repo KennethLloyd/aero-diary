@@ -6,6 +6,8 @@ FROM ${NODE_IMAGE} AS base
 
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
+COPY docker-entrypoint.sh /usr/local/bin/aero-diary-entrypoint
+RUN chmod 0755 /usr/local/bin/aero-diary-entrypoint
 RUN apt-get update \
   && apt-get install --no-install-recommends --yes ca-certificates openssl \
   && rm -rf /var/lib/apt/lists/*
@@ -42,7 +44,8 @@ COPY --from=deps /app/prisma ./prisma
 
 ENV NODE_ENV=production
 RUN mkdir -p /app/data && chown node:node /app/data
-USER node
+
+ENTRYPOINT ["/usr/local/bin/aero-diary-entrypoint", "--migrate"]
 
 CMD ["node_modules/.bin/prisma", "migrate", "deploy"]
 
@@ -59,11 +62,12 @@ COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 
 RUN mkdir -p /app/data && chown node:node /app/data
-USER node
+
+ENTRYPOINT ["/usr/local/bin/aero-diary-entrypoint", "--runtime"]
 
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:' + (process.env.PORT || '3000') + '/api/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
+  CMD ["/usr/local/bin/aero-diary-entrypoint", "--healthcheck"]
 
 CMD ["node", "server.js"]

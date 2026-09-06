@@ -146,6 +146,15 @@ Aero Diary exposes `GET /api/health`. It returns a healthy response only when SQ
 
 The repository includes a reproducible, multi-stage Docker build with separate `runtime` and `migrate` targets. It uses a digest-pinned Node 22.23.1 Debian slim base, Next.js standalone output, and a non-root serving process. The serving image is built separately from the migration target so schema changes remain explicit.
 
+Both images use the same runtime identity contract. When neither value is set, `AERO_DIARY_UID` and `AERO_DIARY_GID` default to `1000:1000`. Set both to the host identity when the mounted `data/` directory belongs to another account:
+
+```bash
+export AERO_DIARY_UID="$(id -u)"
+export AERO_DIARY_GID="$(id -g)"
+```
+
+The entrypoint starts briefly as root only when Docker has not selected a user. It prepares and assigns the three Next.js runtime paths (`.next/server/app`, `.next/server/pages`, and `.next/cache`), verifies access to the host-controlled `/app/data` mount without changing its ownership, clears supplementary groups, and then replaces itself with the configured non-root command. Next.js, Prisma migrations, and health checks therefore run as the configured identity. Set both values to positive, non-root decimal IDs; a single override, root ID, invalid value, or mismatched Docker `--user` override fails with migration guidance. Platforms that forbid a root initializer must prepare the runtime paths and SQLite storage externally, then start the image as the matching identity.
+
 The image contains neither runtime secrets nor SQLite data. Docker context exclusions protect environment files, local databases, generated files, dependencies, build output, and test artifacts. Pass configuration at runtime and keep `data/` outside the image.
 
 ### Local Compose
@@ -157,7 +166,7 @@ cp .env.example .env
 mkdir -p data
 ```
 
-Compose uses `file:/app/data/aero-diary.db` inside the container, mounts `./data` at `/app/data`, and binds the app to `127.0.0.1:3000` by default. If the host account is not UID/GID `1000`, export the values before building or starting:
+Compose uses `file:/app/data/aero-diary.db` inside the container, mounts `./data` at `/app/data`, and binds the app to `127.0.0.1:3000` by default. If the host account is not UID/GID `1000`, export the values before building or starting. Set both values together; if neither is set, the images use `1000:1000`.
 
 ```bash
 export AERO_DIARY_UID="$(id -u)"
@@ -182,11 +191,14 @@ docker run --rm \
   --env-file .env \
   --env DATABASE_URL=file:/app/data/aero-diary.db \
   --env NODE_ENV=production \
+  --env AERO_DIARY_UID="$(id -u)" \
+  --env AERO_DIARY_GID="$(id -g)" \
   --publish 127.0.0.1:3000:3000 \
-  --user "$(id -u):$(id -g)" \
   --volume "$PWD/data:/app/data" \
   aero-diary:local
 ```
+
+Do not add Docker `--user` or Compose `user:` overrides to normal deployments. For compatibility, an existing non-root override is accepted only when it matches both environment values and has no supplementary groups; otherwise remove the override and let the entrypoint perform the targeted preparation.
 
 ### GHCR images
 
