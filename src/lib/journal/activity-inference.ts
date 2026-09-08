@@ -40,33 +40,6 @@ async function completeInference(
   });
 }
 
-async function completeSupersededInference(
-  userId: string,
-  entryId: string,
-  snapshot: EntryInferenceSnapshot,
-) {
-  const currentEntry = await db.entry.findFirst({
-    where: { id: entryId, userId },
-    select: { note: true, updatedAt: true, activityInferenceStatus: true },
-  });
-  if (
-    !currentEntry
-    || currentEntry.activityInferenceStatus !== ActivityInferenceStatus.PENDING
-    || isCurrentEntry(currentEntry, snapshot)
-  ) return;
-
-  await db.entry.updateMany({
-    where: {
-      id: entryId,
-      userId,
-      note: currentEntry.note,
-      updatedAt: currentEntry.updatedAt,
-      activityInferenceStatus: ActivityInferenceStatus.PENDING,
-    },
-    data: { activityInferenceStatus: ActivityInferenceStatus.COMPLETE },
-  });
-}
-
 export async function inferEntryActivities(
   userId: string,
   entryId: string,
@@ -140,8 +113,6 @@ export async function runEntryActivityInference(
     const result = await inferEntryActivities(userId, entryId, snapshot);
     if (result.status === 'attached' || result.status === 'empty') {
       await completeInference(userId, entryId, snapshot, ActivityInferenceStatus.COMPLETE);
-    } else if (result.status === 'stale') {
-      await completeSupersededInference(userId, entryId, snapshot);
     }
   } catch (error) {
     try {

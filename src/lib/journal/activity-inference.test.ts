@@ -206,21 +206,4 @@ describe('runEntryActivityInference', () => {
     });
   });
 
-  it('marks a superseded pending inference complete without attaching stale activities', async () => {
-    const user = await createUser();
-    const gaming = await testDb.activity.create({ data: { userId: user.id, name: 'Gaming', emoji: '🎮' } });
-    const entry = await createEntry(user.id, 'The old note.', ActivityInferenceStatus.PENDING);
-    const oldSnapshot = snapshot(entry);
-    await testDb.entry.update({
-      where: { id: entry.id },
-      data: { note: 'The note after a direct edit.' },
-    });
-
-    await runEntryActivityInference(user.id, entry.id, oldSnapshot);
-
-    await expect(testDb.entry.findUniqueOrThrow({ where: { id: entry.id } })).resolves.toMatchObject({
-      activityInferenceStatus: ActivityInferenceStatus.COMPLETE,
-    });
-    expect(await testDb.entryActivity.count({ where: { activityId: gaming.id } })).toBe(0);
-  });
 });
