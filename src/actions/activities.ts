@@ -1,9 +1,8 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
+import { refresh } from 'next/cache';
 import { db } from '@/lib/db';
 import { verifySession } from '@/lib/dal';
-import { invalidateActivityReads } from '@/lib/journal/cache';
 import {
   activityIdSchema,
   activitySchema,
@@ -69,9 +68,7 @@ export async function createActivity(
     return { error: SAVE_FAILED };
   }
 
-  invalidateActivityReads(session.userId);
-  revalidatePath('/activities');
-  revalidatePath('/timeline/new');
+  refresh();
   return { success: 'Activity added.' };
 }
 
@@ -107,10 +104,7 @@ export async function updateActivity(
     return { error: SAVE_FAILED };
   }
 
-  invalidateActivityReads(session.userId);
-  revalidatePath('/activities');
-  revalidatePath('/timeline/new');
-  revalidatePath('/timeline');
+  refresh();
   return { success: 'Activity updated.' };
 }
 
@@ -127,10 +121,7 @@ export async function deleteActivity(activityId: string): Promise<void> {
   });
   if (result.count === 0) return;
 
-  invalidateActivityReads(session.userId);
-  revalidatePath('/activities');
-  revalidatePath('/timeline/new');
-  revalidatePath('/timeline');
+  refresh();
 }
 
 export async function restoreActivity(activityId: string): Promise<ActivityState> {
@@ -153,8 +144,6 @@ export async function restoreActivity(activityId: string): Promise<ActivityState
     data: { isArchived: false },
   });
 
-  invalidateActivityReads(session.userId);
-  revalidatePath('/activities');
-  revalidatePath('/timeline/new');
+  refresh();
   return { success: 'Activity restored.' };
 }

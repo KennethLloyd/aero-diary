@@ -1,10 +1,8 @@
 import 'server-only';
 
-import { cacheLife, cacheTag } from 'next/cache';
 import { Prisma, type PrismaClient } from '@/generated/prisma/client';
 import type { Mood } from '@/generated/prisma/enums';
 import { db } from '@/lib/db';
-import { timelineCacheTag } from '@/lib/journal/cache-tags';
 import { formatDateKey, parseJournalDate, type JournalDate } from '@/lib/journal/dates';
 import { normalizeJournalNote } from '@/lib/journal/notes';
 import {
@@ -94,18 +92,7 @@ function escapeLikePattern(value: string): string {
     .replaceAll('_', '\\_');
 }
 
-export async function getCachedTimelinePage(
-  userId: string,
-  cursor?: string,
-  filter: TimelineFilter = {},
-): Promise<TimelinePage> {
-  'use cache';
-  cacheLife('journal');
-  cacheTag(timelineCacheTag(userId));
-  return listTimelinePage(db, userId, cursor, filter);
-}
-
-export async function getFreshTimelinePageForUser(
+export async function getTimelinePageForUser(
   userId: string,
   cursor?: string,
   filter: TimelineFilter = {},

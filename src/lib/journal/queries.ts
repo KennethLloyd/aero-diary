@@ -1,17 +1,10 @@
 import 'server-only';
 
-import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/lib/db';
 import { verifySession } from '@/lib/dal';
 import { ActivityInferenceStatus, type Mood } from '@/generated/prisma/enums';
 import { parseJournalDate, type JournalDate } from '@/lib/journal/dates';
 import { type CalendarMonth, type JournalEntry } from '@/lib/journal/analytics';
-import {
-  activityOptionsCacheTag,
-  calendarCacheTag,
-  entryDetailCacheTag,
-  insightsCacheTag,
-} from '@/lib/journal/cache-tags';
 import type { ActivityOption } from '@/lib/journal/types';
 
 export type EntryActivityInferenceStatus = 'pending' | 'complete' | 'failed';
@@ -27,10 +20,6 @@ export type EntryDetailView = {
 }
 
 export async function getActivitiesForUser(userId: string): Promise<ActivityOption[]> {
-  'use cache';
-  cacheLife('journal');
-  cacheTag(activityOptionsCacheTag(userId));
-
   const activities = await db.activity.findMany({
     where: { userId, isArchived: false },
     orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
@@ -40,10 +29,6 @@ export async function getActivitiesForUser(userId: string): Promise<ActivityOpti
 }
 
 export async function getArchivedActivitiesForUser(userId: string): Promise<ActivityOption[]> {
-  'use cache';
-  cacheLife('journal');
-  cacheTag(activityOptionsCacheTag(userId));
-
   const activities = await db.activity.findMany({
     where: { userId, isArchived: true },
     orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
@@ -81,10 +66,6 @@ export async function getEntriesForMonthForUser(
   userId: string,
   month: CalendarMonth,
 ): Promise<JournalEntry[]> {
-  'use cache';
-  cacheLife('journal');
-  cacheTag(calendarCacheTag(userId), insightsCacheTag(userId));
-
   const endYear = month.month === 12 ? month.year + 1 : month.year;
   const endMonth = month.month === 12 ? 1 : month.month + 1;
   const entries = await db.entry.findMany({
@@ -129,10 +110,6 @@ export async function getEntryDetailForUser(
   userId: string,
   entryId: string,
 ): Promise<EntryDetailView | null> {
-  'use cache';
-  cacheLife('journal');
-  cacheTag(entryDetailCacheTag(userId, entryId));
-
   const entry = await db.entry.findFirst({
     where: { id: entryId, userId },
     include: {

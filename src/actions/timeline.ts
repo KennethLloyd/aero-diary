@@ -2,8 +2,7 @@
 
 import { verifySession } from '@/lib/dal';
 import {
-  getCachedTimelinePage,
-  getFreshTimelinePageForUser,
+  getTimelinePageForUser,
   type TimelineFilter,
   type TimelinePage,
 } from '@/lib/journal/timeline';
@@ -30,14 +29,14 @@ export async function loadTimelinePage(
   filter: TimelineFilter = {},
 ): Promise<TimelinePage> {
   const session = await verifySession();
-  return getCachedTimelinePage(session.userId, cursor, parseTimelineActionFilter(filter));
+  return getTimelinePageForUser(session.userId, cursor, parseTimelineActionFilter(filter));
 }
 
 export async function refreshTimelinePage(
   filter: TimelineFilter = {},
 ): Promise<TimelinePage> {
   const session = await verifySession();
-  return getFreshTimelinePageForUser(session.userId, undefined, parseTimelineActionFilter(filter));
+  return getTimelinePageForUser(session.userId, undefined, parseTimelineActionFilter(filter));
 }
 
 export async function getEntryActivityInferenceStatus(

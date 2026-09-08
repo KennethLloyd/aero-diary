@@ -191,7 +191,7 @@ async function verifyTimelineFlow(page: Page) {
 test.describe('timeline polish desktop', () => {
   test.use({ viewport: { width: 1280, height: 900 } });
 
-  test('uses cached client navigation and 25-entry pages', async ({ page }) => {
+  test('uses client navigation and 25-entry pages', async ({ page }) => {
     await verifyTimelineFlow(page);
   });
   test('shows a new entry immediately after the create redirect', async ({ page }) => {

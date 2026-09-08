@@ -5,13 +5,6 @@ import { parseJournalDate } from '@/lib/journal/dates';
 import { TimelineList } from '@/components/journal/TimelineList';
 import type { TimelinePage } from '@/lib/journal/timeline';
 
-const navigationMocks = vi.hoisted(() => ({
-  replace: vi.fn(),
-}));
-
-vi.mock('next/navigation', () => ({
-  useRouter: () => navigationMocks,
-}));
 vi.mock('@/actions/timeline', () => ({
   loadTimelinePage: vi.fn(),
   refreshTimelinePage: vi.fn(),
