@@ -3,13 +3,21 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Mood } from '@/generated/prisma/enums';
 import { parseJournalDate } from '@/lib/journal/dates';
 import { NewEntryForm, type EditableEntry } from '@/components/journal/NewEntryForm';
+import { deletePhoto } from '@/actions/entries';
+import { polishEntry } from '@/actions/polish';
 
 vi.mock('@/actions/entries', () => ({
   createEntry: vi.fn(),
   deletePhoto: vi.fn().mockResolvedValue(undefined),
   updateEntry: vi.fn(),
 }));
-afterEach(() => cleanup());
+vi.mock('@/actions/polish', () => ({
+  polishEntry: vi.fn(),
+}));
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
 function editableEntry(photoCount: number, activityIds: string[] = []): EditableEntry {
   return {
     id: 'entry-1',
@@ -32,6 +40,9 @@ function changeFiles(input: HTMLInputElement, files: File[]) {
   Object.defineProperty(input, 'files', { configurable: true, value: fileList });
   fireEvent.change(input);
 }
+
+const deletePhotoMock = vi.mocked(deletePhoto);
+const polishEntryMock = vi.mocked(polishEntry);
 
 describe('NewEntryForm activity state', () => {
   it('does not show activity controls while creating an entry', () => {
@@ -101,6 +112,26 @@ describe('NewEntryForm photo state', () => {
     confirm.mockRestore();
   });
 
+  it('keeps existing-photo removal pending until the direct server action resolves', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const removal = Promise.withResolvers<undefined>();
+    deletePhotoMock.mockReturnValue(removal.promise);
+    render(<NewEntryForm activities={[]} entry={editableEntry(1)} />);
+
+    const removeButton = screen.getByRole('button', { name: 'Remove attached photo 1' });
+    fireEvent.click(removeButton);
+
+    expect(deletePhotoMock).toHaveBeenCalledWith('photo-1', undefined, expect.any(FormData));
+    expect(removeButton).toBeDisabled();
+    expect(screen.getByText('1 of 20 photos')).toBeVisible();
+
+    removal.resolve(undefined);
+
+    await waitFor(() => expect(screen.queryByRole('img', { name: 'Attached photo 1' })).not.toBeInTheDocument());
+    expect(screen.getByText('0 of 20 photos')).toBeVisible();
+    confirm.mockRestore();
+  });
+
   it('shows a failed staged upload with a retry path', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch');
     fetchMock.mockRejectedValueOnce(new Error('Network unavailable'));
@@ -116,6 +147,25 @@ describe('NewEntryForm photo state', () => {
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument());
     expect(screen.getByText('1 of 20 photos')).toBeInTheDocument();
     fetchMock.mockRestore();
+  });
+
+  it('keeps Polish writing feedback and applies the direct server action result', async () => {
+    const polish = Promise.withResolvers<{ revisedText: string }>();
+    polishEntryMock.mockReturnValue(polish.promise);
+    render(<NewEntryForm activities={[]} />);
+
+    const note = screen.getByLabelText('Journal Note');
+    fireEvent.change(note, { target: { value: 'A draft worth polishing.' } });
+    const polishButton = screen.getByRole('button', { name: /Polish writing/ });
+    fireEvent.click(polishButton);
+
+    expect(polishEntryMock).toHaveBeenCalledWith(undefined, expect.any(FormData));
+    expect(screen.getByRole('button', { name: /Polishing…/ })).toBeDisabled();
+
+    polish.resolve({ revisedText: 'A polished draft worth keeping.' });
+
+    await waitFor(() => expect(screen.getByDisplayValue('A polished draft worth keeping.')).toBeVisible());
+    expect(screen.getByRole('button', { name: 'Show original' })).toBeVisible();
   });
 
   it('cleans a stage by id when removal races the upload response', async () => {
