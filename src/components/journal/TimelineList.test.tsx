@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Mood } from '@/generated/prisma/enums';
 import { parseJournalDate } from '@/lib/journal/dates';
@@ -13,6 +13,7 @@ vi.mock('@/actions/timeline', () => ({
 
 import {
   getEntryActivityInferenceStatus,
+  loadTimelinePage,
   refreshTimelinePage,
 } from '@/actions/timeline';
 
@@ -31,6 +32,7 @@ function page(id: string, note: string): TimelinePage {
 }
 
 const refreshTimelinePageMock = vi.mocked(refreshTimelinePage);
+const loadTimelinePageMock = vi.mocked(loadTimelinePage);
 const getEntryActivityInferenceStatusMock = vi.mocked(getEntryActivityInferenceStatus);
 
 afterEach(() => {
@@ -169,6 +171,41 @@ describe('TimelineList', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Load older memories' })).toBeVisible(), {
       timeout: 2_000,
     });
+  });
+
+  it('keeps pagination pending feedback and prevents duplicate loads', async () => {
+    const initialPage = {
+      entries: [page('entry-1', 'Newest entry.').entries[0]],
+      nextCursor: 'older-cursor',
+    } satisfies TimelinePage;
+    const nextPage = {
+      entries: [page('entry-2', 'Older entry.').entries[0]],
+      nextCursor: null,
+    } satisfies TimelinePage;
+    const load = Promise.withResolvers<TimelinePage>();
+    loadTimelinePageMock.mockReturnValue(load.promise);
+    vi.stubGlobal('IntersectionObserver', class {
+      observe() {}
+      disconnect() {}
+    });
+
+    render(<TimelineList initialPage={initialPage} />);
+
+    const button = screen.getByRole('button', { name: 'Load older memories' });
+    fireEvent.click(button);
+
+    await waitFor(() => expect(button).toHaveTextContent('Loading older memories…'));
+    expect(button).toBeDisabled();
+    expect(loadTimelinePageMock).toHaveBeenCalledTimes(1);
+    expect(loadTimelinePageMock).toHaveBeenCalledWith('older-cursor', {});
+
+    fireEvent.click(button);
+    expect(loadTimelinePageMock).toHaveBeenCalledTimes(1);
+
+    load.resolve(nextPage);
+
+    await waitFor(() => expect(screen.getByText('Older entry.')).toBeVisible());
+    expect(screen.getByText('You’re all caught up with your memories.')).toBeVisible();
   });
 
   it('mounts a fresh client snapshot when the server snapshot changes', () => {

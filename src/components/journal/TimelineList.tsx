@@ -60,17 +60,15 @@ export function TimelineList({
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   const refreshTimeline = useCallback(() => {
-    startTransition(() => {
-      void refreshTimelinePage(filter)
-        .then((page) => {
-          setEntries((currentEntries) => mergeRefreshedEntries(currentEntries, page.entries));
-          setLoadError(undefined);
-        })
-        .catch(() => {
-          setLoadError('Unable to refresh your newest memories. Please try again.');
-        });
-    });
-  }, [filter, startTransition]);
+    void refreshTimelinePage(filter)
+      .then((page) => {
+        setEntries((currentEntries) => mergeRefreshedEntries(currentEntries, page.entries));
+        setLoadError(undefined);
+      })
+      .catch(() => {
+        setLoadError('Unable to refresh your newest memories. Please try again.');
+      });
+  }, [filter]);
 
   const loadMore = useCallback(() => {
     if (!nextCursor || isPending) return;

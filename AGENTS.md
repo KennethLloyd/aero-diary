@@ -31,7 +31,7 @@ Prefer the capabilities already provided by Next.js, Tailwind, and the existing 
 
 Every UI pull request completes a browser-first verification pass:
 
-1. Exercise the changed flow end-to-end with the `control-in-app-browser` skill. Cover affected validation, loading and error states, edits, retrieval and rendering, downloads, and deletes where present. Re-snapshot after navigation and dynamic state changes.
+1. Exercise the changed flow end-to-end with the available browser-control capability (prefer the control-in-app-browser skill when available). Cover affected validation, loading and error states, edits, retrieval and rendering, downloads, and deletes where present. Re-snapshot after navigation and dynamic state changes.
 2. Verify every materially different page or state involved in the change at a desktop viewport of `1280px` or wider and an iPhone 15-sized viewport of `393×852`.
 3. Capture PR screenshots from the in-app browser. Use two screenshots only when each shows a complete page and together covers the change; otherwise include additional screenshots. Evidence must include both mobile and desktop views and visibly showcase the new behavior.
 4. Add a `What to expect` section to the PR description or a PR comment in simplified technical, product-facing English. Explain the visible change, key interactions, responsive behavior, and demo-data limitations.
