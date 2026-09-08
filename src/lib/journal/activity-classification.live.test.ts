@@ -15,9 +15,6 @@ import type { LlmClient } from './llm-client';
 
 const runLiveTest = process.env.RUN_LIVE_LLM_TESTS === '1';
 
-vi.mock('@/lib/journal/cache', () => ({
-  invalidateJournalReads: vi.fn(),
-}));
 vi.mock('@/lib/db', async () => {
   const { testDb: isolatedTestDb } = await import('@/test/test-db');
   return { db: isolatedTestDb };

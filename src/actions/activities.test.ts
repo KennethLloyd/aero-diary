@@ -3,12 +3,11 @@ import { Mood } from '@/generated/prisma/enums';
 import { resetTestDb, testDb } from '@/test/test-db';
 
 const mocks = vi.hoisted(() => ({
-  revalidatePath: vi.fn(),
-  updateTag: vi.fn(),
+  refresh: vi.fn(),
   verifySession: vi.fn(),
 }));
 
-vi.mock('next/cache', () => ({ revalidatePath: mocks.revalidatePath, updateTag: mocks.updateTag }));
+vi.mock('next/cache', () => ({ refresh: mocks.refresh }));
 vi.mock('@/lib/dal', () => ({ verifySession: mocks.verifySession }));
 vi.mock('@/lib/db', async () => {
   const { testDb } = await import('@/test/test-db');
@@ -53,19 +52,19 @@ describe('activity actions', () => {
     const state = await createActivity(undefined, form('   ', ''));
 
     expect(state).toEqual({ error: 'Enter an activity name.' });
-    expect(mocks.updateTag).not.toHaveBeenCalled();
+    expect(mocks.refresh).not.toHaveBeenCalled();
     expect(await testDb.activity.count()).toBe(0);
   });
 
   it('creates, renames, and archives activities without removing historical links', async () => {
     const created = await createActivity(undefined, form());
     expect(created).toEqual({ success: 'Activity added.' });
-    expect(mocks.updateTag).toHaveBeenCalledWith(`journal:${currentUserId}:activities`);
+    expect(mocks.refresh).toHaveBeenCalledTimes(1);
 
     const activity = await testDb.activity.findFirstOrThrow();
     const updated = await updateActivity(activity.id, undefined, form('focus', '🎯'));
     expect(updated).toEqual({ success: 'Activity updated.' });
-    expect(mocks.updateTag).toHaveBeenCalledWith(`journal:${currentUserId}:activities`);
+    expect(mocks.refresh).toHaveBeenCalledTimes(2);
 
     expect(await testDb.activity.findUniqueOrThrow({ where: { id: activity.id } })).toMatchObject({
       name: 'focus',
@@ -83,7 +82,7 @@ describe('activity actions', () => {
     });
 
     await deleteActivity(activity.id);
-    expect(mocks.updateTag).toHaveBeenCalledWith(`journal:${currentUserId}:activities`);
+    expect(mocks.refresh).toHaveBeenCalledTimes(3);
     expect(await testDb.activity.findUniqueOrThrow({ where: { id: activity.id } })).toMatchObject({
       isArchived: true,
     });
@@ -92,6 +91,7 @@ describe('activity actions', () => {
     })).not.toBeNull();
 
     expect(await restoreActivity(activity.id)).toEqual({ success: 'Activity restored.' });
+    expect(mocks.refresh).toHaveBeenCalledTimes(4);
     expect(await testDb.activity.findUniqueOrThrow({ where: { id: activity.id } })).toMatchObject({
       isArchived: false,
     });

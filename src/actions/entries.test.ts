@@ -5,14 +5,11 @@ import { resetTestDb, testDb } from '@/test/test-db';
 const mocks = vi.hoisted(() => ({
   after: vi.fn(),
   redirect: vi.fn(),
-  revalidatePath: vi.fn(),
-  updateTag: vi.fn(),
   verifySession: vi.fn(),
 }));
 
 vi.mock('next/navigation', () => ({ redirect: mocks.redirect }));
 vi.mock('next/server', () => ({ after: mocks.after }));
-vi.mock('next/cache', () => ({ revalidatePath: mocks.revalidatePath, updateTag: mocks.updateTag }));
 vi.mock('@/lib/dal', () => ({ verifySession: mocks.verifySession }));
 vi.mock('@/lib/db', async () => {
   const { testDb } = await import('@/test/test-db');
@@ -67,7 +64,6 @@ describe('createEntry action', () => {
     const state = await createEntry(undefined, form({ mood: 'INVALID', note: '' }));
 
     expect(state).toEqual({ error: 'Choose a mood.' });
-    expect(mocks.updateTag).not.toHaveBeenCalled();
     expect(await testDb.entry.count()).toBe(0);
   });
 
@@ -89,9 +85,6 @@ describe('createEntry action', () => {
     });
     expect(entry).toMatchObject({ userId: user.id, mood: Mood.RAD, note: 'A good day to write things down.' });
     expect(entry.activities).toEqual([{ entryId: entry.id, activityId: activity.id }]);
-    expect(mocks.updateTag).toHaveBeenCalledWith(`journal:${user.id}:timeline`);
-    expect(mocks.updateTag).toHaveBeenCalledWith(`journal:${user.id}:entry:${entry.id}`);
-    expect(mocks.revalidatePath).toHaveBeenCalledWith('/timeline');
   });
   it('creates an entry without activity selection and schedules enrichment', async () => {
     const user = await testDb.user.create({
@@ -217,10 +210,6 @@ describe('updateEntry action', () => {
     });
     expect(updated.journalDate).toBe(entry.journalDate);
     expect(updated.activities).toEqual([{ entryId: entry.id, activityId: newActivity.id }]);
-    expect(mocks.updateTag).toHaveBeenCalledWith(`journal:${user.id}:timeline`);
-    expect(mocks.updateTag).toHaveBeenCalledWith(`journal:${user.id}:entry:${entry.id}`);
-    expect(mocks.revalidatePath).toHaveBeenCalledWith('/timeline');
-    expect(mocks.revalidatePath).toHaveBeenCalledWith(`/timeline/${entry.id}`);
     expect(mocks.redirect).toHaveBeenCalledWith(`/timeline/${entry.id}`);
   });
 
@@ -262,7 +251,6 @@ describe('updateEntry action', () => {
     const state = await updateEntry(entry.id, undefined, form({ note: 'Should not change.' }));
 
     expect(state).toEqual({ error: 'Entry not found.' });
-    expect(mocks.updateTag).not.toHaveBeenCalled();
     await expect(testDb.entry.findUniqueOrThrow({ where: { id: entry.id } })).resolves.toMatchObject({
       mood: Mood.BAD,
       note: 'Private note.',
@@ -301,9 +289,6 @@ describe('deleteEntry action', () => {
 
     expect(await testDb.entry.findUnique({ where: { id: entry.id } })).toBeNull();
     expect(await testDb.entryActivity.count()).toBe(0);
-    expect(mocks.updateTag).toHaveBeenCalledWith(`journal:${user.id}:timeline`);
-    expect(mocks.updateTag).toHaveBeenCalledWith(`journal:${user.id}:entry:${entry.id}`);
-    expect(mocks.revalidatePath).toHaveBeenCalledWith('/timeline');
     expect(mocks.redirect).toHaveBeenCalledWith('/timeline');
   });
 

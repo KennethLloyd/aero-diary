@@ -7,7 +7,7 @@ import { TimelineList } from '@/components/journal/TimelineList';
 import { verifySession } from '@/lib/dal';
 import { formatMonthLabel, getMonthFromParam } from '@/lib/journal/analytics';
 import {
-  getCachedTimelinePage,
+  getTimelinePageForUser,
   getTimelineClearSearchHref,
   parseTimelineFilter,
 } from '@/lib/journal/timeline';
@@ -44,7 +44,7 @@ async function TimelineContent({ searchParams }: TimelinePageProps) {
     ? params.pendingInference[0]
     : params.pendingInference;
   const pendingInferenceId = entryIdSchema.safeParse(pendingInferenceValue);
-  const initialPage = await getCachedTimelinePage(session.userId, undefined, filter);
+  const initialPage = await getTimelinePageForUser(session.userId, undefined, filter);
   const currentMonth = formatMonthLabel(getMonthFromParam(undefined));
   const hasFilter = Boolean(filter.mood || filter.activityId || filter.query);
 

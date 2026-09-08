@@ -9,14 +9,10 @@ import {
 
 const mocks = vi.hoisted(() => ({
   configuredLlmClient: vi.fn(),
-  invalidateJournalReads: vi.fn(),
 }));
 
 vi.mock('@/lib/journal/llm-client-config', () => ({
   configuredLlmClient: mocks.configuredLlmClient,
-}));
-vi.mock('@/lib/journal/cache', () => ({
-  invalidateJournalReads: mocks.invalidateJournalReads,
 }));
 vi.mock('@/lib/db', async () => {
   const { testDb } = await import('@/test/test-db');
@@ -75,7 +71,6 @@ describe('inferEntryActivities', () => {
     await expect(testDb.entryActivity.findMany()).resolves.toEqual([
       { entryId: entry.id, activityId: gaming.id },
     ]);
-    expect(mocks.invalidateJournalReads).toHaveBeenCalledWith(user.id, entry.id);
   });
 
   it('supports empty classification without changing the entry', async () => {
@@ -91,7 +86,6 @@ describe('inferEntryActivities', () => {
       activityIds: [],
     });
     expect(await testDb.entryActivity.count({ where: { activityId: activity.id } })).toBe(0);
-    expect(mocks.invalidateJournalReads).not.toHaveBeenCalled();
   });
 
   it('is safe to retry the same inference', async () => {
@@ -199,7 +193,6 @@ describe('runEntryActivityInference', () => {
     await expect(testDb.entry.findUniqueOrThrow({ where: { id: entry.id } })).resolves.toMatchObject({
       activityInferenceStatus: ActivityInferenceStatus.COMPLETE,
     });
-    expect(mocks.invalidateJournalReads).toHaveBeenCalledWith(user.id, entry.id);
   });
 
   it('marks empty enrichment complete so the client stops polling', async () => {
@@ -211,7 +204,6 @@ describe('runEntryActivityInference', () => {
     await expect(testDb.entry.findUniqueOrThrow({ where: { id: entry.id } })).resolves.toMatchObject({
       activityInferenceStatus: ActivityInferenceStatus.COMPLETE,
     });
-    expect(mocks.invalidateJournalReads).not.toHaveBeenCalled();
   });
 
   it('marks a superseded pending inference complete without attaching stale activities', async () => {

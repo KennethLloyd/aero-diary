@@ -2,7 +2,6 @@ import 'server-only';
 
 import { ActivityInferenceStatus } from '@/generated/prisma/enums';
 import { db } from '@/lib/db';
-import { invalidateJournalReads } from '@/lib/journal/cache';
 import { classifyJournalActivities } from '@/lib/journal/activity-classifier';
 import { configuredLlmClient } from '@/lib/journal/llm-client-config';
 import type { LlmClient } from '@/lib/journal/llm-client';
@@ -129,7 +128,6 @@ export async function inferEntryActivities(
     return { status: 'attached', activityIds: activityIdsToAttach } as const;
   });
 
-  if (result.status === 'attached') invalidateJournalReads(userId, entryId);
   return result;
 }
 

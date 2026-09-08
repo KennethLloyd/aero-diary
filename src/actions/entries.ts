@@ -1,6 +1,6 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
+import { refresh } from 'next/cache';
 import { after } from 'next/server';
 import { redirect } from 'next/navigation';
 import { verifySession } from '@/lib/dal';
@@ -15,7 +15,6 @@ import {
   type CreatedEntry,
 } from '@/lib/journal/entry-workflow';
 import { StagedPhotoUnavailableError } from '@/lib/journal/photo-staging';
-import { invalidateEntryDetailRead, invalidateJournalReads } from '@/lib/journal/cache';
 import { runEntryActivityInference } from '@/lib/journal/activity-inference';
 import { MAX_PHOTO_COUNT, PHOTO_UPLOAD_ERROR } from '@/lib/journal/photos';
 import {
@@ -101,8 +100,6 @@ export async function createEntry(
     return { error: saveError(error) };
   }
 
-  invalidateJournalReads(session.userId, createdEntry.id);
-  revalidatePath('/timeline');
   after(() => runEntryActivityInference(session.userId, createdEntry.id, {
     note: createdEntry.note,
     updatedAt: createdEntry.updatedAt,
@@ -135,10 +132,6 @@ export async function updateEntry(
   }
   if (!updated) return { error: ENTRY_NOT_FOUND };
 
-  invalidateJournalReads(session.userId, updated.id);
-  revalidatePath('/timeline');
-  revalidatePath(`/timeline/${updated.id}`);
-  revalidatePath(`/timeline/${updated.id}/edit`);
   redirect(`/timeline/${updated.id}`);
 }
 
@@ -161,9 +154,6 @@ export async function deleteEntry(
   }
   if (!deleted) return { error: ENTRY_NOT_FOUND };
 
-  invalidateJournalReads(session.userId, deleted.id);
-  revalidatePath('/timeline');
-  revalidatePath(`/timeline/${deleted.id}`);
   redirect('/timeline');
 }
 
@@ -186,7 +176,5 @@ export async function deletePhoto(
   }
   if (!deleted) return { error: PHOTO_NOT_FOUND };
 
-  invalidateEntryDetailRead(session.userId, deleted.entryId);
-  revalidatePath('/timeline');
-  revalidatePath(`/timeline/${deleted.entryId}`);
+  refresh();
 }

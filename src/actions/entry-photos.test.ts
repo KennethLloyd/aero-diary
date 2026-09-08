@@ -8,15 +8,14 @@ const mocks = vi.hoisted(() => ({
   getPhotoStore: vi.fn(),
   resolve: vi.fn(),
   redirect: vi.fn(),
-  revalidatePath: vi.fn(),
-  updateTag: vi.fn(),
+  refresh: vi.fn(),
   upload: vi.fn(),
   verifySession: vi.fn(),
 }));
 
 vi.mock('next/navigation', () => ({ redirect: mocks.redirect }));
 vi.mock('next/server', () => ({ after: mocks.after }));
-vi.mock('next/cache', () => ({ revalidatePath: mocks.revalidatePath, updateTag: mocks.updateTag }));
+vi.mock('next/cache', () => ({ refresh: mocks.refresh }));
 vi.mock('@/lib/dal', () => ({ verifySession: mocks.verifySession }));
 vi.mock('@/lib/drive/server-store', () => ({ getPhotoStore: mocks.getPhotoStore }));
 vi.mock('@/lib/db', async () => {
@@ -328,7 +327,7 @@ describe('entry photo actions', () => {
     expect(mocks.deletePhotoFile).toHaveBeenCalledWith('photos/hash.jpg');
     expect(await testDb.photo.findUnique({ where: { id: photo.id } })).toBeNull();
     expect(await testDb.entry.findUnique({ where: { id: entry.id } })).not.toBeNull();
-    expect(mocks.updateTag).toHaveBeenCalledWith(`journal:${user.id}:entry:${entry.id}`);
+    expect(mocks.refresh).toHaveBeenCalledTimes(1);
   });
 
   it('keeps the database coherent when Drive deletion fails', async () => {
@@ -353,7 +352,7 @@ describe('entry photo actions', () => {
     expect(state).toBeUndefined();
     expect(await testDb.photo.findUnique({ where: { id: photo.id } })).toBeNull();
     expect(await testDb.entry.findUnique({ where: { id: entry.id } })).not.toBeNull();
-    expect(mocks.updateTag).toHaveBeenCalledWith(`journal:${user.id}:entry:${entry.id}`);
+    expect(mocks.refresh).toHaveBeenCalledTimes(1);
   });
 
   it('rejects anonymous, invalid-id, and wrong-user photo deletion', async () => {

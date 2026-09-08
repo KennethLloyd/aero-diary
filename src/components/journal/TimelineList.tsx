@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import {
   getEntryActivityInferenceStatus,
   loadTimelinePage,
@@ -59,7 +58,6 @@ export function TimelineList({
   const [loadError, setLoadError] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
   const sentinelRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
 
   const refreshTimeline = useCallback(() => {
     startTransition(() => {
@@ -124,7 +122,6 @@ export function TimelineList({
       if (!url.searchParams.has(PENDING_INFERENCE_PARAM)) return;
       url.searchParams.delete(PENDING_INFERENCE_PARAM);
       window.history.replaceState(window.history.state, '', url);
-      void router.replace(`${url.pathname}${url.search}${url.hash}`, { scroll: false });
     }
 
     async function pollInferenceStatus() {
@@ -155,7 +152,7 @@ export function TimelineList({
       cancelled = true;
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [pendingInferenceId, refreshTimeline, router]);
+  }, [pendingInferenceId, refreshTimeline]);
 
   const hasFilter = Boolean(filter.mood || filter.activityId || filter.query);
 
