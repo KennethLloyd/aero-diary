@@ -538,6 +538,10 @@
     transform: translate(-50%, 0.75rem) scale(0.98);
   }
 
+  .aero-dock form {
+    margin: 0;
+  }
+
   .dock-item {
     display: flex;
     flex-direction: column;
@@ -552,6 +556,12 @@
     text-decoration: none;
     transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
+  }
+  button.dock-item {
+    border: 0;
+    background: transparent;
+    font: inherit;
+    cursor: pointer;
   }
   .dock-item .dock-icon-wrap {
     display: flex;

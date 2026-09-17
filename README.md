@@ -14,7 +14,7 @@ Write about your day naturally, and Aero Diary can use an LLM to automatically i
 - 📊 **Insights** — explore patterns across moods and activities.
 - 🪄 **AI-assisted polishing** — optionally improve journal entries through an OpenAI-compatible LLM.
 - 📷 **Photo support** — attach photos to journal entries.
-- 🔐 **Private by design** — journal data is protected behind authentication.
+- 🔐 **Private by design** — journal data is protected behind authentication, with an optional PIN app lock for shared devices.
 - 🌤️ **Frutiger Aero UI** — glass panels, gradients, glossy controls, bubbles, and mood-driven visuals.
 
 ## Tech Stack

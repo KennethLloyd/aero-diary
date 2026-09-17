@@ -72,10 +72,62 @@ describe('verifySession (auth gate)', () => {
       },
     });
     mocks.cookieStore.get.mockReturnValue({ value: token });
-    await expect(verifySession()).resolves.toEqual({
+    await expect(verifySession()).resolves.toMatchObject({
       isAuth: true,
       userId: user.id,
+      appLockEnabled: false,
     });
+  });
+
+  it('redirects a manually locked session to /unlock', async () => {
+    const user = await testDb.user.create({
+      data: {
+        email: 'ken@example.com',
+        passwordHash: 'x',
+        appLockPinHash: 'hashed-pin',
+      },
+    });
+    const token = 'locked-token';
+    await testDb.session.create({
+      data: {
+        userId: user.id,
+        tokenHash: hashToken(token),
+        expiresAt: new Date(Date.now() + 100_000),
+        appLockVerifiedAt: null,
+      },
+    });
+    mocks.cookieStore.get.mockReturnValue({ value: token });
+
+    await expect(verifySession()).rejects.toThrow(NEXT_REDIRECT);
+    expect(mocks.redirect).toHaveBeenCalledWith('/unlock');
+  });
+
+  it('expires an unlocked session after the configured timeout', async () => {
+    const user = await testDb.user.create({
+      data: {
+        email: 'ken@example.com',
+        passwordHash: 'x',
+        appLockPinHash: 'hashed-pin',
+        appLockTimeoutMinutes: 1,
+      },
+    });
+    const token = 'idle-token';
+    const storedSession = await testDb.session.create({
+      data: {
+        userId: user.id,
+        tokenHash: hashToken(token),
+        expiresAt: new Date(Date.now() + 100_000),
+        appLockVerifiedAt: new Date(Date.now() - 61_000),
+      },
+    });
+    mocks.cookieStore.get.mockReturnValue({ value: token });
+
+    await expect(verifySession()).rejects.toThrow(NEXT_REDIRECT);
+    expect(mocks.redirect).toHaveBeenCalledWith('/unlock');
+    expect(
+      (await testDb.session.findUnique({ where: { id: storedSession.id } }))
+        ?.appLockVerifiedAt,
+    ).toBeNull();
   });
 
   it('renews a session past the halfway point (sliding expiry)', async () => {
@@ -155,9 +207,10 @@ describe('getOptionalSession', () => {
     });
     mocks.cookieStore.get.mockReturnValue({ value: token });
 
-    await expect(getOptionalSession()).resolves.toEqual({
+    await expect(getOptionalSession()).resolves.toMatchObject({
       isAuth: true,
       userId: user.id,
+      appLockEnabled: false,
     });
   });
 });

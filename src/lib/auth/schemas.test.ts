@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { loginSchema } from '@/lib/auth/schemas';
+import { appLockPinSchema, loginSchema } from '@/lib/auth/schemas';
 
 describe('login schema', () => {
   it('accepts a valid email and password', () => {
@@ -44,4 +44,14 @@ describe('login schema', () => {
     expect(result.success).toBe(false);
   });
 
+});
+
+describe('App Lock PIN schema', () => {
+  it.each(['1234', '123456'])('accepts a %s PIN', (pin) => {
+    expect(appLockPinSchema.safeParse(pin).success).toBe(true);
+  });
+
+  it.each(['123', '12345', '1234567', '１２３４', '12a4'])('rejects %s', (pin) => {
+    expect(appLockPinSchema.safeParse(pin).success).toBe(false);
+  });
 });

@@ -25,26 +25,29 @@ enum ActivityInferenceStatus {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  passwordHash  String
-  name          String?
-  styleStandard String? // optional per-user polish rules; blank uses the concise default
-  sessions      Session[]
-  entries       Entry[]
-  activities    Activity[]
+  id                    String    @id @default(cuid())
+  email                 String    @unique
+  passwordHash          String
+  name                  String?
+  styleStandard         String? // optional per-user polish rules; blank uses the concise default
+  appLockPinHash        String?
+  appLockTimeoutMinutes Int       @default(5)
+  sessions              Session[]
+  entries               Entry[]
+  activities            Activity[]
   stagedPhotos        StagedPhoto[]
   stagedCancellations StagedPhotoCancellation[]
   createdAt     DateTime  @default(now())
 }
 
 model Session {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash String   @unique // SHA-256 of the opaque session token
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  id                String    @id @default(cuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash         String    @unique // SHA-256 of the opaque session token
+  expiresAt         DateTime
+  appLockVerifiedAt DateTime?
+  createdAt         DateTime  @default(now())
 }
 
 model Entry {

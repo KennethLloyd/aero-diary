@@ -68,17 +68,22 @@ export async function login(
   // Reset the rate limit per email, but not per IP
   // to prevent attackers from using a valid account to reset the IP-wide throttle.
   resetRateLimit('email', email);
-  await createSession(user.id);
+  await createSession(user.id, user.appLockPinHash !== null);
 
   redirect('/timeline');
 }
 
 // Mint an opaque session token, store its hash, and set the httpOnly cookie.
-async function createSession(userId: string): Promise<void> {
+async function createSession(userId: string, appLockEnabled: boolean): Promise<void> {
   const token = generateSessionToken();
   const expiresAt = sessionExpiry();
   await db.session.create({
-    data: { userId, tokenHash: hashToken(token), expiresAt },
+    data: {
+      userId,
+      tokenHash: hashToken(token),
+      expiresAt,
+      appLockVerifiedAt: appLockEnabled ? new Date() : null,
+    },
   });
   await setSessionCookie(token, expiresAt);
 }
@@ -96,7 +101,7 @@ export async function loginDemo(): Promise<void> {
   const demo = await authenticateCredentials(credentials.email, credentials.password);
   if (!demo) redirect('/');
 
-  await createSession(demo.id);
+  await createSession(demo.id, demo.appLockPinHash !== null);
   redirect('/timeline');
 }
 
