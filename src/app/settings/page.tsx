@@ -4,6 +4,7 @@ import { logout } from '@/actions/auth';
 import { AeroBubbles } from '@/components/aero/AeroBubbles';
 import { AeroScreen } from '@/components/aero/AeroScreen';
 import { AeroTitle } from '@/components/aero/AeroTitle';
+import { AppLockSettings } from '@/components/auth/AppLockSettings';
 import { verifySession } from '@/lib/dal';
 import { getActivitiesForUser } from '@/lib/journal/queries';
 
@@ -56,6 +57,17 @@ async function SettingsContent() {
           </span>
           <span className="text-base font-bold text-[#146cc2]" aria-hidden="true">›</span>
         </Link>
+      </section>
+
+      <section className="aero-surface-plain flex flex-col gap-3 p-4" aria-labelledby="settings-app-lock-heading">
+        <h2 id="settings-app-lock-heading" className="text-xs font-bold uppercase tracking-wider text-[#0a2f5c]">
+          App Lock
+        </h2>
+        <AppLockSettings
+          key={session.appLockEnabled ? 'enabled' : 'disabled'}
+          enabled={session.appLockEnabled}
+          timeoutMinutes={session.appLockTimeoutMinutes}
+        />
       </section>
 
       <section className="aero-surface-plain flex flex-col gap-3 p-4" aria-labelledby="settings-account-heading">

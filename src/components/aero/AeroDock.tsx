@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { lockApp } from '@/actions/app-lock';
 import { useAeroDockVisibility } from '@/components/aero/AeroDockVisibility';
 
 // Bottom navigation for the journal screens with icons + labels.
@@ -13,7 +14,7 @@ const DOCK_ITEMS = [
   { href: '/settings', label: 'Settings', icon: '⚙️', match: (path: string) => path === '/settings' || path.startsWith('/activities') },
 ];
 
-export function AeroDock() {
+export function AeroDock({ appLockEnabled = false }: { appLockEnabled?: boolean }) {
   const pathname = usePathname();
   const { hidden } = useAeroDockVisibility();
 
@@ -41,6 +42,14 @@ export function AeroDock() {
           </Link>
         );
       })}
+      {appLockEnabled ? (
+        <form action={lockApp}>
+          <button type="submit" className="dock-item" aria-label="Lock Aero Diary">
+            <span className="dock-icon-wrap" aria-hidden="true">🔒</span>
+            <span className="dock-label">Lock</span>
+          </button>
+        </form>
+      ) : null}
     </nav>
   );
 }

@@ -94,6 +94,23 @@ describe('login action', () => {
     });
   });
 
+  it('creates an initially unlocked session when App Lock is enabled', async () => {
+    const user = await seedUser();
+    await testDb.user.update({
+      where: { id: user.id },
+      data: { appLockPinHash: await hashPassword('1234') },
+    });
+
+    await expect(login(undefined, form('ken@example.com', 'correct-horse'))).rejects.toThrow(
+      NEXT_REDIRECT,
+    );
+
+    const session = await testDb.session.findFirstOrThrow({
+      where: { userId: user.id },
+    });
+    expect(session.appLockVerifiedAt).not.toBeNull();
+  });
+
   it('rate-limits after too many attempts, even with correct credentials', async () => {
     await seedUser();
     for (let i = 0; i < 3; i++) {
