@@ -13,6 +13,11 @@ import {
 } from '@/lib/journal/entry-workflow';
 import { StagedPhotoUnavailableError } from '@/lib/journal/photo-staging';
 import { createEntrySchema, updateEntrySchema } from '@/lib/journal/schemas';
+import {
+  JOURNAL_EMBEDDING_GENERATION,
+  journalEmbeddingSourceHash,
+} from '@/lib/journal/memory-embeddings';
+import { JOURNAL_MEMORY_QUEUE } from '@/lib/journal/memory-queue';
 
 const mocks = vi.hoisted(() => ({
   deletePhoto: vi.fn(),
@@ -125,6 +130,89 @@ describe('entry workflow', () => {
     await expect(testDb.entryActivity.findMany()).resolves.toEqual([
       { entryId: entry.id, activityId: activity.id },
     ]);
+  });
+
+  it('compares the note after locking an entry during overlapping saves', async () => {
+    const user = await createUser('overlapping-save@example.com');
+    const originalNote = 'The note before the overlapping saves.';
+    const newerNote = 'The first save wrote a newer note.';
+    const entry = await testDb.entry.create({
+      data: {
+        userId: user.id,
+        journalDate: '2026-08-18',
+        mood: Mood.GOOD,
+        note: originalNote,
+      },
+    });
+
+    let signalNewerWrite!: () => void;
+    let releaseNewerWrite!: () => void;
+    const newerWriteReady = new Promise<void>((resolve) => { signalNewerWrite = resolve; });
+    const allowNewerWriteCommit = new Promise<void>((resolve) => { releaseNewerWrite = resolve; });
+    const firstSave = testDb.$transaction(async (transaction) => {
+      await transaction.entry.update({ where: { id: entry.id }, data: { note: newerNote } });
+      await transaction.journalMemoryGeneration.create({
+        data: {
+          entryId: entry.id,
+          userId: user.id,
+          sourceHash: journalEmbeddingSourceHash(newerNote),
+          embeddingModel: JOURNAL_EMBEDDING_GENERATION.model,
+          passageVersion: JOURNAL_EMBEDDING_GENERATION.passageVersion,
+        },
+      });
+      signalNewerWrite();
+      await allowNewerWriteCommit;
+    });
+    await newerWriteReady;
+
+    const secondSave = updateEntryWorkflow(
+      user.id,
+      entry.id,
+      updateInput({ note: originalNote }),
+      { ids: [] },
+    );
+    let lockWaitObserved = false;
+    let waitError: unknown;
+    const deadline = Date.now() + 3_000;
+    try {
+      while (Date.now() < deadline) {
+        const waiters = await testDb.$queryRaw<{ waiting: boolean }[]>`
+          SELECT EXISTS (
+            SELECT 1 FROM pg_stat_activity
+            WHERE datname = current_database()
+              AND wait_event_type = 'Lock'
+              AND query LIKE '%FOR UPDATE%'
+              AND query LIKE '%"Entry"%'
+              AND pid <> pg_backend_pid()
+          ) AS "waiting"
+        `;
+        if (waiters[0]?.waiting) {
+          lockWaitObserved = true;
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+    } catch (error) {
+      waitError = error;
+    } finally {
+      releaseNewerWrite();
+    }
+
+    await Promise.all([firstSave, secondSave]);
+    if (waitError) throw waitError;
+    expect(lockWaitObserved).toBe(true);
+    await expect(testDb.entry.findUniqueOrThrow({ where: { id: entry.id } }))
+      .resolves.toMatchObject({ note: originalNote });
+    await expect(testDb.journalMemoryGeneration.findUnique({ where: { entryId: entry.id } }))
+      .resolves.toBeNull();
+    const jobs = await testDb.$queryRaw<{ id: string }[]>`
+      SELECT id::text AS "id"
+      FROM pgboss.job
+      WHERE name = ${JOURNAL_MEMORY_QUEUE}
+        AND data->>'entryId' = ${entry.id}
+        AND data->>'userId' = ${user.id}
+    `;
+    expect(jobs).toHaveLength(1);
   });
 
   it('rejects a future journal date before writing', async () => {

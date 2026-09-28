@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { normalizeDate } from '../../../scripts/import-sqlite';
 
 const migrationRoot = path.resolve(process.cwd(), 'prisma/sqlite-migrations');
 const targetMigration = '20260826000000_journal_date';
@@ -47,5 +48,10 @@ describe('journal date migration', () => {
     } finally {
       database.close();
     }
+  });
+
+  it('treats numeric SQLite timestamps as milliseconds', () => {
+    expect(normalizeDate(1_700_000_000, 'createdAt')?.toISOString())
+      .toBe('1970-01-20T16:13:20.000Z');
   });
 });

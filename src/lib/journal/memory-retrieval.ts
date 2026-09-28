@@ -6,7 +6,6 @@ import { db } from '@/lib/db';
 import {
   embedJournalQuery,
   JOURNAL_EMBEDDING_GENERATION,
-  journalEmbeddingSourceHash,
   journalVectorLiteral,
 } from '@/lib/journal/memory-embeddings';
 
@@ -20,10 +19,6 @@ type JournalMemoryRow = {
   journalDate: string
   mood: string
   content: string
-  sourceNote: string
-  sourceHash: string
-  embeddingModel: string
-  passageVersion: string
   distance: number
 };
 
@@ -42,7 +37,6 @@ export async function retrieveJournalMemoryForUser(
   const { query, limit } = journalMemoryQuerySchema.parse(input);
   const demoEmail = getDemoCredentials()?.email;
   const embedding = await embedJournalQuery(query);
-  const maxResults = Math.min(limit * 4, 80);
   const demoFilter = demoEmail
     ? Prisma.sql`AND lower(u."email") <> ${demoEmail}`
     : Prisma.empty;
@@ -53,10 +47,6 @@ export async function retrieveJournalMemoryForUser(
       e."journalDate",
       e."mood",
       p."content",
-      e."note" AS "sourceNote",
-      g."sourceHash",
-      g."embeddingModel",
-      g."passageVersion",
       (p."embedding" <=> ${journalVectorLiteral(embedding)}::vector)::float AS "distance"
     FROM "JournalMemoryPassage" p
     JOIN "JournalMemoryGeneration" g
@@ -71,17 +61,14 @@ export async function retrieveJournalMemoryForUser(
       AND g."passageVersion" = ${JOURNAL_EMBEDDING_GENERATION.passageVersion}
       ${demoFilter}
     ORDER BY p."embedding" <=> ${journalVectorLiteral(embedding)}::vector, e."journalDate" DESC
-    LIMIT ${maxResults}
+    LIMIT ${limit}
   `);
 
-  return rows
-    .filter((row) => row.sourceHash === journalEmbeddingSourceHash(row.sourceNote))
-    .slice(0, limit)
-    .map(({ entryId, journalDate, mood, content, distance }) => ({
-      entryId,
-      journalDate,
-      mood,
-      content,
-      score: 1 - distance,
-    }));
+  return rows.map(({ entryId, journalDate, mood, content, distance }) => ({
+    entryId,
+    journalDate,
+    mood,
+    content,
+    score: 1 - distance,
+  }));
 }

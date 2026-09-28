@@ -3,6 +3,7 @@ import Database from 'better-sqlite3';
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { Prisma } from '../src/generated/prisma/client';
 import { createDatabaseClient, getDatabaseUrl } from '../src/lib/db-client';
 import { getDemoCredentials } from '../src/lib/auth/demo-config';
@@ -61,7 +62,7 @@ function parseArguments(args: string[]): { sourcePath: string; confirmedEmptyTar
   return { sourcePath: path.resolve(sourcePath), confirmedEmptyTarget };
 }
 
-function normalizeDate(value: unknown, field: string): Date | null {
+export function normalizeDate(value: unknown, field: string): Date | null {
   if (value === null || value === undefined) return null;
   if (value instanceof Date) {
     if (Number.isNaN(value.getTime())) throw new Error(`Invalid SQLite date in ${field}.`);
@@ -69,7 +70,7 @@ function normalizeDate(value: unknown, field: string): Date | null {
   }
   let date: Date;
   if (typeof value === 'number') {
-    date = new Date(Math.abs(value) < 100_000_000_000 ? value * 1_000 : value);
+    date = new Date(value);
   } else if (typeof value === 'string') {
     const normalized = value.includes('T')
       ? value
@@ -128,11 +129,6 @@ async function assertEmptyTarget(database: CountQueryClient): Promise<void> {
       throw new Error('The PostgreSQL target must have no application data before import.');
     }
   }
-}
-
-async function lockApplicationTables(transaction: Prisma.TransactionClient): Promise<void> {
-  const tables = [...TABLES.map(({ name }) => `"${name}"`), ...MEMORY_TABLES.map((name) => `"${name}"`)];
-  await transaction.$executeRawUnsafe(`LOCK TABLE ${tables.join(', ')} IN EXCLUSIVE MODE`);
 }
 
 async function transferTable(
@@ -196,7 +192,6 @@ async function main(): Promise<void> {
     if (foreignKeyErrors.length > 0) throw new Error('The SQLite source contains broken foreign-key relationships.');
     await prepareJournalMemoryQueue(queueSetup);
     await database.$transaction(async (transaction) => {
-      await lockApplicationTables(transaction);
       await assertEmptyTarget(transaction);
       for (const table of TABLES) {
         const result = await transferTable(sqlite, transaction, table);
@@ -213,7 +208,7 @@ async function main(): Promise<void> {
         if (demoEmail && ownerEmail === demoEmail) continue;
         await enqueueJournalMemoryJob(database, entry.id, entry.userId, transaction);
       }
-    }, { maxWait: 10_000, timeout: 600_000, isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    }, { maxWait: 10_000, timeout: 600_000 });
 
     sqlite.exec('COMMIT');
     const summary = Object.entries(counts).map(([table, count]) => `${table}=${count}`).join(', ');
@@ -226,8 +221,10 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : 'SQLite import failed.';
-  console.error(message);
-  process.exitCode = 1;
-});
+if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {
+  main().catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : 'SQLite import failed.';
+    console.error(message);
+    process.exitCode = 1;
+  });
+}

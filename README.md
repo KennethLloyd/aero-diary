@@ -39,6 +39,27 @@ Then open `http://localhost:3000`.
 
 See `.env.example` for optional LLM and Google Drive configuration.
 
+## Tests
+
+Tests use `TEST_DATABASE_URL` and clear application tables between tests. Point
+it at a disposable PostgreSQL database, never a personal or production database.
+For the local Docker database, create and prepare one with:
+
+```bash
+docker compose exec postgres createdb -U aero aero_diary_test
+DATABASE_URL=postgresql://aero:aero-local-only@127.0.0.1:5432/aero_diary_test pnpm db:setup
+```
+
+Then run the suite with both variables aimed at that test database:
+
+```bash
+DATABASE_URL=postgresql://aero:aero-local-only@127.0.0.1:5432/aero_diary_test \
+TEST_DATABASE_URL=postgresql://aero:aero-local-only@127.0.0.1:5432/aero_diary_test \
+pnpm test
+```
+
+GitHub Actions provisions and migrates its own disposable PostgreSQL database.
+
 Journal memory uses a separate `pnpm memory:worker` process and local Ollama.
 Install Ollama, then pull the model with `ollama pull embeddinggemma:300m-qat-q4_0`.
 Start the worker after `pnpm db:setup`; `pnpm memory:backfill` queues existing
