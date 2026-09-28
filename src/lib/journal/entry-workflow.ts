@@ -14,6 +14,7 @@ import {
   createJournalEntry,
   updateJournalEntry,
 } from '@/lib/journal/mutations';
+import { invalidateAndScheduleJournalMemory } from '@/lib/journal/memory-indexer';
 import type { CreateEntryInput, UpdateEntryInput } from '@/lib/journal/schemas';
 
 export type EntryPhotoSelection = StagedPhotoSelection
@@ -156,11 +157,13 @@ export async function createEntryWorkflow(
 
   return db.$transaction(async (transaction) => {
     const photosToAttach = await consumeStagedPhotos(transaction, userId, staged);
-    return createJournalEntry(transaction, {
+    const created = await createJournalEntry(transaction, {
       userId,
       journalDate,
       ...entryMutationInput(input, activityIds, photosToAttach),
     });
+    await invalidateAndScheduleJournalMemory(db, transaction, created.id, userId);
+    return created;
   });
 }
 
@@ -189,7 +192,7 @@ export async function updateEntryWorkflow(
   await db.$transaction(async (transaction) => {
     const currentEntry = await transaction.entry.findFirst({
       where: { id: entry.id, userId },
-      select: { photos: { select: { id: true } } },
+      select: { note: true, photos: { select: { id: true } } },
     });
     if (!currentEntry) throw new Error('Entry was deleted while it was being edited.');
 
@@ -203,6 +206,9 @@ export async function updateEntryWorkflow(
       entry.id,
       entryMutationInput(input, activityIds, photosToAttach),
     );
+    if (currentEntry.note !== input.note) {
+      await invalidateAndScheduleJournalMemory(db, transaction, entry.id, userId);
+    }
   });
 
   return { id: entry.id };

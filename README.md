@@ -19,7 +19,7 @@ Write about your day naturally, and Aero Diary can use an LLM to automatically i
 
 ## Tech Stack
 
-**Next.js 16 · React 19 · TypeScript · Prisma · SQLite · Tailwind CSS · Vitest · Playwright**
+**Next.js 16 · React 19 · TypeScript · Prisma · PostgreSQL · pgvector · Tailwind CSS · Vitest · Playwright**
 
 LLM features support OpenAI-compatible APIs.
 
@@ -27,9 +27,10 @@ LLM features support OpenAI-compatible APIs.
 
 Requires Node.js 22+ and pnpm.
 ```bash
-pnpm install
 cp .env.example .env.local
-pnpm db:migrate
+docker compose up -d
+pnpm install
+pnpm db:setup
 pnpm create-user you@example.com your-password
 pnpm dev
 ```
@@ -37,3 +38,17 @@ pnpm dev
 Then open `http://localhost:3000`.
 
 See `.env.example` for optional LLM and Google Drive configuration.
+
+Journal memory uses a separate `pnpm memory:worker` process and local Ollama.
+Install Ollama, then pull the model with `ollama pull embeddinggemma:300m-qat-q4_0`.
+Start the worker after `pnpm db:setup`; `pnpm memory:backfill` queues existing
+private entries. Journal saves remain available while Ollama or the worker is
+offline because embedding work stays in PostgreSQL through pg-boss.
+
+For an existing SQLite installation, rehearse the transfer against a fresh,
+isolated PostgreSQL database with
+`pnpm db:import-sqlite -- --source <path-to-sqlite-file> --confirm-empty-target`.
+The source is opened read-only, the target must be empty, and the transfer
+writes the records and indexing jobs in one transaction. See
+[`docs/sqlite-to-postgresql.md`](docs/sqlite-to-postgresql.md) for validation
+and rollback steps. Do not rehearse against a live production target.
