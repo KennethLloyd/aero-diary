@@ -7,7 +7,7 @@ import { streamAeroAiTurn } from '@/lib/aero-ai/stream-response';
 type RouteParams = { params: Promise<{ id: string }> }
 
 export async function POST(request: Request, { params }: RouteParams) {
-  const access = await authorizeAeroAiRequest();
+  const access = await authorizeAeroAiRequest(request);
   if (access instanceof Response) return access;
   const parsedThreadId = aeroAiThreadIdSchema.safeParse((await params).id);
   if (!parsedThreadId.success) return notFound();

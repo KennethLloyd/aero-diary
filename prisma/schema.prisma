@@ -38,6 +38,7 @@ model User {
   styleStandard         String? // optional per-user polish rules; blank uses the concise default
   appLockPinHash        String?
   appLockTimeoutMinutes Int       @default(5)
+  aeroAiTokenHash       String?   @unique
   sessions              Session[]
   entries               Entry[]
   activities            Activity[]

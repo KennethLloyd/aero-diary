@@ -39,6 +39,9 @@ Then open `http://localhost:3000`.
 
 See `.env.example` for LLM, journal-memory, and Google Drive configuration.
 
+External clients on the private Tailscale network can use Aero AI's shared chat
+API. See the [Aero AI API guide](docs/aero-ai-api.md) for token setup and HTTP examples.
+
 ## Tests
 
 Tests use `TEST_DATABASE_URL` and clear application tables between tests. Point
