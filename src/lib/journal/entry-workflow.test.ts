@@ -13,6 +13,11 @@ import {
 } from '@/lib/journal/entry-workflow';
 import { StagedPhotoUnavailableError } from '@/lib/journal/photo-staging';
 import { createEntrySchema, updateEntrySchema } from '@/lib/journal/schemas';
+import {
+  JOURNAL_EMBEDDING_GENERATION,
+  journalEmbeddingSourceHash,
+} from '@/lib/journal/memory-embeddings';
+import { JOURNAL_MEMORY_QUEUE } from '@/lib/journal/memory-queue';
 
 const mocks = vi.hoisted(() => ({
   deletePhoto: vi.fn(),
@@ -125,6 +130,45 @@ describe('entry workflow', () => {
     await expect(testDb.entryActivity.findMany()).resolves.toEqual([
       { entryId: entry.id, activityId: activity.id },
     ]);
+  });
+
+  it('requeues journal memory after a non-note edit', async () => {
+    const user = await createUser('non-note-edit@example.com');
+    const entry = await testDb.entry.create({
+      data: {
+        userId: user.id,
+        journalDate: '2026-08-18',
+        mood: Mood.GOOD,
+        note: 'The journal note stays the same.',
+      },
+    });
+    await testDb.journalMemoryGeneration.create({
+      data: {
+        entryId: entry.id,
+        userId: user.id,
+        sourceHash: journalEmbeddingSourceHash(entry.note),
+        embeddingModel: JOURNAL_EMBEDDING_GENERATION.model,
+        passageVersion: JOURNAL_EMBEDDING_GENERATION.passageVersion,
+      },
+    });
+
+    await updateEntryWorkflow(
+      user.id,
+      entry.id,
+      updateInput({ note: entry.note }),
+      { ids: [] },
+    );
+
+    await expect(testDb.journalMemoryGeneration.findUnique({ where: { entryId: entry.id } }))
+      .resolves.toBeNull();
+    const jobs = await testDb.$queryRaw<{ id: string }[]>`
+      SELECT id::text AS "id"
+      FROM pgboss.job
+      WHERE name = ${JOURNAL_MEMORY_QUEUE}
+        AND data->>'entryId' = ${entry.id}
+        AND data->>'userId' = ${user.id}
+    `;
+    expect(jobs).toHaveLength(1);
   });
 
   it('rejects a future journal date before writing', async () => {

@@ -19,7 +19,7 @@ Write about your day naturally, and Aero Diary can use an LLM to automatically i
 
 ## Tech Stack
 
-**Next.js 16 · React 19 · TypeScript · Prisma · SQLite · Tailwind CSS · Vitest · Playwright**
+**Next.js 16 · React 19 · TypeScript · Prisma · PostgreSQL · pgvector · Tailwind CSS · Vitest · Playwright**
 
 LLM features support OpenAI-compatible APIs.
 
@@ -27,13 +27,48 @@ LLM features support OpenAI-compatible APIs.
 
 Requires Node.js 22+ and pnpm.
 ```bash
-pnpm install
 cp .env.example .env.local
-pnpm db:migrate
+docker compose up -d
+pnpm install
+pnpm db:setup
 pnpm create-user you@example.com your-password
 pnpm dev
 ```
 
 Then open `http://localhost:3000`.
 
-See `.env.example` for optional LLM and Google Drive configuration.
+See `.env.example` for LLM, journal-memory, and Google Drive configuration.
+
+## Tests
+
+Tests use `TEST_DATABASE_URL` and clear application tables between tests. Point
+it at a disposable PostgreSQL database, never a personal or production database.
+For the local Docker database, create and prepare one with:
+
+```bash
+docker compose exec postgres createdb -U aero aero_diary_test
+DATABASE_URL=postgresql://aero:aero-local-only@127.0.0.1:5432/aero_diary_test pnpm db:setup
+```
+
+Then run the suite with both variables aimed at that test database:
+
+```bash
+DATABASE_URL=postgresql://aero:aero-local-only@127.0.0.1:5432/aero_diary_test \
+TEST_DATABASE_URL=postgresql://aero:aero-local-only@127.0.0.1:5432/aero_diary_test \
+pnpm test
+```
+
+GitHub Actions provisions and migrates its own disposable PostgreSQL database.
+
+Journal memory uses local Ollama. See `.env.example` for model, batch size,
+timeout, and keep-alive settings. Pull the default model with
+`ollama pull embeddinggemma:300m-qat-q4_0`; run `pnpm memory:worker` to index
+saves or `pnpm memory:backfill` to queue existing entries and reindex after a
+model change.
+
+For an existing SQLite installation, pause writes, back up the database, and
+prepare an empty PostgreSQL+pgvector target with `pnpm db:setup`. Then import
+with `pnpm db:import-sqlite -- --source <path-to-sqlite-file> --confirm-empty-target`.
+The source stays unchanged; the importer validates records and queues indexing
+jobs with the transfer. See the [migration guide](docs/sqlite-to-postgresql.md)
+for rollback steps.

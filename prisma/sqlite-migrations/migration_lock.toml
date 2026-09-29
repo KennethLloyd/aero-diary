@@ -1,0 +1,2 @@
+# Archived migration provider from the previous application database.
+provider = "sqlite"

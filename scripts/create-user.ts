@@ -5,8 +5,7 @@
 // Usage: pnpm create-user <email> <password> [--name "<Name>"]
 import { config } from 'dotenv';
 import { existsSync } from 'node:fs';
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
-import { PrismaClient } from '../src/generated/prisma/client';
+import { createDatabaseClient } from '../src/lib/db-client';
 import { createUserSchema } from '../src/lib/auth/schemas';
 import { provisionUser } from '../src/lib/auth/provision-user';
 
@@ -45,10 +44,7 @@ async function main(): Promise<void> {
     console.error(parsed.error.issues[0]?.message ?? 'Invalid input.');
     process.exit(1);
   }
-  const adapter = new PrismaBetterSqlite3({
-    url: process.env.DATABASE_URL ?? 'file:./data/aero-diary.db',
-  });
-  const db = new PrismaClient({ adapter });
+  const db = createDatabaseClient();
 
   const user = await provisionUser(db, parsed.data);
 

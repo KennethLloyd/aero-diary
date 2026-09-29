@@ -1,6 +1,6 @@
 # CONTEXT.md — Aero Diary
 
-A self-hosted mood journal ("your memories, vividly preserved") in the Frutiger Aero aesthetic for private users plus a configured demo account. Next.js 16 + SQLite.
+A self-hosted mood journal ("your memories, vividly preserved") in the Frutiger Aero aesthetic for private users plus a configured demo account. Next.js 16 + PostgreSQL and pgvector.
 
 ## Glossary
 
@@ -20,3 +20,10 @@ A self-hosted mood journal ("your memories, vividly preserved") in the Frutiger 
 - Senior-level code: typed everything, Zod on every input, server-only data layer, security gates in every action.
 - Journal data is the most private thing this app holds — no Google data-use, no client-visible secrets.
 - Comments are concise and straightforward; max 1-2 lines only.
+
+## Storage and journal memory
+
+- PostgreSQL is the application's runtime database. Archived SQLite migrations and the read-only importer exist only to transfer the old database.
+- Journal note embeddings are derived data in pgvector. Saves enqueue work transactionally through pg-boss; the separate local-Ollama worker indexes current notes and excludes the configured demo account.
+- Embedding retries are bounded. After pg-boss exhausts them, restore Ollama/database availability and run `pnpm memory:backfill` to requeue private entries.
+- Tests require `TEST_DATABASE_URL` to point at a disposable, isolated PostgreSQL database. Test setup truncates its application tables; never point it at a live database.
