@@ -84,7 +84,7 @@ describe('Aero AI conversation engine', () => {
 
     expect(mocks.retrieveJournalMemoryForUser).toHaveBeenCalledWith(
       'owner-id',
-      { query: 'who was with me on the hike', limit: 4 },
+      { query: 'who was with me on the hike', limit: 4, mode: 'relevance' },
       expect.any(AbortSignal),
     );
     expect(requests[0]?.tools?.map(({ name }) => name)).toEqual(['retrieve_journal']);
@@ -101,6 +101,30 @@ describe('Aero AI conversation engine', () => {
     expect(result.assistantContent).toBe('Sam was with you on the hike.');
     expect(mocks.finishTurn).toHaveBeenCalledWith('thread-id', 'turn-id', result.assistantContent, [evidence]);
     expect(mocks.failTurn).not.toHaveBeenCalled();
+  });
+
+  it.each(['relevance', 'recent', 'longitudinal'])('forwards %s intent and advertises all modes', async (mode) => {
+    const requests: AeroAiChatRequest[] = [];
+    const client = recordingClient(requests, [
+      { content: '', toolCalls: [{ id: 'call_1', name: 'retrieve_journal', arguments: JSON.stringify({ query: 'Alex', mode }) }] },
+      { content: 'A grounded reply.', toolCalls: [] },
+    ]);
+    await generateAeroAiTurn('owner-id', reservation(), { client });
+    expect(mocks.retrieveJournalMemoryForUser).toHaveBeenCalledWith(
+      'owner-id', { query: 'Alex', limit: 6, mode }, expect.any(AbortSignal),
+    );
+    expect(requests[0]?.tools?.[0]?.parameters.properties).toMatchObject({
+      mode: { enum: ['relevance', 'recent', 'longitudinal'], default: 'relevance' },
+    });
+  });
+
+  it('rejects unsupported retrieval intent', async () => {
+    const client = recordingClient([], [
+      { content: '', toolCalls: [{ id: 'call_1', name: 'retrieve_journal', arguments: '{"query":"Alex","mode":"unknown"}' }] },
+      { content: 'No evidence available.', toolCalls: [] },
+    ]);
+    await generateAeroAiTurn('owner-id', reservation(), { client });
+    expect(mocks.retrieveJournalMemoryForUser).not.toHaveBeenCalled();
   });
 
   it('carries older journal evidence into follow-up context without exposing a tool transcript', async () => {
