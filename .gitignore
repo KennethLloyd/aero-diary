@@ -9,7 +9,7 @@ node_modules/
 out/
 dist/
 
-# sqlite
+# local database backups
 *.db
 *.db-journal
 

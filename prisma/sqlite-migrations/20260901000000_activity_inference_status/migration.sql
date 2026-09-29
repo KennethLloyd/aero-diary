@@ -1,1 +1,0 @@
-ALTER TABLE "Entry" ADD COLUMN "activityInferenceStatus" TEXT NOT NULL DEFAULT 'COMPLETE';

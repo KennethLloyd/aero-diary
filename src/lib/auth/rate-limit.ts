@@ -1,5 +1,5 @@
 // In-memory per-IP and per-email throttle with exponential backoff.
-// Single-process SQLite server, so in-memory is sufficient. `now` injectable.
+// Single-process server, so in-memory is sufficient. `now` injectable.
 
 export type RateLimitResult = {
   allowed: boolean

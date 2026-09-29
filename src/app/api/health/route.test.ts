@@ -11,7 +11,7 @@ describe('health route', () => {
     vi.clearAllMocks();
   });
 
-  it('reports healthy when SQLite is reachable', async () => {
+  it('reports healthy when PostgreSQL is reachable', async () => {
     mocks.queryRaw.mockResolvedValue([{ 1: 1 }]);
 
     const response = await GET(new Request('http://localhost/api/health'));
@@ -22,7 +22,7 @@ describe('health route', () => {
     expect(mocks.queryRaw).toHaveBeenCalledOnce();
   });
 
-  it('reports a generic unhealthy response when SQLite is unavailable', async () => {
+  it('reports a generic unhealthy response when PostgreSQL is unavailable', async () => {
     const error = new Error('database path should not be exposed');
     mocks.queryRaw.mockRejectedValue(error);
     const log = vi.spyOn(console, 'error').mockImplementation(() => {});

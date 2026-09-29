@@ -1,1 +1,0 @@
-ALTER TABLE "Photo" ADD COLUMN "sizeBytes" INTEGER;
