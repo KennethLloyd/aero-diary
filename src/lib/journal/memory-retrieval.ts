@@ -33,10 +33,11 @@ export type JournalMemoryResult = {
 export async function retrieveJournalMemoryForUser(
   userId: string,
   input: { query: string; limit?: number },
+  signal?: AbortSignal,
 ): Promise<JournalMemoryResult[]> {
   const { query, limit } = journalMemoryQuerySchema.parse(input);
   const demoEmail = getDemoCredentials()?.email;
-  const embedding = await embedJournalQuery(query);
+  const embedding = await embedJournalQuery(query, fetch, signal);
   const demoFilter = demoEmail
     ? Prisma.sql`AND lower(u."email") <> ${demoEmail}`
     : Prisma.empty;

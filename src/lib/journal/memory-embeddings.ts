@@ -51,7 +51,11 @@ function keepAlive(): string {
   return z.string().trim().min(1).parse(process.env.OLLAMA_EMBEDDING_KEEP_ALIVE ?? DEFAULT_KEEP_ALIVE);
 }
 
-async function requestEmbeddings(inputs: string[], fetcher: typeof fetch): Promise<number[][]> {
+async function requestEmbeddings(
+  inputs: string[],
+  fetcher: typeof fetch,
+  externalSignal?: AbortSignal,
+): Promise<number[][]> {
   let response: Response;
   try {
     response = await fetcher(`${ollamaBaseUrl()}/api/embed`, {
@@ -63,7 +67,9 @@ async function requestEmbeddings(inputs: string[], fetcher: typeof fetch): Promi
         truncate: false,
         keep_alive: keepAlive(),
       }),
-      signal: AbortSignal.timeout(timeoutMs()),
+      signal: externalSignal
+        ? AbortSignal.any([externalSignal, AbortSignal.timeout(timeoutMs())])
+        : AbortSignal.timeout(timeoutMs()),
     });
   } catch {
     throw new Error('The local Ollama embedding service could not be reached or timed out.');
@@ -89,12 +95,17 @@ async function requestEmbeddings(inputs: string[], fetcher: typeof fetch): Promi
   return parsed.data.embeddings;
 }
 
-async function embedBatch(inputs: string[], fetcher: typeof fetch): Promise<number[][]> {
+async function embedBatch(
+  inputs: string[],
+  fetcher: typeof fetch,
+  signal?: AbortSignal,
+): Promise<number[][]> {
   const embeddings: number[][] = [];
   const batchSize = embeddingBatchSize();
   for (let start = 0; start < inputs.length; start += batchSize) {
     const batch = inputs.slice(start, start + batchSize);
-    embeddings.push(...await requestEmbeddings(batch, fetcher));
+    signal?.throwIfAborted();
+    embeddings.push(...await requestEmbeddings(batch, fetcher, signal));
   }
   return embeddings;
 }
@@ -109,8 +120,9 @@ export function embedJournalDocuments(
 export async function embedJournalQuery(
   query: string,
   fetcher: typeof fetch = fetch,
+  signal?: AbortSignal,
 ): Promise<number[]> {
-  const [embedding] = await embedBatch([journalQueryPrompt(query)], fetcher);
+  const [embedding] = await embedBatch([journalQueryPrompt(query)], fetcher, signal);
   if (!embedding) throw new Error('The local Ollama embedding service returned no query vector.');
   return embedding;
 }

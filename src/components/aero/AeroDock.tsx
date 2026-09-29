@@ -10,11 +10,12 @@ const DOCK_ITEMS = [
   { href: '/timeline', label: 'Timeline', icon: '📖', match: (path: string) => path === '/timeline' || path.startsWith('/timeline/') },
   { href: '/calendar', label: 'Calendar', icon: '📅', match: (path: string) => path === '/calendar' },
   { href: '/insights', label: 'Insights', icon: '📊', match: (path: string) => path === '/insights' },
+  { href: '/aero-ai', label: 'Aero AI', icon: '💬', match: (path: string) => path === '/aero-ai' },
   // Activities management lives under Settings, so it keeps Settings lit.
   { href: '/settings', label: 'Settings', icon: '⚙️', match: (path: string) => path === '/settings' || path.startsWith('/activities') },
 ];
 
-export function AeroDock({ appLockEnabled = false }: { appLockEnabled?: boolean }) {
+export function AeroDock({ appLockEnabled = false, aeroAiEnabled = false }: { appLockEnabled?: boolean; aeroAiEnabled?: boolean }) {
   const pathname = usePathname();
   const { hidden } = useAeroDockVisibility();
 
@@ -25,7 +26,7 @@ export function AeroDock({ appLockEnabled = false }: { appLockEnabled?: boolean 
       inert={hidden || undefined}
       aria-label="Main navigation"
     >
-      {DOCK_ITEMS.map((item) => {
+      {DOCK_ITEMS.filter((item) => item.href !== '/aero-ai' || aeroAiEnabled).map((item) => {
         const isActive = item.match(pathname);
         return (
           <Link

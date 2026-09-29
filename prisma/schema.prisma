@@ -24,6 +24,12 @@ enum ActivityInferenceStatus {
   FAILED
 }
 
+enum AeroAiTurnStatus {
+  GENERATING
+  COMPLETE
+  FAILED
+}
+
 model User {
   id                    String    @id @default(cuid())
   email                 String    @unique
@@ -37,6 +43,7 @@ model User {
   activities            Activity[]
   stagedPhotos        StagedPhoto[]
   stagedCancellations StagedPhotoCancellation[]
+  aeroAiThreads       AeroAiThread[]
   createdAt     DateTime  @default(now())
 }
 
@@ -151,4 +158,38 @@ model StagedPhotoCancellation {
 
   @@id([userId, draftKey, clientKey])
   @@index([createdAt])
+}
+
+model AeroAiThread {
+  id                 String       @id @default(cuid())
+  userId             String
+  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title              String       @default("New chat")
+  summary            String?      @db.Text
+  summaryThroughTurn Int          @default(0)
+  isGenerating       Boolean      @default(false)
+  nextTurnSequence   Int          @default(1)
+  turns              AeroAiTurn[]
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  @@index([userId, updatedAt])
+}
+
+model AeroAiTurn {
+  id               String           @id @default(cuid())
+  threadId         String
+  thread           AeroAiThread     @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  clientRequestId  String
+  sequence         Int
+  userContent      String           @db.Text
+  assistantContent String?          @db.Text
+  status           AeroAiTurnStatus @default(GENERATING)
+  evidence         Json?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@unique([threadId, clientRequestId])
+  @@unique([threadId, sequence])
+  @@index([threadId, status, sequence])
 }
