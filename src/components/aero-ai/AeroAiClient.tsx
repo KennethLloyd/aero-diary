@@ -22,7 +22,7 @@ type Turn = {
 
 type ThreadDetail = Thread & { turns: Turn[] }
 type StreamEvent = { error?: string; content?: string; turnId?: string; title?: string; assistantContent?: string; replayed?: boolean }
-type ActiveRequest = { controller: AbortController; threadId: string; requestId: string }
+type ActiveRequest = { controller: AbortController; threadId: string | null; requestId: string }
 
 export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) {
   const [threads, setThreads] = useState<Thread[]>([]);
@@ -35,6 +35,7 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
   const [error, setError] = useState('');
   const activeRequest = useRef<ActiveRequest | null>(null);
   const threadIdRef = useRef<string | null>(null);
+  const blankChatRequested = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const loadThreads = useCallback(async () => {
@@ -68,7 +69,7 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
     void loadThreads().then((items) => {
       if (!current) return;
       const selected = items.find((thread) => thread.id === initialThreadId) ?? items[0];
-      if (selected) void openThread(selected.id);
+      if (selected && !blankChatRequested.current) void openThread(selected.id);
     }).catch((cause) => {
       if (current) setError(errorMessage(cause));
     }).finally(() => {
@@ -83,15 +84,16 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
     bottomRef.current?.scrollIntoView({ block: 'end' });
   }, [turns]);
 
-  const createThread = async () => {
+  const newChat = () => {
+    if (activeRequest.current) return;
+    blankChatRequested.current = true;
+    threadIdRef.current = null;
+    setThreadId(null);
+    setTurns([]);
+    setDraft('');
     setError('');
-    try {
-      const created = await requestJson<Thread>('/api/aero-ai/threads', { method: 'POST' });
-      setThreads((current) => [created, ...current.filter((item) => item.id !== created.id)]);
-      await openThread(created.id);
-    } catch (cause) {
-      setError(errorMessage(cause));
-    }
+    setLoadingThread(false);
+    window.history.replaceState(null, '', '/aero-ai');
   };
 
   const deleteThread = async (id: string) => {
@@ -118,8 +120,9 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
   };
 
   const sendMessage = async (content: string, requestId = crypto.randomUUID()) => {
-    const activeId = threadIdRef.current;
-    if (!activeId || activeRequest.current) return;
+    if (activeRequest.current) return;
+    blankChatRequested.current = true;
+    let activeId = threadIdRef.current;
     const controller = new AbortController();
     activeRequest.current = { controller, threadId: activeId, requestId };
     setSending(true);
@@ -144,6 +147,16 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
     });
 
     try {
+      if (!activeId) {
+        const created = await requestJson<Thread>('/api/aero-ai/threads', { method: 'POST' });
+        activeId = created.id;
+        activeRequest.current.threadId = activeId;
+        threadIdRef.current = activeId;
+        setThreadId(activeId);
+        setThreads((current) => [{ ...created, isGenerating: true }, ...current.filter((item) => item.id !== activeId)]);
+        window.history.replaceState(null, '', `/aero-ai?thread=${encodeURIComponent(activeId)}`);
+        if (controller.signal.aborted) throw new Error('Reply stopped. You can retry it.');
+      }
       const response = await fetch(`/api/aero-ai/threads/${encodeURIComponent(activeId)}/messages`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'accept': 'text/event-stream' },
@@ -226,7 +239,7 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
   };
 
   const selectThread = (id: string) => {
-    if (id && id !== threadIdRef.current) void openThread(id);
+    if (!activeRequest.current && id && id !== threadIdRef.current) void openThread(id);
   };
 
   const selectedThread = threads.find((item) => item.id === threadId);
@@ -246,7 +259,7 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
             <option value="" disabled>Chats</option>
             {threads.map((thread) => <option key={thread.id} value={thread.id}>{thread.title}</option>)}
           </select>
-          <button type="button" onClick={() => void createThread()} className="aero-btn px-3 text-sm" aria-label="New chat">
+          <button type="button" onClick={newChat} disabled={sending} className="aero-btn px-3 text-sm" aria-label="New chat">
             <span aria-hidden="true">+</span><span className="ml-1">New</span>
           </button>
         </div>
@@ -268,14 +281,6 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
                   className="min-h-10 min-w-0 flex-1 truncate rounded-xl px-3 py-2 text-left text-sm font-semibold text-[#24496f] hover:bg-white/65"
                 >
                   {thread.title}{thread.isGenerating ? ' ·' : ''}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void deleteThread(thread.id)}
-                  aria-label={`Delete ${thread.title}`}
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm text-[#46648c] hover:bg-white/75"
-                >
-                  ×
                 </button>
               </div>
             ))}
@@ -343,14 +348,14 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
               rows={1}
               placeholder="Message Aero AI"
               className="aero-input min-h-11 max-h-32 min-w-0 flex-1 resize-y rounded-2xl py-2.5 text-sm"
-              disabled={!threadId || isBusy || loadingThread}
+              disabled={isBusy || loadingThread}
             />
             {sending ? (
               <button type="button" onClick={() => activeRequest.current?.controller.abort()} className="aero-btn aero-btn-white px-3 text-sm" aria-label="Stop reply">
                 Stop
               </button>
             ) : (
-              <button type="submit" disabled={!threadId || !draft.trim() || isBusy || loadingThread} className="aero-btn px-3 text-sm" aria-label="Send message">
+              <button type="submit" disabled={!draft.trim() || isBusy || loadingThread} className="aero-btn px-3 text-sm" aria-label="Send message">
                 Send
               </button>
             )}
