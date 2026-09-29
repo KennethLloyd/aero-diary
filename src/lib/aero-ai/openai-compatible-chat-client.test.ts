@@ -52,6 +52,30 @@ describe('OpenAiCompatibleChatClient', () => {
     });
   });
 
+  it('rejects streamed text when the provider closes before its completion marker', async () => {
+    const event = `data: ${JSON.stringify({ choices: [{ delta: { content: 'A partial answer.' } }] })}\n\n`;
+    fetchMock.mockResolvedValue(new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(event));
+        controller.close();
+      },
+    }), { status: 200 }));
+    const client = new OpenAiCompatibleChatClient({
+      baseUrl: 'http://chatmock.test/v1',
+      model: 'local-chat-model',
+      reasoningEffort: 'low',
+      maxTokens: 2048,
+      timeoutMs: 10_000,
+    });
+    const onText = vi.fn();
+
+    await expect(client.generate({
+      messages: [{ role: 'user', content: 'Reply briefly.' }],
+    }, { onText })).rejects.toThrow('LLM stream ended before completion.');
+
+    expect(onText).toHaveBeenCalledWith('A partial answer.');
+  });
+
   it('returns a completed JSON response through the same chat endpoint', async () => {
     fetchMock.mockResolvedValue(new Response(JSON.stringify({
       choices: [{ message: { content: 'A concise summary.' } }],

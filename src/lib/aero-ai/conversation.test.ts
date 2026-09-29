@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   saveThreadSummary: vi.fn(),
   finishTurn: vi.fn(),
   failTurn: vi.fn(),
+  configuredClient: vi.fn(),
   retrieveJournalMemoryForUser: vi.fn(),
 }));
 
@@ -19,12 +20,18 @@ vi.mock('./store', () => ({
 vi.mock('@/lib/journal/memory-retrieval', () => ({
   retrieveJournalMemoryForUser: mocks.retrieveJournalMemoryForUser,
 }));
+vi.mock('./openai-compatible-chat-client', async (importOriginal) => ({
+  ...await importOriginal<typeof import('./openai-compatible-chat-client')>(),
+  configuredAeroAiChatClient: mocks.configuredClient,
+}));
 
+import { OpenAiCompatibleChatClient } from './openai-compatible-chat-client';
 import { generateAeroAiTurn } from './conversation';
 
 describe('Aero AI conversation engine', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.configuredClient.mockReset();
     mocks.getCompletedTurnsBefore.mockResolvedValue([]);
     mocks.finishTurn.mockResolvedValue(undefined);
     mocks.failTurn.mockResolvedValue(undefined);
@@ -138,6 +145,59 @@ describe('Aero AI conversation engine', () => {
       .rejects.toThrow('provider failure');
     expect(mocks.failTurn).toHaveBeenCalledWith('thread-id', 'turn-id');
     expect(mocks.finishTurn).not.toHaveBeenCalled();
+  });
+
+  it('fails a truncated text stream without saving its partial assistant answer', async () => {
+    const partialEvent = `data: ${JSON.stringify({ choices: [{ delta: { content: 'A partial answer.' } }] })}\n\n`;
+    const fetchMock = vi.fn().mockResolvedValue(new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(partialEvent));
+        controller.close();
+      },
+    }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    try {
+      const client = new OpenAiCompatibleChatClient({
+        baseUrl: 'http://chatmock.test/v1',
+        model: 'local-chat-model',
+        reasoningEffort: 'low',
+        maxTokens: 2048,
+        timeoutMs: 10_000,
+      });
+      const onText = vi.fn();
+
+      await expect(generateAeroAiTurn('owner-id', reservation(), { client, onText }))
+        .rejects.toThrow('LLM stream ended before completion.');
+
+      expect(onText).toHaveBeenCalledWith('A partial answer.');
+      expect(mocks.failTurn).toHaveBeenCalledWith('thread-id', 'turn-id');
+      expect(mocks.finishTurn).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('releases a turn when LLM configuration fails and allows the request to retry', async () => {
+    mocks.configuredClient.mockImplementation(() => {
+      throw new Error('LLM_BASE_URL is not configured.');
+    });
+
+    await expect(generateAeroAiTurn('owner-id', reservation()))
+      .rejects.toThrow('LLM_BASE_URL is not configured.');
+
+    expect(mocks.failTurn).toHaveBeenCalledWith('thread-id', 'turn-id');
+    expect(mocks.finishTurn).not.toHaveBeenCalled();
+
+    const retryClient = recordingClient([], [{ content: 'A reply after configuration was fixed.', toolCalls: [] }]);
+    await expect(generateAeroAiTurn('owner-id', reservation(), { client: retryClient }))
+      .resolves.toMatchObject({ assistantContent: 'A reply after configuration was fixed.' });
+    expect(mocks.finishTurn).toHaveBeenCalledWith(
+      'thread-id',
+      'turn-id',
+      'A reply after configuration was fixed.',
+      [],
+    );
   });
 });
 

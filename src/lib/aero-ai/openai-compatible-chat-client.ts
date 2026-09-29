@@ -196,6 +196,8 @@ async function readEventStream(
     reader.releaseLock();
   }
 
+  if (!finished) throw new Error('LLM stream ended before completion.');
+
   const parsedToolCalls = [...toolCalls.values()].map((call) => call as AeroAiToolCall);
   if (parsedToolCalls.some((call) => !call.id || !call.name || !call.arguments)) {
     throw new Error('LLM returned an incomplete tool call.');

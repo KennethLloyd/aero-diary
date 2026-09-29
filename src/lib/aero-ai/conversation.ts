@@ -61,10 +61,10 @@ export async function generateAeroAiTurn(
   const signal = options.signal
     ? AbortSignal.any([options.signal, controller.signal])
     : controller.signal;
-  const client = options.client ?? configuredAeroAiChatClient();
-  const textWriter = createAssistantTextWriter(options.onText, reservation.userContent);
 
   try {
+    const client = options.client ?? configuredAeroAiChatClient();
+    const textWriter = createAssistantTextWriter(options.onText, reservation.userContent);
     const turns = await getCompletedTurnsBefore(reservation.threadId, reservation.sequence);
     const { summary, recentTurns } = await prepareLongContext(
       client,

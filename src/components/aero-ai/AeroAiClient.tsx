@@ -266,7 +266,6 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
                   onClick={() => selectThread(thread.id)}
                   aria-current={thread.id === threadId ? 'true' : undefined}
                   className="min-h-10 min-w-0 flex-1 truncate rounded-xl px-3 py-2 text-left text-sm font-semibold text-[#24496f] hover:bg-white/65"
-                  title={thread.title}
                 >
                   {thread.title}{thread.isGenerating ? ' ·' : ''}
                 </button>
@@ -285,7 +284,7 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
 
         <section className="aero-card flex min-w-0 flex-1 flex-col" aria-label="Conversation">
           <div className="relative z-10 flex min-h-12 items-center justify-between gap-3 border-b border-white/70 px-3 py-2 sm:px-4">
-            <span className="min-w-0 truncate text-sm font-bold text-[#0a2f5c]" title={selectedThread?.title}>
+            <span className="min-w-0 truncate text-sm font-bold text-[#0a2f5c]">
               {selectedThread?.title ?? ' '}
             </span>
             {threadId ? (
