@@ -21,6 +21,8 @@ export async function resetTestDb(): Promise<void> {
       "StagedPhoto",
       "JournalMemoryPassage",
       "JournalMemoryGeneration",
+      "AeroAiTurn",
+      "AeroAiThread",
       "Entry",
       "Activity",
       "User"

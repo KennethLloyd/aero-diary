@@ -65,4 +65,20 @@ describe('AeroDockVisibilityProvider', () => {
     expect(dock).not.toHaveAttribute('aria-hidden');
     expect(dock).not.toHaveAttribute('inert');
   });
+
+  it('shows Aero AI only when the signed-in account can use it', () => {
+    const { rerender } = render(
+      <AeroDockVisibilityProvider>
+        <AeroDock aeroAiEnabled={false} />
+      </AeroDockVisibilityProvider>,
+    );
+    expect(screen.queryByRole('link', { name: 'Aero AI' })).not.toBeInTheDocument();
+
+    rerender(
+      <AeroDockVisibilityProvider>
+        <AeroDock aeroAiEnabled />
+      </AeroDockVisibilityProvider>,
+    );
+    expect(screen.getByRole('link', { name: 'Aero AI' })).toBeInTheDocument();
+  });
 });
