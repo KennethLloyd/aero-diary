@@ -23,10 +23,10 @@ export function streamAeroAiTurn(
   if (requestSignal.aborted) controller.abort();
   else requestSignal.addEventListener('abort', forwardAbort, { once: true });
 
+  let closed = false;
   const encoder = new TextEncoder();
   const body = new ReadableStream<Uint8Array>({
     start(streamController) {
-      let closed = false;
       const emit = (event: string, data: unknown) => {
         if (closed) return;
         try {
@@ -72,6 +72,7 @@ export function streamAeroAiTurn(
       });
     },
     cancel() {
+      closed = true;
       controller.abort();
     },
   });
