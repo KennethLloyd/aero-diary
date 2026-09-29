@@ -39,6 +39,31 @@ describe('Aero AI conversation engine', () => {
     mocks.retrieveJournalMemoryForUser.mockResolvedValue([]);
   });
 
+  it('streams and persists only the answer from a provider reasoning response', async () => {
+    const events = ['<thi', 'nk>private reasoning</th', 'ink>Hello'].map((content) =>
+      `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`,
+    ).join('') + 'data: [DONE]\n\n';
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(events));
+    const client = new OpenAiCompatibleChatClient({
+      baseUrl: 'http://chatmock.test/v1',
+      model: 'local-chat-model',
+      reasoningEffort: 'low',
+      maxTokens: 2048,
+      timeoutMs: 10_000,
+    });
+    const onText = vi.fn();
+
+    try {
+      const result = await generateAeroAiTurn('owner-id', reservation(), { client, onText });
+
+      expect(result.assistantContent).toBe('Hello');
+      expect(onText.mock.calls).toEqual([['Hello']]);
+      expect(mocks.finishTurn).toHaveBeenCalledWith('thread-id', 'turn-id', 'Hello', []);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
   it('uses one validated journal tool call internally and saves its evidence with the completed reply', async () => {
     const evidence = {
       entryId: 'cm123456789012345678901234',

@@ -98,8 +98,9 @@ export class OpenAiCompatibleChatClient implements AeroAiChatClient {
         const parsed = completedResponseSchema.safeParse(await response.json());
         if (!parsed.success) throw new Error('LLM returned an invalid chat response.');
         const message = parsed.data.choices[0].message;
+        const reasoningFilter = createReasoningFilter();
         return {
-          content: message.content?.trim() ?? '',
+          content: (reasoningFilter.push(message.content ?? '') + reasoningFilter.finish()).trim(),
           toolCalls: (message.tool_calls ?? []).map((call) => ({
             id: call.id,
             name: call.function.name,
@@ -141,6 +142,7 @@ async function readEventStream(
   const reader = body.getReader();
   const decoder = new TextDecoder();
   const toolCalls = new Map<number, PendingToolCall>();
+  const reasoningFilter = createReasoningFilter();
   let content = '';
   let buffer = '';
   let finished = false;
@@ -168,8 +170,9 @@ async function readEventStream(
     if (!delta) return;
 
     if (delta.content) {
-      content += delta.content;
-      onText?.(delta.content);
+      const text = reasoningFilter.push(delta.content);
+      content += text;
+      if (text) onText?.(text);
     }
     for (const [position, call] of (delta.tool_calls ?? []).entries()) {
       const index = call.index ?? position;
@@ -197,12 +200,60 @@ async function readEventStream(
   }
 
   if (!finished) throw new Error('LLM stream ended before completion.');
+  const remainder = reasoningFilter.finish();
+  content += remainder;
+  if (remainder) onText?.(remainder);
 
   const parsedToolCalls = [...toolCalls.values()].map((call) => call as AeroAiToolCall);
   if (parsedToolCalls.some((call) => !call.id || !call.name || !call.arguments)) {
     throw new Error('LLM returned an incomplete tool call.');
   }
   return { content, toolCalls: parsedToolCalls };
+}
+
+function createReasoningFilter() {
+  const tags = ['<think>', '</think>'];
+  let pending = '';
+  let depth = 0;
+
+  return {
+    push(chunk: string): string {
+      const text = pending + chunk;
+      pending = '';
+      let output = '';
+      let cursor = 0;
+
+      while (cursor < text.length) {
+        const start = text.indexOf('<', cursor);
+        if (start < 0) {
+          if (depth === 0) output += text.slice(cursor);
+          break;
+        }
+        if (depth === 0) output += text.slice(cursor, start);
+
+        const tail = text.slice(start, start + 8).toLowerCase();
+        const tag = tags.find((candidate) => tail.startsWith(candidate));
+        if (tag) {
+          depth = tag === '<think>' ? depth + 1 : Math.max(0, depth - 1);
+          cursor = start + tag.length;
+        } else if (tags.some((candidate) => candidate.startsWith(tail))) {
+          // Hold ambiguous prefixes so no partial reasoning tag reaches the caller.
+          pending = text.slice(start);
+          break;
+        } else {
+          if (depth === 0) output += '<';
+          cursor = start + 1;
+        }
+      }
+      return output;
+    },
+    finish(): string {
+      // Discard unclosed reasoning and unfinished tags; preserve a literal '<'.
+      const output = depth === 0 && pending === '<' ? pending : '';
+      pending = '';
+      return output;
+    },
+  };
 }
 
 export function configuredAeroAiChatClient(): OpenAiCompatibleChatClient {
