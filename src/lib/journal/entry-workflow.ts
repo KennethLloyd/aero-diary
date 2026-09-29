@@ -1,6 +1,5 @@
 import 'server-only';
 
-import { Prisma } from '@/generated/prisma/client';
 import { db } from '@/lib/db';
 import { getPhotoStore } from '@/lib/drive/server-store';
 import type { PhotoStore } from '@/lib/drive/store';
@@ -191,17 +190,9 @@ export async function updateEntryWorkflow(
   );
 
   await db.$transaction(async (transaction) => {
-    const lockedEntry = await transaction.$queryRaw<{ id: string }[]>(Prisma.sql`
-      SELECT "id"
-      FROM "Entry"
-      WHERE "id" = ${entry.id} AND "userId" = ${userId}
-      FOR UPDATE
-    `);
-    if (lockedEntry.length === 0) throw new Error('Entry was deleted while it was being edited.');
-
     const currentEntry = await transaction.entry.findFirst({
       where: { id: entry.id, userId },
-      select: { note: true, photos: { select: { id: true } } },
+      select: { photos: { select: { id: true } } },
     });
     if (!currentEntry) throw new Error('Entry was deleted while it was being edited.');
 
@@ -215,9 +206,7 @@ export async function updateEntryWorkflow(
       entry.id,
       entryMutationInput(input, activityIds, photosToAttach),
     );
-    if (currentEntry.note !== input.note) {
-      await invalidateAndScheduleJournalMemory(db, transaction, entry.id, userId);
-    }
+    await invalidateAndScheduleJournalMemory(db, transaction, entry.id, userId);
   });
 
   return { id: entry.id };

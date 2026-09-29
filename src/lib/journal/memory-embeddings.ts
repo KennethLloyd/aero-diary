@@ -6,11 +6,16 @@ import {
   journalQueryPrompt,
 } from '@/lib/journal/memory-passages';
 
-export const JOURNAL_EMBEDDING_MODEL = 'embeddinggemma:300m-qat-q4_0';
+const DEFAULT_EMBEDDING_MODEL = 'embeddinggemma:300m-qat-q4_0';
+const DEFAULT_BATCH_SIZE = 8;
+const DEFAULT_KEEP_ALIVE = '5m';
+export const JOURNAL_EMBEDDING_MODEL = z.string().trim().min(1).parse(
+  process.env.OLLAMA_EMBEDDING_MODEL ?? DEFAULT_EMBEDDING_MODEL,
+);
 export const JOURNAL_EMBEDDING_DIMENSIONS = 768;
-const EMBEDDING_BATCH_SIZE = 8;
 const DEFAULT_OLLAMA_URL = 'http://127.0.0.1:11434';
 const DEFAULT_TIMEOUT_MS = 120_000;
+const positiveIntegerSchema = z.coerce.number().int().positive();
 
 const embeddingsResponseSchema = z.object({
   embeddings: z.array(z.array(z.number().finite())),
@@ -38,6 +43,14 @@ function timeoutMs(): number {
   return Number.isInteger(value) && value > 0 ? value : DEFAULT_TIMEOUT_MS;
 }
 
+function embeddingBatchSize(): number {
+  return positiveIntegerSchema.parse(process.env.OLLAMA_EMBEDDING_BATCH_SIZE ?? DEFAULT_BATCH_SIZE);
+}
+
+function keepAlive(): string {
+  return z.string().trim().min(1).parse(process.env.OLLAMA_EMBEDDING_KEEP_ALIVE ?? DEFAULT_KEEP_ALIVE);
+}
+
 async function requestEmbeddings(inputs: string[], fetcher: typeof fetch): Promise<number[][]> {
   let response: Response;
   try {
@@ -48,7 +61,7 @@ async function requestEmbeddings(inputs: string[], fetcher: typeof fetch): Promi
         model: JOURNAL_EMBEDDING_MODEL,
         input: inputs,
         truncate: false,
-        keep_alive: '5m',
+        keep_alive: keepAlive(),
       }),
       signal: AbortSignal.timeout(timeoutMs()),
     });
@@ -78,8 +91,9 @@ async function requestEmbeddings(inputs: string[], fetcher: typeof fetch): Promi
 
 async function embedBatch(inputs: string[], fetcher: typeof fetch): Promise<number[][]> {
   const embeddings: number[][] = [];
-  for (let start = 0; start < inputs.length; start += EMBEDDING_BATCH_SIZE) {
-    const batch = inputs.slice(start, start + EMBEDDING_BATCH_SIZE);
+  const batchSize = embeddingBatchSize();
+  for (let start = 0; start < inputs.length; start += batchSize) {
+    const batch = inputs.slice(start, start + batchSize);
     embeddings.push(...await requestEmbeddings(batch, fetcher));
   }
   return embeddings;

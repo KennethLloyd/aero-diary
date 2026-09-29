@@ -35,7 +35,7 @@ const TABLES: readonly TableSpec[] = [
 ];
 
 const MEMORY_TABLES = ['JournalMemoryGeneration', 'JournalMemoryPassage'] as const;
-const BATCH_SIZE = 250;
+const VALIDATION_PAGE_SIZE = 250;
 
 type CountQueryClient = {
   $queryRawUnsafe<T = unknown>(query: string, ...values: unknown[]): Promise<T>
@@ -119,7 +119,7 @@ function postgresInsert(spec: TableSpec): string {
 function postgresPage(spec: TableSpec, offset: number): string {
   const columns = spec.columns.map((column) => `"${column}"`).join(', ');
   const order = spec.orderBy.map((column) => `"${column}"`).join(', ');
-  return `SELECT ${columns} FROM "${spec.name}" ORDER BY ${order} LIMIT ${BATCH_SIZE} OFFSET ${offset}`;
+  return `SELECT ${columns} FROM "${spec.name}" ORDER BY ${order} LIMIT ${VALIDATION_PAGE_SIZE} OFFSET ${offset}`;
 }
 
 async function assertEmptyTarget(database: CountQueryClient): Promise<void> {
@@ -135,28 +135,18 @@ async function transferTable(
   sqlite: Database.Database,
   transaction: Prisma.TransactionClient,
   spec: TableSpec,
-): Promise<{ count: number; digest: string }> {
+): Promise<number> {
   const statement = sqlite.prepare(sqliteSelect(spec));
   const sourceDigest = createHash('sha256');
   const insertStatement = postgresInsert(spec);
   let count = 0;
-  let batch: ValueRow[] = [];
-
-  const writeBatch = async () => {
-    for (const row of batch) {
-      const values = spec.columns.map((column) => normalizeValue(row[column], spec, column));
-      await transaction.$executeRawUnsafe(insertStatement, ...values);
-    }
-    batch = [];
-  };
 
   for (const row of statement.iterate() as IterableIterator<ValueRow>) {
     orderedDigestUpdate(sourceDigest, row, spec);
-    batch.push(row);
+    const values = spec.columns.map((column) => normalizeValue(row[column], spec, column));
+    await transaction.$executeRawUnsafe(insertStatement, ...values);
     count += 1;
-    if (batch.length >= BATCH_SIZE) await writeBatch();
   }
-  if (batch.length > 0) await writeBatch();
 
   const targetDigest = createHash('sha256');
   let targetCount = 0;
@@ -169,12 +159,10 @@ async function transferTable(
     }
   }
 
-  const sourceHash = sourceDigest.digest('hex');
-  const targetHash = targetDigest.digest('hex');
-  if (count !== targetCount || sourceHash !== targetHash) {
+  if (count !== targetCount || sourceDigest.digest('hex') !== targetDigest.digest('hex')) {
     throw new Error(`SQLite import verification failed for ${spec.name}.`);
   }
-  return { count, digest: sourceHash };
+  return count;
 }
 
 async function main(): Promise<void> {
@@ -194,8 +182,7 @@ async function main(): Promise<void> {
     await database.$transaction(async (transaction) => {
       await assertEmptyTarget(transaction);
       for (const table of TABLES) {
-        const result = await transferTable(sqlite, transaction, table);
-        counts[table.name] = result.count;
+        counts[table.name] = await transferTable(sqlite, transaction, table);
       }
 
       const demoEmail = getDemoCredentials()?.email.toLowerCase();

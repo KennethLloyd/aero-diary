@@ -37,7 +37,7 @@ pnpm dev
 
 Then open `http://localhost:3000`.
 
-See `.env.example` for optional LLM and Google Drive configuration.
+See `.env.example` for LLM, journal-memory, and Google Drive configuration.
 
 ## Tests
 
@@ -60,16 +60,15 @@ pnpm test
 
 GitHub Actions provisions and migrates its own disposable PostgreSQL database.
 
-Journal memory uses a separate `pnpm memory:worker` process and local Ollama.
-Install Ollama, then pull the model with `ollama pull embeddinggemma:300m-qat-q4_0`.
-Start the worker after `pnpm db:setup`; `pnpm memory:backfill` queues existing
-private entries. Journal saves remain available while Ollama or the worker is
-offline because embedding work stays in PostgreSQL through pg-boss.
+Journal memory uses local Ollama. See `.env.example` for model, batch size,
+timeout, and keep-alive settings. Pull the default model with
+`ollama pull embeddinggemma:300m-qat-q4_0`; run `pnpm memory:worker` to index
+saves or `pnpm memory:backfill` to queue existing entries and reindex after a
+model change.
 
-For an existing SQLite installation, rehearse the transfer against a fresh,
-isolated PostgreSQL database with
-`pnpm db:import-sqlite -- --source <path-to-sqlite-file> --confirm-empty-target`.
-The source is opened read-only, the target must be empty, and the transfer
-writes the records and indexing jobs in one transaction. See
-[`docs/sqlite-to-postgresql.md`](docs/sqlite-to-postgresql.md) for validation
-and rollback steps. Do not rehearse against a live production target.
+For an existing SQLite installation, pause writes, back up the database, and
+prepare an empty PostgreSQL+pgvector target with `pnpm db:setup`. Then import
+with `pnpm db:import-sqlite -- --source <path-to-sqlite-file> --confirm-empty-target`.
+The source stays unchanged; the importer validates records and queues indexing
+jobs with the transfer. See the [migration guide](docs/sqlite-to-postgresql.md)
+for rollback steps.

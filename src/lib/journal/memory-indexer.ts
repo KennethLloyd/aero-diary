@@ -93,12 +93,6 @@ export async function processJournalMemoryEntry(
     if (isConfiguredDemoEmail(current.email)) return 'demo';
     if (journalEmbeddingSourceHash(current.note) !== sourceHash) return 'stale';
 
-    const currentGeneration = await transaction.journalMemoryGeneration.findUnique({
-      where: { entryId },
-      select: { sourceHash: true, embeddingModel: true, passageVersion: true },
-    });
-    if (currentGeneration && isCurrentGeneration(currentGeneration, sourceHash)) return 'current';
-
     await transaction.journalMemoryGeneration.deleteMany({ where: { entryId } });
     await transaction.journalMemoryGeneration.create({
       data: {
