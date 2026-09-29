@@ -4,8 +4,8 @@ import { deleteThreadForUser, getThreadForUser } from '@/lib/aero-ai/store';
 
 type RouteParams = { params: Promise<{ id: string }> }
 
-export async function GET(_request: Request, { params }: RouteParams) {
-  const access = await authorizeAeroAiRequest();
+export async function GET(request: Request, { params }: RouteParams) {
+  const access = await authorizeAeroAiRequest(request);
   if (access instanceof Response) return access;
   const parsed = aeroAiThreadIdSchema.safeParse((await params).id);
   if (!parsed.success) return notFound();
@@ -20,8 +20,8 @@ export async function GET(_request: Request, { params }: RouteParams) {
   }
 }
 
-export async function DELETE(_request: Request, { params }: RouteParams) {
-  const access = await authorizeAeroAiRequest();
+export async function DELETE(request: Request, { params }: RouteParams) {
+  const access = await authorizeAeroAiRequest(request);
   if (access instanceof Response) return access;
   const parsed = aeroAiThreadIdSchema.safeParse((await params).id);
   if (!parsed.success) return notFound();

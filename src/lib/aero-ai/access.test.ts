@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SessionInfo } from '@/lib/dal';
 import { testDb, resetTestDb } from '@/test/test-db';
+import { hashToken } from '@/lib/auth/session';
 
 const mocks = vi.hoisted(() => ({ getOptionalSession: vi.fn() }));
 
@@ -9,7 +10,9 @@ vi.mock('@/lib/dal', async (importOriginal) => {
   return { ...actual, getOptionalSession: mocks.getOptionalSession };
 });
 
-import { AeroAiAccessError, requireAeroAiSession } from './access';
+import { AeroAiAccessError, requireAeroAiBearerToken, requireAeroAiSession } from './access';
+import { authorizeAeroAiRequest } from './http';
+import { getThreadForUser } from './store';
 
 describe('Aero AI access gate', () => {
   const originalDemoEmail = process.env.DEMO_EMAIL;
@@ -66,6 +69,67 @@ describe('Aero AI access gate', () => {
     const owner = await testDb.user.create({ data: { email: 'private@example.com', passwordHash: 'hash' } });
     mocks.getOptionalSession.mockResolvedValue(sessionFor(owner.id));
     await expect(requireAeroAiSession()).resolves.toMatchObject({ userId: owner.id });
+  });
+
+  it('uses a valid bearer token without consulting a locked browser session and keeps thread ownership', async () => {
+    const ownerToken = 'a'.repeat(43);
+    const owner = await testDb.user.create({
+      data: { email: 'private@example.com', passwordHash: 'hash', aeroAiTokenHash: hashToken(ownerToken) },
+    });
+    const other = await testDb.user.create({ data: { email: 'other@example.com', passwordHash: 'hash' } });
+    const ownedThread = await testDb.aeroAiThread.create({ data: { userId: owner.id } });
+    const otherThread = await testDb.aeroAiThread.create({ data: { userId: other.id } });
+    mocks.getOptionalSession.mockResolvedValue({
+      ...sessionFor(owner.id),
+      appLockEnabled: true,
+      appLockVerifiedAt: null,
+    });
+
+    const request = new Request('http://aero.test/api/aero-ai/threads', {
+      headers: { authorization: `Bearer ${ownerToken}` },
+    });
+    const access = await authorizeAeroAiRequest(request);
+
+    expect(access).toEqual({ userId: owner.id });
+    expect(mocks.getOptionalSession).not.toHaveBeenCalled();
+    if (access instanceof Response) throw new Error('Expected bearer access.');
+    expect(await getThreadForUser(access.userId, ownedThread.id)).not.toBeNull();
+    expect(await getThreadForUser(access.userId, otherThread.id)).toBeNull();
+  });
+
+  it('rejects malformed bearer headers without falling back to a valid session', async () => {
+    const owner = await testDb.user.create({ data: { email: 'private@example.com', passwordHash: 'hash' } });
+    mocks.getOptionalSession.mockResolvedValue(sessionFor(owner.id));
+
+    const response = await authorizeAeroAiRequest(new Request('http://aero.test/api/aero-ai/threads', {
+      headers: { authorization: 'Bearer not-a-token' },
+    }));
+
+    expect(response).toBeInstanceOf(Response);
+    if (!(response instanceof Response)) throw new Error('Expected an authorization error.');
+    expect(response.status).toBe(401);
+    expect(mocks.getOptionalSession).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid, revoked, and demo-account bearer tokens', async () => {
+    const revokedToken = 'b'.repeat(43);
+    const demoToken = 'c'.repeat(43);
+    const demo = await testDb.user.create({
+      data: { email: 'aero-demo@example.com', passwordHash: 'hash', aeroAiTokenHash: hashToken(demoToken) },
+    });
+    const revoked = await testDb.user.create({
+      data: { email: 'private@example.com', passwordHash: 'hash', aeroAiTokenHash: hashToken(revokedToken) },
+    });
+
+    await expect(requireAeroAiBearerToken(`Bearer ${'d'.repeat(43)}`))
+      .rejects.toMatchObject({ status: 401 });
+    await testDb.user.update({ where: { id: revoked.id }, data: { aeroAiTokenHash: null } });
+    await expect(requireAeroAiBearerToken(`Bearer ${revokedToken}`))
+      .rejects.toMatchObject({ status: 401 });
+    await expect(requireAeroAiBearerToken(`Bearer ${demoToken}`))
+      .rejects.toMatchObject({ status: 403 });
+    expect((await testDb.user.findUniqueOrThrow({ where: { id: demo.id } })).aeroAiTokenHash)
+      .toBe(hashToken(demoToken));
   });
 });
 

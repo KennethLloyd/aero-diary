@@ -5,7 +5,9 @@ import { AeroBubbles } from '@/components/aero/AeroBubbles';
 import { AeroScreen } from '@/components/aero/AeroScreen';
 import { AeroTitle } from '@/components/aero/AeroTitle';
 import { AppLockSettings } from '@/components/auth/AppLockSettings';
+import { AeroAiTokenSettings } from '@/components/aero-ai/AeroAiTokenSettings';
 import { verifySession } from '@/lib/dal';
+import { hasAeroAiToken, isPrivateAeroAiUser } from '@/lib/aero-ai/access';
 import { getActivitiesForUser } from '@/lib/journal/queries';
 
 export default function SettingsPage() {
@@ -32,6 +34,8 @@ export default function SettingsPage() {
 async function SettingsContent() {
   const session = await verifySession();
   const activities = await getActivitiesForUser(session.userId);
+  const isPrivateUser = await isPrivateAeroAiUser(session.userId);
+  const hasToken = isPrivateUser && await hasAeroAiToken(session.userId);
 
   return (
     <div className="flex flex-col gap-4">
@@ -69,6 +73,15 @@ async function SettingsContent() {
           timeoutMinutes={session.appLockTimeoutMinutes}
         />
       </section>
+
+      {isPrivateUser ? (
+        <section className="aero-surface-plain flex flex-col gap-3 p-4" aria-labelledby="settings-aero-ai-heading">
+          <h2 id="settings-aero-ai-heading" className="text-xs font-bold uppercase tracking-wider text-[#0a2f5c]">
+            Aero AI API
+          </h2>
+          <AeroAiTokenSettings hasToken={hasToken} />
+        </section>
+      ) : null}
 
       <section className="aero-surface-plain flex flex-col gap-3 p-4" aria-labelledby="settings-account-heading">
         <h2 id="settings-account-heading" className="text-xs font-bold uppercase tracking-wider text-[#0a2f5c]">
