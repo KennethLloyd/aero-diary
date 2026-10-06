@@ -50,15 +50,6 @@ function entryFields(formData: FormData) {
   };
 }
 
-function updateEntryFields(formData: FormData) {
-  const fields = entryFields(formData);
-  return {
-    mood: fields.mood,
-    note: fields.note,
-    activityIds: fields.activityIds,
-  };
-}
-
 function stagedPhotoSelection(formData: FormData) {
   const parsedIds = formData.getAll('stagedPhotoId').map((id) => stagedPhotoIdSchema.safeParse(id));
   if (parsedIds.some((parsed) => !parsed.success)) return { error: PHOTO_UPLOAD_ERROR } as const;
@@ -116,7 +107,7 @@ export async function updateEntry(
   const parsedId = entryIdSchema.safeParse(entryId);
   if (!parsedId.success) return { error: ENTRY_NOT_FOUND };
 
-  const parsed = updateEntrySchema.safeParse(updateEntryFields(formData));
+  const parsed = updateEntrySchema.safeParse(entryFields(formData));
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? INVALID_ENTRY };
   }

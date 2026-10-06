@@ -31,7 +31,7 @@ export const createEntrySchema = z.object({
   journalDate: journalDateSchema.optional(),
 });
 
-export const updateEntrySchema = createEntrySchema.omit({ journalDate: true });
+export const updateEntrySchema = createEntrySchema;
 export type UpdateEntryInput = z.infer<typeof updateEntrySchema>
 
 export const polishEntrySchema = createEntrySchema.pick({ note: true });

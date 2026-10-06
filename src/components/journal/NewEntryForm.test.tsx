@@ -44,6 +44,19 @@ function changeFiles(input: HTMLInputElement, files: File[]) {
 const deletePhotoMock = vi.mocked(deletePhoto);
 const polishEntryMock = vi.mocked(polishEntry);
 
+describe('NewEntryForm journal date', () => {
+  it('starts editing with the saved date and updates the submitted date', () => {
+    render(<NewEntryForm entry={editableEntry(0)} />);
+    const input = document.querySelector<HTMLInputElement>('#journal-date')!;
+    expect(input.value).toBe('2026-08-28');
+    fireEvent.click(screen.getByRole('button', { name: 'Change journal date' }));
+    expect(input).toHaveFocus();
+    fireEvent.change(input, { target: { value: '2026-08-27' } });
+    expect(screen.getByText('Thursday, August 27, 2026')).toBeVisible();
+    expect(new FormData(document.querySelector<HTMLFormElement>('#entry-form')!).get('journalDate')).toBe('2026-08-27');
+  });
+});
+
 describe('NewEntryForm activity state', () => {
   it('does not show activity controls while creating an entry', () => {
     render(

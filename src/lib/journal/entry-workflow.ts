@@ -173,6 +173,7 @@ export async function updateEntryWorkflow(
   input: UpdateEntryInput,
   selection: EntryPhotoSelection,
 ) {
+  const journalDate = input.journalDate === undefined ? undefined : journalDateFor(input);
   const staged = await stagedPhotosFor(userId, selection);
   const entry = await db.entry.findFirst({
     where: { id: entryId, userId },
@@ -204,7 +205,7 @@ export async function updateEntryWorkflow(
     await updateJournalEntry(
       transaction,
       entry.id,
-      entryMutationInput(input, activityIds, photosToAttach),
+      { ...entryMutationInput(input, activityIds, photosToAttach), journalDate },
     );
     await invalidateAndScheduleJournalMemory(db, transaction, entry.id, userId);
   });
