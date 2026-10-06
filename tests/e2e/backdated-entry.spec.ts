@@ -10,7 +10,7 @@ if (!demoEmail || !demoPassword) {
 
 async function readMonthlyInsightsCount(page: Page): Promise<number> {
   const summary = await page.locator('[aria-label="Monthly insight summary"]').textContent();
-  const match = summary?.match(/(\d+)\s+memor(?:y|ies) logged/);
+  const match = summary?.match(/(\d+)\s*memor(?:y|ies) logged/);
   if (!match) throw new Error(`Monthly insight summary did not include a count: ${summary ?? ''}`);
   return Number(match[1]);
 }
@@ -49,6 +49,7 @@ async function verifyBackdatedEntry(page: Page) {
 
   await page.goto('/timeline/new');
   const dateChange = page.locator('.aero-date-change');
+  await expect(dateChange).toBeVisible();
   const dateChangeBox = await dateChange.boundingBox();
   expect(dateChangeBox).not.toBeNull();
   const centerHit = await page.evaluate(({ x, y }) => {
@@ -92,15 +93,27 @@ async function verifyBackdatedEntry(page: Page) {
     }),
   );
 
+  await page.getByRole('link', { name: 'Edit' }).click();
+  await expect(page.locator('#journal-date')).toHaveValue(yesterday);
+  await page.getByRole('button', { name: 'Change journal date' }).click();
+  await expect(page.locator('#journal-date')).toBeFocused();
+  await page.locator('#journal-date').fill(today);
+  await page.getByRole('button', { name: 'Save changes' }).click();
+  await expect(page).toHaveURL(/\/timeline\/[^/]+$/);
+  await expect(detailDate).toHaveAttribute('datetime', today);
+
   const updatedMarker = `${marker} edited`;
   await page.getByRole('link', { name: 'Edit' }).click();
   await expect(page).toHaveURL(/\/timeline\/[^/]+\/edit$/);
+  await expect(page.locator('#journal-date')).toHaveValue(today);
+  await page.locator('#journal-date').fill(yesterday);
   await page.getByLabel('Journal Note').fill(updatedMarker);
   await page.getByRole('button', { name: 'Save changes' }).click();
   await expect(page).toHaveURL(/\/timeline\/[^/]+$/);
   await expect(page.getByText(updatedMarker)).toBeVisible();
   await page.getByRole('link', { name: 'Edit' }).click();
   await expect(page).toHaveURL(/\/timeline\/[^/]+\/edit$/);
+  await expect(page.locator('#journal-date')).toHaveValue(yesterday);
   await expect(page.getByLabel('Journal Note')).toHaveValue(updatedMarker);
   await expect(page.getByText(yesterdayLabel, { exact: true })).toBeVisible();
   await page.getByRole('link', { name: 'Back to timeline without saving' }).click();
@@ -136,14 +149,14 @@ async function verifyBackdatedEntry(page: Page) {
 }
 
 test.describe('backdated entry', () => {
-  test('demo user can save an entry for yesterday', async ({ page }) => {
+  test('demo user can create and correct an entry date', async ({ page }) => {
     await verifyBackdatedEntry(page);
   });
 
   test.describe('mobile', () => {
     test.use({ viewport: { width: 393, height: 852 } });
 
-    test('demo user can save an entry for yesterday', async ({ page }) => {
+    test('demo user can create and correct an entry date', async ({ page }) => {
       await verifyBackdatedEntry(page);
     });
   });

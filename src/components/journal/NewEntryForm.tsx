@@ -105,7 +105,7 @@ export function NewEntryForm({
     getTodayDateKey,
     () => initialTodayDateKey,
   );
-  const [selectedJournalDate, setSelectedJournalDate] = useState<JournalDate>();
+  const [selectedJournalDate, setSelectedJournalDate] = useState<JournalDate | undefined>(entry?.journalDate);
   const journalDate = selectedJournalDate ?? browserTodayDate;
   const [polishState, setPolishState] = useState<PolishEntryState>();
   const [polishing, setPolishing] = useState(false);
@@ -442,37 +442,31 @@ export function NewEntryForm({
               {entry ? 'Edit Entry' : 'New Entry'}
             </h1>
             <p className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[#2b4c73]">
-              {entry ? (
-                <span>{formatJournalDate(entry.journalDate, browserTodayDate)}</span>
-              ) : (
-                <>
-                  <span>{formatJournalDate(journalDate, browserTodayDate)}</span>
-                  <button
-                    type="button"
-                    className="aero-date-change"
-                    aria-controls="journal-date"
-                    aria-label="Change journal date"
-                    onClick={openJournalDatePicker}
-                  >
-                    <span aria-hidden="true">Change date</span>
-                  </button>
-                  <input
-                    ref={journalDateInput}
-                    id="journal-date"
-                    name="journalDate"
-                    type="date"
-                    className="aero-date-input"
-                    value={journalDate}
-                    max={browserTodayDate}
-                    required
-                    tabIndex={-1}
-                    aria-hidden="true"
-                    onChange={(event) => setSelectedJournalDate(
-                      event.target.value ? parseJournalDate(event.target.value) : undefined,
-                    )}
-                  />
-                </>
-              )}
+              <span>{formatJournalDate(journalDate, browserTodayDate)}</span>
+              <button
+                type="button"
+                className="aero-date-change"
+                aria-controls="journal-date"
+                aria-label="Change journal date"
+                onClick={openJournalDatePicker}
+              >
+                <span aria-hidden="true">Change date</span>
+              </button>
+              <input
+                ref={journalDateInput}
+                id="journal-date"
+                name="journalDate"
+                type="date"
+                className="aero-date-input"
+                value={journalDate}
+                max={browserTodayDate}
+                required
+                tabIndex={-1}
+                aria-hidden="true"
+                onChange={(event) => setSelectedJournalDate(
+                  event.target.value ? parseJournalDate(event.target.value) : undefined,
+                )}
+              />
             </p>
           </div>
         </header>

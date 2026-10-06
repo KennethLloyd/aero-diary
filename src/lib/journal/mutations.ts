@@ -62,11 +62,12 @@ export function createJournalEntry(
 export function updateJournalEntry(
   database: JournalDatabase,
   entryId: string,
-  input: EntryMutationInput,
+  input: EntryMutationInput & { journalDate?: JournalDate },
 ) {
   return database.entry.update({
     where: { id: entryId },
     data: {
+      journalDate: input.journalDate,
       activityInferenceStatus: ActivityInferenceStatus.COMPLETE,
       ...entryContentWrites(input),
       activities: {

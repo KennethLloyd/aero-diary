@@ -213,6 +213,45 @@ describe('updateEntry action', () => {
     expect(mocks.redirect).toHaveBeenCalledWith(`/timeline/${entry.id}`);
   });
 
+  it('corrects the date without replacing the entry or its attachments', async () => {
+    const user = await testDb.user.create({ data: { email: 'date-edit@example.com', passwordHash: 'x' } });
+    const activity = await testDb.activity.create({ data: { userId: user.id, name: 'Work', emoji: '💻' } });
+    const entry = await testDb.entry.create({
+      data: {
+        userId: user.id, journalDate: '2026-10-06', mood: Mood.RAD,
+        note: 'A good day to write things down.',
+        activities: { create: [{ activityId: activity.id }] },
+        photos: { create: [{ drivePath: 'synthetic/photo.jpg', mimeType: 'image/jpeg' }] },
+      },
+      include: { photos: true },
+    });
+    mocks.verifySession.mockResolvedValue({ isAuth: true, userId: user.id });
+
+    await expect(updateEntry(entry.id, undefined, form({
+      journalDate: '2026-10-05', activityId: activity.id,
+    }))).rejects.toThrow(NEXT_REDIRECT);
+
+    const updated = await testDb.entry.findUniqueOrThrow({ where: { id: entry.id }, include: { photos: true, activities: true } });
+    expect(updated).toMatchObject({ id: entry.id, journalDate: '2026-10-05', mood: entry.mood, note: entry.note, createdAt: entry.createdAt });
+    expect(updated.photos).toEqual(entry.photos);
+    expect(updated.activities).toEqual([{ entryId: entry.id, activityId: activity.id }]);
+    expect(mocks.redirect).toHaveBeenCalledWith(`/timeline/${entry.id}`);
+  });
+
+  it.each([
+    ['2026-02-30', 'Choose a valid journal date.'],
+    ['not-a-date', 'Choose a valid journal date.'],
+    ['9999-12-31', 'Choose a date on or before today.'],
+  ])('rejects the date %s without changing the entry', async (journalDate, error) => {
+    const user = await testDb.user.create({ data: { email: 'invalid-date-edit@example.com', passwordHash: 'x' } });
+    const entry = await testDb.entry.create({ data: { userId: user.id, journalDate: '2026-10-05', mood: Mood.GOOD, note: 'Keep this entry.' } });
+    mocks.verifySession.mockResolvedValue({ isAuth: true, userId: user.id });
+
+    expect(await updateEntry(entry.id, undefined, form({ journalDate }))).toEqual({ error });
+    expect(await testDb.entry.findUniqueOrThrow({ where: { id: entry.id } })).toMatchObject({ journalDate: entry.journalDate, note: entry.note, mood: entry.mood });
+    expect(mocks.redirect).not.toHaveBeenCalled();
+  });
+
   it('rejects an anonymous request before parsing or writing', async () => {
     mocks.verifySession.mockRejectedValue(new Error(NEXT_REDIRECT));
 
@@ -248,7 +287,7 @@ describe('updateEntry action', () => {
     });
     mocks.verifySession.mockResolvedValue({ isAuth: true, userId: user.id });
 
-    const state = await updateEntry(entry.id, undefined, form({ note: 'Should not change.' }));
+    const state = await updateEntry(entry.id, undefined, form({ note: 'Should not change.', journalDate: '2026-10-05' }));
 
     expect(state).toEqual({ error: 'Entry not found.' });
     await expect(testDb.entry.findUniqueOrThrow({ where: { id: entry.id } })).resolves.toMatchObject({
