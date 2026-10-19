@@ -6,12 +6,32 @@ import { useAeroDockVisibility } from '@/components/aero/AeroDockVisibility';
 
 // Bottom navigation for the journal screens with icons + labels.
 const DOCK_ITEMS = [
-  { href: '/timeline', label: 'Timeline', icon: '📖', match: (path: string) => path === '/timeline' || path.startsWith('/timeline/') },
-  { href: '/calendar', label: 'Calendar', icon: '📅', match: (path: string) => path === '/calendar' },
-  { href: '/insights', label: 'Insights', icon: '📊', match: (path: string) => path === '/insights' },
+  {
+    href: '/timeline',
+    label: 'Timeline',
+    icon: '📖',
+    match: (path: string) => path === '/timeline' || path.startsWith('/timeline/'),
+  },
+  {
+    href: '/calendar',
+    label: 'Calendar',
+    icon: '📅',
+    match: (path: string) => path === '/calendar',
+  },
+  {
+    href: '/insights',
+    label: 'Insights',
+    icon: '📊',
+    match: (path: string) => path === '/insights',
+  },
   { href: '/aero-ai', label: 'Aero AI', icon: null, match: (path: string) => path === '/aero-ai' },
   // Activities management lives under Settings, so it keeps Settings lit.
-  { href: '/settings', label: 'Settings', icon: '⚙️', match: (path: string) => path === '/settings' || path.startsWith('/activities') },
+  {
+    href: '/settings',
+    label: 'Settings',
+    icon: '⚙️',
+    match: (path: string) => path === '/settings' || path.startsWith('/activities'),
+  },
 ];
 
 export function AeroDock() {
@@ -27,6 +47,7 @@ export function AeroDock() {
     >
       {DOCK_ITEMS.map((item) => {
         const isActive = item.match(pathname);
+
         return (
           <Link
             key={item.href}

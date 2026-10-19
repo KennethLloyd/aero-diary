@@ -19,26 +19,38 @@ export function AeroAiComposer({
   disabled: boolean;
 }) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
   useLayoutEffect(() => {
     const input = inputRef.current;
     if (!input) return;
+
     function resize() {
       if (!input) return;
+
       const maximum = Number.parseFloat(getComputedStyle(input).maxHeight) || 184;
       input.style.height = 'auto';
       input.style.height = `${Math.min(input.scrollHeight, maximum)}px`;
       input.style.overflowY = input.scrollHeight > maximum ? 'auto' : 'hidden';
     }
+
     resize();
+
     const observer = new ResizeObserver(resize);
     observer.observe(input);
+
     return () => observer.disconnect();
   }, [draft]);
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing || event.keyCode === 229)
+    if (
+      event.key !== 'Enter' ||
+      event.shiftKey ||
+      event.nativeEvent.isComposing ||
+      event.keyCode === 229
+    )
       return;
     if (window.matchMedia('(max-width: 767px), (pointer: coarse)').matches) return;
+
     event.preventDefault();
     event.currentTarget.form?.requestSubmit();
   }

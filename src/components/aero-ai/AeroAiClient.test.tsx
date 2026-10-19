@@ -42,7 +42,10 @@ describe('AeroAiClient blank chats', () => {
       vi.fn(() => ({ matches: false })),
     );
     HTMLDialogElement.prototype.close = vi.fn();
-    Object.defineProperty(Element.prototype, 'scrollIntoView', { configurable: true, value: vi.fn() });
+    Object.defineProperty(Element.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: vi.fn(),
+    });
     window.history.replaceState(null, '', '/aero-ai');
   });
 
@@ -55,10 +58,15 @@ describe('AeroAiClient blank chats', () => {
 
   it('opens a usable blank conversation without creating a thread on first use', async () => {
     vi.mocked(fetch).mockResolvedValue(Response.json([]));
+
     render(<AeroAiClient />);
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+
     expect(screen.getByRole('textbox', { name: 'Message Aero AI' })).toBeEnabled();
-    for (let i = 0; i < 3; i++) fireEvent.click(screen.getAllByRole('button', { name: 'New chat' })[0]);
+
+    for (let i = 0; i < 3; i++)
+      fireEvent.click(screen.getAllByRole('button', { name: 'New chat' })[0]);
+
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(window.location.search).toBe('');
   });
@@ -83,15 +91,23 @@ describe('AeroAiClient blank chats', () => {
             },
       ),
     );
+
     render(<AeroAiClient />);
     await screen.findByText('Earlier reply');
-    expect(screen.queryByRole('button', { name: 'Delete Saved conversation' })).not.toBeInTheDocument();
+
+    expect(
+      screen.queryByRole('button', { name: 'Delete Saved conversation' }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Delete chat' })).toBeInTheDocument();
-    for (let i = 0; i < 3; i++) fireEvent.click(screen.getAllByRole('button', { name: 'New chat' })[0]);
+
+    for (let i = 0; i < 3; i++)
+      fireEvent.click(screen.getAllByRole('button', { name: 'New chat' })[0]);
+
     expect(screen.queryByText('Earlier reply')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Delete chat' })).not.toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: 'Message Aero AI' })).toBeEnabled();
     expect(vi.mocked(fetch).mock.calls.every(([, init]) => !init?.method)).toBe(true);
+
     fireEvent.click(screen.getByRole('button', { name: 'Saved conversation' }));
     await screen.findByText('Earlier reply');
   });
@@ -104,24 +120,36 @@ describe('AeroAiClient blank chats', () => {
     vi.mocked(fetch).mockImplementation(async (url, init) => {
       if (init?.method === 'POST' && url === '/api/aero-ai/threads') return creation;
       if (init?.method === 'POST') return reply();
+
       return Response.json([]);
     });
+
     render(<AeroAiClient />);
     const composer = screen.getByRole('textbox', { name: 'Message Aero AI' });
     await waitFor(() => expect(composer).toBeEnabled());
+
     fireEvent.change(composer, { target: { value: 'First message' } });
+
     const form = composer.closest('form')!;
     fireEvent.submit(form);
     fireEvent.submit(form);
+
     expect(
       vi
         .mocked(fetch)
-        .mock.calls.filter(([url, init]) => url === '/api/aero-ai/threads' && init?.method === 'POST'),
+        .mock.calls.filter(
+          ([url, init]) => url === '/api/aero-ai/threads' && init?.method === 'POST',
+        ),
     ).toHaveLength(1);
+
     resolveCreation(Response.json(created));
     await screen.findByText('Hello');
+
     expect(window.location.search).toBe('?thread=created');
-    const messages = vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith('/messages'));
+    const messages = vi
+      .mocked(fetch)
+      .mock.calls.filter(([url]) => String(url).endsWith('/messages'));
+
     expect(messages).toHaveLength(1);
     expect(JSON.parse(messages[0][1]?.body as string)).toMatchObject({
       content: 'First message',
@@ -135,19 +163,26 @@ describe('AeroAiClient blank chats', () => {
     vi.mocked(fetch).mockImplementation(async (url, init) => {
       if (url === '/api/aero-ai/threads' && init?.method === 'POST') {
         attempts++;
+
         return attempts === 1
           ? Response.json({ error: 'Temporarily unavailable' }, { status: 503 })
           : Response.json(created);
       }
+
       if (init?.method === 'POST') return reply();
+
       return Response.json([]);
     });
+
     render(<AeroAiClient />);
     await waitFor(() => expect(screen.getByRole('textbox')).toBeEnabled());
+
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'First message' } });
     fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+
     fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
     await screen.findByText('Hello');
+
     expect(attempts).toBe(2);
     expect(screen.getAllByText('First message')).toHaveLength(1);
   });

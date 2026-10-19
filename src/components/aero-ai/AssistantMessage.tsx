@@ -4,7 +4,10 @@ import styles from './AeroAiClient.module.css';
 
 export function AssistantMessage({ content }: { content: string }) {
   // Hide technical source labels without changing the stored answer or its journal links.
-  const readable = content.replace(/\s*(?:[—–-]\s*)?(?:source|entry)\s+ID\s*:?\s*`?c[a-z0-9]{20,}`?/gi, '');
+  const readable = content.replace(
+    /\s*(?:[—–-]\s*)?(?:source|entry)\s+ID\s*:?\s*`?c[a-z0-9]{20,}`?/gi,
+    '',
+  );
 
   return (
     <div className={styles.markdown}>
@@ -22,7 +25,9 @@ export function AssistantMessage({ content }: { content: string }) {
                 </a>
               );
             }
+
             if (!href || !/^https?:\/\//i.test(href)) return <span>{children}</span>;
+
             return (
               <a href={href} target="_blank" rel="noopener noreferrer">
                 {children}

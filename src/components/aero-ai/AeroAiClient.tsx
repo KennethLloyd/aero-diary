@@ -22,6 +22,7 @@ type Turn = {
 };
 
 type ThreadDetail = Thread & { turns: Turn[] };
+
 type StreamEvent = {
   error?: string;
   content?: string;
@@ -30,6 +31,7 @@ type StreamEvent = {
   assistantContent?: string;
   replayed?: boolean;
 };
+
 type ActiveRequest = { controller: AbortController; threadId: string | null; requestId: string };
 
 export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) {
@@ -37,26 +39,33 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
   const [threadId, setThreadId] = useState<string | null>(null);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [draft, setDraft] = useState('');
+
   const [loadingThreads, setLoadingThreads] = useState(true);
   const [loadingThread, setLoadingThread] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
+
   const [showJump, setShowJump] = useState(false);
+
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
   const pageRef = useRef<HTMLElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
   const followLatest = useRef(true);
   const drawerRef = useRef<HTMLDialogElement>(null);
   const cancelDeleteRef = useRef<HTMLButtonElement>(null);
+
   const activeRequest = useRef<ActiveRequest | null>(null);
   const threadIdRef = useRef<string | null>(null);
   const blankChatRequested = useRef(false);
+
   const router = useRouter();
 
   const loadThreads = useCallback(async () => {
     const data = await requestJson<Thread[]>('/api/aero-ai/threads');
     setThreads(data);
+
     return data;
   }, []);
 
@@ -68,10 +77,15 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
     setTurns([]);
     setError('');
     setLoadingThread(true);
+
     window.history.replaceState(null, '', `/aero-ai?thread=${encodeURIComponent(id)}`);
+
     try {
-      const thread = await requestJson<ThreadDetail>(`/api/aero-ai/threads/${encodeURIComponent(id)}`);
+      const thread = await requestJson<ThreadDetail>(
+        `/api/aero-ai/threads/${encodeURIComponent(id)}`,
+      );
       if (threadIdRef.current === id) setTurns(thread.turns);
+
       setThreads((current) => current.map((item) => (item.id === id ? thread : item)));
     } catch (cause) {
       if (threadIdRef.current === id) setError(errorMessage(cause));
@@ -82,11 +96,13 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
 
   useEffect(() => {
     let current = true;
+
     // Load the selected thread list after mount; this is client data synchronization.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadThreads()
       .then((items) => {
         if (!current) return;
+
         const selected = items.find((thread) => thread.id === initialThreadId) ?? items[0];
         if (selected && !blankChatRequested.current) void openThread(selected.id);
       })
@@ -96,6 +112,7 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
       .finally(() => {
         if (current) setLoadingThreads(false);
       });
+
     return () => {
       current = false;
     };
@@ -109,20 +126,24 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
   useEffect(() => {
     const viewport = window.visualViewport;
     const mobile = window.matchMedia('(max-width: 767px)');
+
     function resize() {
       pageRef.current?.style.setProperty(
         '--chat-viewport-height',
         `${viewport?.height ?? window.innerHeight}px`,
       );
       pageRef.current?.style.setProperty('--chat-viewport-top', `${viewport?.offsetTop ?? 0}px`);
+
       if (!mobile.matches) {
         drawerRef.current?.close();
       }
     }
+
     resize();
     viewport?.addEventListener('resize', resize);
     viewport?.addEventListener('scroll', resize);
     window.addEventListener('resize', resize);
+
     return () => {
       viewport?.removeEventListener('resize', resize);
       viewport?.removeEventListener('scroll', resize);
@@ -134,22 +155,27 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
   useEffect(() => {
     const messages = messagesRef.current;
     if (!messages) return;
+
     const observer = new ResizeObserver(() => {
       if (followLatest.current) messages.scrollTop = messages.scrollHeight;
     });
+
     observer.observe(messages);
+
     return () => observer.disconnect();
   }, []);
 
   function jumpToLatest() {
     followLatest.current = true;
     setShowJump(false);
+
     const messages = messagesRef.current;
     if (messages) messages.scrollTop = messages.scrollHeight;
   }
 
   const newChat = () => {
     if (activeRequest.current) return;
+
     drawerRef.current?.close();
     followLatest.current = true;
     setShowJump(false);
@@ -160,26 +186,34 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
     setDraft('');
     setError('');
     setLoadingThread(false);
+
     window.history.replaceState(null, '', '/aero-ai');
   };
 
   const deleteThread = async (id: string) => {
     if (activeRequest.current || deleting) return;
+
     setDeleting(true);
     setError('');
+
     try {
       await requestJson<{ deleted: true }>(`/api/aero-ai/threads/${encodeURIComponent(id)}`, {
         method: 'DELETE',
       });
+
       setDeleteOpen(false);
+
       const remaining = threads.filter((item) => item.id !== id);
       setThreads(remaining);
+
       if (threadIdRef.current === id) {
         threadIdRef.current = null;
         setThreadId(null);
         setTurns([]);
         setDraft('');
+
         window.history.replaceState(null, '', '/aero-ai');
+
         const next = remaining[0];
         if (next) await openThread(next.id);
       }
@@ -192,10 +226,13 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
 
   const sendMessage = async (content: string, requestId = crypto.randomUUID()) => {
     if (activeRequest.current) return;
+
     blankChatRequested.current = true;
     let activeId = threadIdRef.current;
     const controller = new AbortController();
+
     activeRequest.current = { controller, threadId: activeId, requestId };
+
     jumpToLatest();
     setSending(true);
     setError('');
@@ -203,8 +240,10 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
     setThreads((current) =>
       current.map((item) => (item.id === activeId ? { ...item, isGenerating: true } : item)),
     );
+
     setTurns((current) => {
       const existing = current.find((turn) => turn.clientRequestId === requestId);
+
       if (existing) {
         return current.map((turn) =>
           turn.clientRequestId === requestId
@@ -212,6 +251,7 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
             : turn,
         );
       }
+
       return [
         ...current,
         {
@@ -236,16 +276,21 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
           { ...created, isGenerating: true },
           ...current.filter((item) => item.id !== activeId),
         ]);
+
         window.history.replaceState(null, '', `/aero-ai?thread=${encodeURIComponent(activeId)}`);
         if (controller.signal.aborted) throw new Error('Reply stopped. You can retry it.');
       }
-      const response = await fetch(`/api/aero-ai/threads/${encodeURIComponent(activeId)}/messages`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', accept: 'text/event-stream' },
-        body: JSON.stringify({ content, requestId, stream: true }),
-        signal: controller.signal,
-        cache: 'no-store',
-      });
+
+      const response = await fetch(
+        `/api/aero-ai/threads/${encodeURIComponent(activeId)}/messages`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', accept: 'text/event-stream' },
+          body: JSON.stringify({ content, requestId, stream: true }),
+          signal: controller.signal,
+          cache: 'no-store',
+        },
+      );
       if (!response.ok) throw new Error(await responseError(response));
       if (!response.body) throw new Error('Aero AI could not start that reply. Please try again.');
 
@@ -253,12 +298,16 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
       const decoder = new TextDecoder();
       let buffer = '';
       let completed = false;
+
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
+
         buffer += decoder.decode(value, { stream: true });
+
         const events = buffer.split(/\r?\n\r?\n/);
         buffer = events.pop() ?? '';
+
         for (const event of events) {
           const name = event.match(/^event:\s*([^\r\n]+)/m)?.[1]?.trim();
           const dataText = event
@@ -267,7 +316,9 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
             .map((line) => line.slice(5).trimStart())
             .join('\n');
           if (!name || !dataText) continue;
+
           const data = JSON.parse(dataText) as StreamEvent;
+
           if (name === 'delta' && data.content) {
             setTurns((current) =>
               current.map((turn) =>
@@ -280,6 +331,7 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
             throw new Error(data.error ?? 'Aero AI could not finish that reply. Please try again.');
           } else if (name === 'done') {
             completed = true;
+
             setTurns((current) =>
               current.map((turn) =>
                 turn.clientRequestId === requestId
@@ -310,9 +362,12 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
           }
         }
       }
+
       if (!completed) throw new Error('The reply was interrupted. Retry to continue.');
     } catch (cause) {
-      const message = controller.signal.aborted ? 'Reply stopped. You can retry it.' : errorMessage(cause);
+      const message = controller.signal.aborted
+        ? 'Reply stopped. You can retry it.'
+        : errorMessage(cause);
       setTurns((current) =>
         current.map((turn) =>
           turn.clientRequestId === requestId
@@ -325,6 +380,7 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
       );
     } finally {
       if (activeRequest.current?.requestId === requestId) activeRequest.current = null;
+
       setSending(false);
       void loadThreads().catch(() => {});
     }
@@ -332,8 +388,11 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
     const content = draft.trim();
-    if (!content || sending || loadingThread || loadingThreads || selectedThread?.isGenerating) return;
+    if (!content || sending || loadingThread || loadingThreads || selectedThread?.isGenerating)
+      return;
+
     void sendMessage(content);
   };
 
@@ -368,9 +427,12 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
           onClick={() => {
             blankChatRequested.current = true;
             threadIdRef.current = null;
+
             const canGoBack =
               window.navigation?.canGoBack ??
-              Boolean(document.referrer && new URL(document.referrer).origin === window.location.origin);
+              Boolean(
+                document.referrer && new URL(document.referrer).origin === window.location.origin,
+              );
             if (canGoBack) router.back();
             else router.replace('/timeline');
           }}
@@ -391,7 +453,9 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
           </svg>
         </button>
         <AeroTitle className={styles.title}>Aero AI</AeroTitle>
-        <span className={styles.tagline}>Ask questions about your journal and get answers based on what you’ve written.</span>
+        <span className={styles.tagline}>
+          Ask questions about your journal and get answers based on what you’ve written.
+        </span>
         <button
           type="button"
           className={`aero-btn aero-btn-white ${styles.historyToggle}`}
@@ -470,6 +534,7 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
               onScroll={(event) => {
                 const node = event.currentTarget;
                 const away = node.scrollHeight - node.scrollTop - node.clientHeight > 80;
+
                 followLatest.current = !away;
                 setShowJump(away);
               }}
@@ -524,7 +589,9 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
                               type="button"
                               className={`aero-btn aero-btn-white ${styles.retry}`}
                               disabled={isBusy || loadingThread || deleting}
-                              onClick={() => void sendMessage(turn.userContent, turn.clientRequestId)}
+                              onClick={() =>
+                                void sendMessage(turn.userContent, turn.clientRequestId)
+                              }
                             >
                               Retry
                             </button>
@@ -569,7 +636,11 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
             ) : null}
           </div>
           <div className="sr-only" role="status">
-            {sending ? 'Aero AI is replying.' : turns.at(-1)?.status === 'COMPLETE' ? 'Reply ready.' : ''}
+            {sending
+              ? 'Aero AI is replying.'
+              : turns.at(-1)?.status === 'COMPLETE'
+                ? 'Reply ready.'
+                : ''}
           </div>
           <AeroAiComposer
             draft={draft}
@@ -589,7 +660,8 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
         onClick={(event) => {
           if (event.target === event.currentTarget) {
             const bounds = event.currentTarget.getBoundingClientRect();
-            if (event.clientX > bounds.right || event.clientX < bounds.left) event.currentTarget.close();
+            if (event.clientX > bounds.right || event.clientX < bounds.left)
+              event.currentTarget.close();
           }
         }}
       >
@@ -650,14 +722,18 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { ...init, cache: 'no-store' });
   if (!response.ok) throw new Error(await responseError(response));
+
   return (await response.json()) as T;
 }
 
 async function responseError(response: Response): Promise<string> {
   const body = (await response.json().catch(() => null)) as { error?: string } | null;
+
   return body?.error ?? 'Aero AI is temporarily unavailable. Please try again.';
 }
 
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Aero AI is temporarily unavailable. Please try again.';
+  return error instanceof Error
+    ? error.message
+    : 'Aero AI is temporarily unavailable. Please try again.';
 }

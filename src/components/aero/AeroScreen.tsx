@@ -29,5 +29,8 @@ export function AeroScreen({
 
 async function AeroShellControls() {
   const session = await verifySession();
-  return session.appLockEnabled ? <AppLockMonitor timeoutMinutes={session.appLockTimeoutMinutes} /> : null;
+
+  return session.appLockEnabled ? (
+    <AppLockMonitor timeoutMinutes={session.appLockTimeoutMinutes} />
+  ) : null;
 }

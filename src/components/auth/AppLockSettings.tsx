@@ -57,6 +57,7 @@ function TimeoutSelect({ defaultValue }: { defaultValue: number }) {
 
 function FormMessage({ state }: { state: AppLockState }) {
   if (!state?.error && !state?.success) return null;
+
   return (
     <p
       role={state.error ? 'alert' : 'status'}
@@ -71,8 +72,8 @@ export function AppLockSettings({
   enabled,
   timeoutMinutes,
 }: {
-  enabled: boolean
-  timeoutMinutes: number
+  enabled: boolean;
+  timeoutMinutes: number;
 }) {
   const [enableState, enableAction, enablePending] = useActionState<AppLockState, FormData>(
     enableAppLock,
@@ -112,7 +113,11 @@ export function AppLockSettings({
           App Lock is enabled for this account.
         </p>
         <form action={lockApp}>
-          <button type="submit" className="aero-btn aero-btn-white shrink-0 px-3 text-sm" aria-label="Lock Aero Diary">
+          <button
+            type="submit"
+            className="aero-btn aero-btn-white shrink-0 px-3 text-sm"
+            aria-label="Lock Aero Diary"
+          >
             Lock now
           </button>
         </form>
@@ -147,7 +152,10 @@ export function AppLockSettings({
           Disabling removes the PIN without signing out.
         </p>
         <form action={disableAppLock}>
-          <button type="submit" className="aero-icon-btn h-9 min-h-9 w-auto shrink-0 rounded-full px-3.5 text-xs font-bold">
+          <button
+            type="submit"
+            className="aero-icon-btn h-9 min-h-9 w-auto shrink-0 rounded-full px-3.5 text-xs font-bold"
+          >
             Disable
           </button>
         </form>

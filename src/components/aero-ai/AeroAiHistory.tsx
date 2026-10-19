@@ -27,13 +27,18 @@ export function AeroAiHistory({
 }) {
   const [query, setQuery] = useState('');
   const searchId = useId();
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
+
   const groups = new Map<string, ChatThread[]>();
+
   for (const thread of threads) {
     if (!thread.title.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())) continue;
+
     const date = new Date(thread.updatedAt);
     const label = date >= today ? 'Today' : date >= yesterday ? 'Yesterday' : 'Earlier';
     groups.set(label, [...(groups.get(label) ?? []), thread]);
@@ -71,7 +76,9 @@ export function AeroAiHistory({
           </p>
         ) : null}
         {!loading && !threads.length ? (
-          <p className={styles.quiet}>Your conversations will appear here after your first message.</p>
+          <p className={styles.quiet}>
+            Your conversations will appear here after your first message.
+          </p>
         ) : null}
         {!loading && threads.length > 0 && !groups.size ? (
           <p className={styles.quiet}>No conversations match your search.</p>

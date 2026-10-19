@@ -10,6 +10,7 @@ const props = {
   sending: false,
   disabled: false,
 };
+
 beforeEach(() =>
   vi.stubGlobal(
     'ResizeObserver',
@@ -19,6 +20,7 @@ beforeEach(() =>
     },
   ),
 );
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
@@ -29,14 +31,20 @@ describe('chat composer', () => {
   it('grows with a draft and only scrolls after the height cap, then shrinks after send', () => {
     let contentHeight = 78;
     vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockImplementation(() => contentHeight);
+
     const { rerender } = render(<AeroAiComposer {...props} />);
     const input = screen.getByRole('textbox');
+
     expect(input).toHaveStyle({ height: '78px', overflowY: 'hidden' });
+
     contentHeight = 260;
     rerender(<AeroAiComposer {...props} draft={'Long draft\n'.repeat(20)} />);
+
     expect(input).toHaveStyle({ height: '184px', overflowY: 'auto' });
+
     contentHeight = 52;
     rerender(<AeroAiComposer {...props} draft="" />);
+
     expect(input).toHaveStyle({ height: '52px', overflowY: 'hidden' });
     expect(screen.getByRole('button', { name: 'Send message' })).toBeDisabled();
   });
@@ -46,14 +54,22 @@ describe('chat composer', () => {
     vi.stubGlobal('matchMedia', media);
     render(<AeroAiComposer {...props} />);
     const input = screen.getByRole('textbox');
-    const requestSubmit = vi.spyOn(HTMLFormElement.prototype, 'requestSubmit').mockImplementation(() => {});
+    const requestSubmit = vi
+      .spyOn(HTMLFormElement.prototype, 'requestSubmit')
+      .mockImplementation(() => {});
+
     fireEvent.keyDown(input, { key: 'Enter', shiftKey: true });
     fireEvent.keyDown(input, { key: 'Enter', isComposing: true });
+
     expect(requestSubmit).not.toHaveBeenCalled();
+
     fireEvent.keyDown(input, { key: 'Enter' });
+
     expect(requestSubmit).toHaveBeenCalledTimes(1);
+
     media.mockReturnValue({ matches: true });
     fireEvent.keyDown(input, { key: 'Enter' });
+
     expect(requestSubmit).toHaveBeenCalledTimes(1);
   });
 });

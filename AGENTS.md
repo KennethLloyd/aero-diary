@@ -27,6 +27,12 @@ Treat idiomatic, framework-native architecture as a hard constraint.
 
 Prefer the capabilities already provided by Next.js, Tailwind, and the existing feature boundaries. Use custom scripts, monkey patches, test harnesses, or workaround layers only after checking those capabilities. If a workaround is unavoidable, isolate it, keep it minimal, and document its architectural reason.
 
+## Code readability
+
+Write code for a human reviewing the diff. Keep related statements together and separate distinct logical steps with one blank line: validation, preparation, execution, and result handling. In tests, separate setup, action, and assertions, and visually separate independent interaction scenarios. Keep related declarations together; use multiline JSX when props or children become difficult to scan. Separate CSS rules with one blank line.
+
+Before committing, run `pnpm format <files>` and `pnpm lint:readability <files>` on the changed files. Then read every changed hunk and add any semantic separation the tools cannot infer. This pass is complete when each logical phase is easy to identify and the formatting, readability lint, and existing checks pass. CI enforces formatting and readability lint on added or modified files; existing untouched files adopt the standard when changed.
+
 ## UI verification and PR evidence
 
 Every UI pull request completes a browser-first verification pass:

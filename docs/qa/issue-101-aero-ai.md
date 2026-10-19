@@ -39,3 +39,9 @@ This verifies the UI and existing request flow. It does not validate live AI ans
 ## Screenshot delivery
 
 Earlier desktop, mobile, mobile-history, and multiline-composer screenshots are retained outside the repository. The owner waived screenshots for this PR after personally testing the final experience. No screenshot binaries are committed or attached.
+
+## Readability follow-up
+
+Added Prettier, ESLint Stylistic padding rules, a required semantic readability pass in `AGENTS.md`, and a CI check for added or modified files. Existing untouched files adopt formatting when changed. The chat client, composer, history, tests, and CSS now separate logical phases and interaction scenarios.
+
+Validation: formatting and readability lint pass for this PR's files; repository lint, typecheck, and all 11 focused chat/composer/Markdown/dock tests pass. All 13 modified TypeScript files emit identical JavaScript before and after the readability pass; CSS changes are formatting only. The new lint rule rejects a crowded sample and accepts related declarations grouped together. No additional browser pass was run for this formatting-only follow-up.

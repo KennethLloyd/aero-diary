@@ -13,6 +13,7 @@ describe('assistant reply presentation', () => {
         }
       />,
     );
+
     expect(screen.getByRole('heading', { name: 'A memory' })).toBeInTheDocument();
     expect(container.querySelector('strong')).toHaveTextContent('Angular');
     expect(screen.getAllByRole('listitem')).toHaveLength(2);
@@ -32,6 +33,7 @@ describe('assistant reply presentation', () => {
         }
       />,
     );
+
     expect(container.querySelector('script, img')).toBeNull();
     expect(screen.queryByRole('link', { name: 'unsafe' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Unknown entry' })).not.toBeInTheDocument();
