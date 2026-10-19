@@ -27,23 +27,29 @@ Treat idiomatic, framework-native architecture as a hard constraint.
 
 Prefer the capabilities already provided by Next.js, Tailwind, and the existing feature boundaries. Use custom scripts, monkey patches, test harnesses, or workaround layers only after checking those capabilities. If a workaround is unavoidable, isolate it, keep it minimal, and document its architectural reason.
 
+## Code readability
+
+Write code for a human reviewing the diff. Keep related statements together and separate distinct logical steps with one blank line: validation, preparation, execution, and result handling. In tests, separate setup, action, and assertions, and visually separate independent interaction scenarios. Keep related declarations together; use multiline JSX when props or children become difficult to scan. Separate CSS rules with one blank line.
+
+Before committing, run `pnpm format <files>` and `pnpm lint:readability <files>` on the changed files. Then read every changed hunk and add any semantic separation the tools cannot infer. This pass is complete when each logical phase is easy to identify and the formatting, readability lint, and existing checks pass. CI enforces formatting and readability lint on added or modified files; existing untouched files adopt the standard when changed.
+
 ## UI verification and PR evidence
 
 Every UI pull request completes a browser-first verification pass:
 
 1. Exercise the changed flow end-to-end with the available browser-control capability (prefer the control-in-app-browser skill when available). Cover affected validation, loading and error states, edits, retrieval and rendering, downloads, and deletes where present. Re-snapshot after navigation and dynamic state changes.
 2. Verify every materially different page or state involved in the change at a desktop viewport of `1280px` or wider and an iPhone 15-sized viewport of `393×852`.
-3. Capture PR screenshots from the in-app browser. Use two screenshots only when each shows a complete page and together covers the change; otherwise include additional screenshots. Evidence must include both mobile and desktop views and visibly showcase the new behavior.
+3. Capture PR screenshots from the in-app browser, but DO NOT commit them to the repo. Use two screenshots only when each shows a complete page and together covers the change; otherwise include additional screenshots. Evidence must include both mobile and desktop views and visibly showcase the new behavior.
 4. Add a `What to expect` section to the PR description or a PR comment in simplified technical, product-facing English. Explain the visible change, key interactions, responsive behavior, and demo-data limitations.
 5. For destructive cloud actions, confirm at the moment of the action. If confirmation is unavailable, use safe checks and document the limitation.
 
 Use the relevant `agent-browser` flow as a complementary automated check or as a fallback when the in-app browser is unavailable. Direct browser verification remains the acceptance check.
 
-The UI verification step is complete when the relevant browser scenarios pass, the required desktop and mobile screenshots are attached, and the PR includes the `What to expect` section.
+The UI verification step is complete when the relevant browser scenarios pass, the required desktop and mobile screenshots are attached (not committed), and the PR includes the `What to expect` section.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
-# This is NOT the Next.js you know
+## This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
 

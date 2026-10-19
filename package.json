@@ -23,7 +23,10 @@
     "memory:queue:setup": "tsx scripts/journal-memory-queue.ts",
     "memory:worker": "tsx scripts/journal-memory-worker.ts",
     "memory:backfill": "tsx scripts/journal-memory-backfill.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "format": "prettier --write --ignore-unknown",
+    "format:check": "prettier --check --ignore-unknown",
+    "lint:readability": "eslint --config eslint.readability.config.mjs --no-warn-ignored"
   },
   "dependencies": {
     "@node-rs/argon2": "2.1.0",
@@ -37,11 +40,14 @@
     "pg-boss": "12.35.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "react-markdown": "10.1.0",
+    "remark-gfm": "4.0.1",
     "server-only": "0.0.1",
     "zod": "4.4.3"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
+    "@stylistic/eslint-plugin": "5.10.0",
     "@tailwindcss/postcss": "4.3.3",
     "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "16.3.2",
@@ -52,7 +58,9 @@
     "dotenv": "17.4.2",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.4.2",
+    "eslint-config-prettier": "10.1.8",
     "jsdom": "30.0.1",
+    "prettier": "3.9.10",
     "prisma": "7.9.1",
     "tailwindcss": "4.3.3",
     "tsx": "4.23.12",

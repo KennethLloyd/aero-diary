@@ -6,19 +6,20 @@ import { isPrivateAeroAiUser } from '@/lib/aero-ai/access';
 import { verifySession } from '@/lib/dal';
 
 type AeroAiPageProps = {
-  searchParams: Promise<{ thread?: string | string[] }>
-}
+  searchParams: Promise<{ thread?: string | string[] }>;
+};
 
 export default async function AeroAiPage({ searchParams }: AeroAiPageProps) {
   const session = await verifySession();
   if (!(await isPrivateAeroAiUser(session.userId))) notFound();
+
   const params = await searchParams;
   const initialThreadId = Array.isArray(params.thread) ? params.thread[0] : params.thread;
 
   return (
     <>
       <AeroBubbles />
-      <AeroScreen>
+      <AeroScreen showDock={false}>
         <AeroAiClient initialThreadId={initialThreadId} />
       </AeroScreen>
     </>

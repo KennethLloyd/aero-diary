@@ -1,0 +1,14 @@
+# Generated output, local data, and dependency lockfiles.
+node_modules/
+.next/
+out/
+dist/
+build/
+src/generated/
+data/
+.pnpm-store/
+test-results/
+playwright-report/
+pnpm-lock.yaml
+*.tsbuildinfo
+.env*
