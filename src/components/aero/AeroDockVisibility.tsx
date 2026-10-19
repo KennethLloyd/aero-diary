@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 
-export type AeroDockHideReason = 'near-save' | 'photo-viewer' | 'chat-composer';
+export type AeroDockHideReason = 'near-save' | 'photo-viewer';
 
 type AeroDockVisibility = {
   hidden: boolean

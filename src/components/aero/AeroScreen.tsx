@@ -3,21 +3,23 @@ import { Suspense } from 'react';
 import { AeroDock } from '@/components/aero/AeroDock';
 import { AeroDockVisibilityProvider } from '@/components/aero/AeroDockVisibility';
 import { AppLockMonitor } from '@/components/auth/AppLockMonitor';
-import { isPrivateAeroAiUser } from '@/lib/aero-ai/access';
 import { verifySession } from '@/lib/dal';
 
 export function AeroScreen({
   children,
   hideDockNearSave = false,
+  showDock = true,
 }: {
-  children: ReactNode
-  hideDockNearSave?: boolean
+  children: ReactNode;
+  hideDockNearSave?: boolean;
+  showDock?: boolean;
 }) {
   return (
     <AeroDockVisibilityProvider hideDockNearSave={hideDockNearSave}>
       <div className="aero-screen">
         <div className="aero-screen-content">{children}</div>
-        <Suspense fallback={<AeroDock />}>
+        {showDock ? <AeroDock /> : null}
+        <Suspense fallback={null}>
           <AeroShellControls />
         </Suspense>
       </div>
@@ -27,13 +29,5 @@ export function AeroScreen({
 
 async function AeroShellControls() {
   const session = await verifySession();
-  const aeroAiEnabled = await isPrivateAeroAiUser(session.userId);
-  return (
-    <>
-      {session.appLockEnabled ? (
-        <AppLockMonitor timeoutMinutes={session.appLockTimeoutMinutes} />
-      ) : null}
-      <AeroDock appLockEnabled={session.appLockEnabled} aeroAiEnabled={aeroAiEnabled} />
-    </>
-  );
+  return session.appLockEnabled ? <AppLockMonitor timeoutMinutes={session.appLockTimeoutMinutes} /> : null;
 }

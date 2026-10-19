@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { lockApp } from '@/actions/app-lock';
 import { useAeroDockVisibility } from '@/components/aero/AeroDockVisibility';
 
 // Bottom navigation for the journal screens with icons + labels.
@@ -10,12 +9,12 @@ const DOCK_ITEMS = [
   { href: '/timeline', label: 'Timeline', icon: '📖', match: (path: string) => path === '/timeline' || path.startsWith('/timeline/') },
   { href: '/calendar', label: 'Calendar', icon: '📅', match: (path: string) => path === '/calendar' },
   { href: '/insights', label: 'Insights', icon: '📊', match: (path: string) => path === '/insights' },
-  { href: '/aero-ai', label: 'Aero AI', icon: '💬', match: (path: string) => path === '/aero-ai' },
+  { href: '/aero-ai', label: 'Aero AI', icon: null, match: (path: string) => path === '/aero-ai' },
   // Activities management lives under Settings, so it keeps Settings lit.
   { href: '/settings', label: 'Settings', icon: '⚙️', match: (path: string) => path === '/settings' || path.startsWith('/activities') },
 ];
 
-export function AeroDock({ appLockEnabled = false, aeroAiEnabled = false }: { appLockEnabled?: boolean; aeroAiEnabled?: boolean }) {
+export function AeroDock() {
   const pathname = usePathname();
   const { hidden } = useAeroDockVisibility();
 
@@ -26,7 +25,7 @@ export function AeroDock({ appLockEnabled = false, aeroAiEnabled = false }: { ap
       inert={hidden || undefined}
       aria-label="Main navigation"
     >
-      {DOCK_ITEMS.filter((item) => item.href !== '/aero-ai' || aeroAiEnabled).map((item) => {
+      {DOCK_ITEMS.map((item) => {
         const isActive = item.match(pathname);
         return (
           <Link
@@ -37,20 +36,12 @@ export function AeroDock({ appLockEnabled = false, aeroAiEnabled = false }: { ap
             className={`dock-item ${isActive ? 'active' : ''}`}
           >
             <span className="dock-icon-wrap" aria-hidden="true">
-              {item.icon}
+              {item.icon ?? <span className="aero-ai-avatar h-6 w-6 border-2" />}
             </span>
             <span className="dock-label">{item.label}</span>
           </Link>
         );
       })}
-      {appLockEnabled ? (
-        <form action={lockApp}>
-          <button type="submit" className="dock-item" aria-label="Lock Aero Diary">
-            <span className="dock-icon-wrap" aria-hidden="true">🔒</span>
-            <span className="dock-label">Lock</span>
-          </button>
-        </form>
-      ) : null}
     </nav>
   );
 }

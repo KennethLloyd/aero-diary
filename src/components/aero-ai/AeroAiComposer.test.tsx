@@ -7,7 +7,6 @@ const props = {
   onChange: vi.fn(),
   onSubmit: vi.fn((event) => event.preventDefault()),
   onStop: vi.fn(),
-  onFocusChange: vi.fn(),
   sending: false,
   disabled: false,
 };

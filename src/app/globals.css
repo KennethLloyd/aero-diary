@@ -395,6 +395,22 @@
   /* ----------------------------------------------------
      GLOSSY MOOD ORBS
      ---------------------------------------------------- */
+  /* Aero AI identity shared by chat and navigation. */
+  .aero-ai-avatar {
+    display: block;
+    flex-shrink: 0;
+    width: 33px;
+    height: 33px;
+    border-radius: 50%;
+    border: 3px solid #e8fbff;
+    background:
+      radial-gradient(ellipse 80% 48% at 36% 20%, #fff 0%, #cffdffba 24%, #6cf6ff00 70%),
+      radial-gradient(circle at 66% 90%, #e2ff58 0%, #7ede5c 22%, #1ec4b0 39%, #008bcc 64%, #1553b0 85%);
+    box-shadow:
+      inset 0 1px 4px #052e6a66,
+      0 0 0 1px #8dc9e0b3,
+      0 2px 5px #26749633;
+  }
   .aero-orb {
     width: 48px;
     height: 48px;

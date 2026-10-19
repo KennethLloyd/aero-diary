@@ -18,7 +18,7 @@ export default async function AeroAiPage({ searchParams }: AeroAiPageProps) {
   return (
     <>
       <AeroBubbles />
-      <AeroScreen>
+      <AeroScreen showDock={false}>
         <AeroAiClient initialThreadId={initialThreadId} />
       </AeroScreen>
     </>

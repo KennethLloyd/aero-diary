@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react';
 import { AeroTitle } from '@/components/aero/AeroTitle';
 import { AeroDialog } from '@/components/aero/AeroDialog';
-import { useAeroDockHidden } from '@/components/aero/AeroDockVisibility';
+import { useRouter } from 'next/navigation';
 import { AeroAiComposer } from './AeroAiComposer';
 import { AeroAiHistory, type ChatThread } from './AeroAiHistory';
 import { AssistantMessage } from './AssistantMessage';
@@ -41,7 +41,6 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
   const [loadingThread, setLoadingThread] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
-  const [composing, setComposing] = useState(false);
   const [showJump, setShowJump] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -53,7 +52,7 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
   const activeRequest = useRef<ActiveRequest | null>(null);
   const threadIdRef = useRef<string | null>(null);
   const blankChatRequested = useRef(false);
-  useAeroDockHidden('chat-composer', composing || deleteOpen);
+  const router = useRouter();
 
   const loadThreads = useCallback(async () => {
     const data = await requestJson<Thread[]>('/api/aero-ai/threads');
@@ -118,7 +117,6 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
       pageRef.current?.style.setProperty('--chat-viewport-top', `${viewport?.offsetTop ?? 0}px`);
       if (!mobile.matches) {
         drawerRef.current?.close();
-        setComposing(false);
       }
     }
     resize();
@@ -361,8 +359,39 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
   );
 
   return (
-    <main ref={pageRef} className={`${styles.page} ${composing ? styles.composing : ''}`}>
+    <main ref={pageRef} className={styles.page}>
       <header className={styles.pageHeader}>
+        <button
+          type="button"
+          className={`aero-btn aero-btn-white ${styles.backButton}`}
+          aria-label="Back to previous page"
+          onClick={() => {
+            blankChatRequested.current = true;
+            threadIdRef.current = null;
+            const canGoBack =
+              window.navigation?.canGoBack ??
+              Boolean(document.referrer && new URL(document.referrer).origin === window.location.origin);
+            if (canGoBack) router.back();
+            else router.replace('/timeline');
+          }}
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d="m14 6-6 6 6 6" />
+          </svg>
+        </button>
+        <AeroTitle className={styles.title}>Aero AI</AeroTitle>
+        <span className={styles.tagline}>Ask questions about your journal and get answers based on what you’ve written.</span>
         <button
           type="button"
           className={`aero-btn aero-btn-white ${styles.historyToggle}`}
@@ -372,8 +401,6 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
         >
           ☰
         </button>
-        <AeroTitle className={styles.title}>Aero AI</AeroTitle>
-        <span className={styles.tagline}>Your memories, in conversation</span>
         <button
           type="button"
           className={`aero-btn ${styles.mobileNew}`}
@@ -391,9 +418,9 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
         </aside>
         <section className={`aero-card ${styles.conversation}`} aria-label="Conversation">
           <header className={styles.conversationHeader}>
-            <span className={styles.orb} aria-hidden="true" />
+            <span className={`aero-ai-avatar ${styles.orb}`} aria-hidden="true" />
             <div className={styles.conversationHeading}>
-              <h2 title={selectedThread?.title}>{selectedThread?.title ?? 'A little room to reflect'}</h2>
+              <h2 title={selectedThread?.title}>{selectedThread?.title ?? 'New chat'}</h2>
               <p>
                 {sending
                   ? 'Replying…'
@@ -403,36 +430,33 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
               </p>
             </div>
             {threadId ? (
-              <details
-                className={styles.actions}
-                onBlur={(event) => {
-                  if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false;
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === 'Escape') {
-                    event.currentTarget.open = false;
-                    event.currentTarget.querySelector('summary')?.focus();
-                  }
+              <button
+                type="button"
+                className={`aero-btn aero-btn-white ${styles.options}`}
+                aria-label="Delete chat"
+                aria-haspopup="dialog"
+                title="Delete chat"
+                disabled={sending || deleting}
+                onClick={() => {
+                  setError('');
+                  setDeleteOpen(true);
                 }}
               >
-                <summary className={`aero-btn aero-btn-white ${styles.options}`} aria-label="Chat options">
-                  ⋯
-                </summary>
-                <div className={styles.actionPanel}>
-                  <button
-                    type="button"
-                    disabled={sending || deleting}
-                    className="aero-menu-item aero-menu-item-danger"
-                    onClick={(event) => {
-                      event.currentTarget.closest('details')?.removeAttribute('open');
-                      setError('');
-                      setDeleteOpen(true);
-                    }}
-                  >
-                    Delete chat
-                  </button>
-                </div>
-              </details>
+                <svg
+                  width="19"
+                  height="19"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" />
+                </svg>
+              </button>
             ) : null}
           </header>
 
@@ -458,7 +482,7 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
                 ) : null}
                 {!loadingThread && !loadingThreads && !turns.length ? (
                   <div className={styles.welcome}>
-                    <span className={styles.welcomeOrb} aria-hidden="true" />
+                    <span className={`aero-ai-avatar ${styles.welcomeOrb}`} aria-hidden="true" />
                     <h3>What’s on your mind?</h3>
                     <p>
                       Revisit a memory, find a journal entry,
@@ -475,7 +499,7 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
                   >
                     <div className={styles.userMessage}>{turn.userContent}</div>
                     <div className={styles.assistantRow}>
-                      <span className={styles.orb} aria-hidden="true" />
+                      <span className={`aero-ai-avatar ${styles.orb}`} aria-hidden="true" />
                       <div className={styles.assistantBody}>
                         <span className="sr-only">Aero AI: </span>
                         {turn.assistantContent ? (
@@ -552,9 +576,6 @@ export function AeroAiClient({ initialThreadId }: { initialThreadId?: string }) 
             onChange={setDraft}
             onSubmit={submit}
             onStop={() => activeRequest.current?.controller.abort()}
-            onFocusChange={(focused) =>
-              setComposing(focused && window.matchMedia('(max-width: 767px)').matches)
-            }
             sending={sending}
             disabled={loadingThread || loadingThreads || deleting || (isBusy && !sending)}
           />

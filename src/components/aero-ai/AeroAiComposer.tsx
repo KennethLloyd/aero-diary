@@ -8,7 +8,6 @@ export function AeroAiComposer({
   onChange,
   onSubmit,
   onStop,
-  onFocusChange,
   sending,
   disabled,
 }: {
@@ -16,7 +15,6 @@ export function AeroAiComposer({
   onChange: (value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onStop: () => void;
-  onFocusChange: (focused: boolean) => void;
   sending: boolean;
   disabled: boolean;
 }) {
@@ -46,14 +44,7 @@ export function AeroAiComposer({
   }
 
   return (
-    <form
-      onSubmit={onSubmit}
-      className={styles.composerArea}
-      onFocus={() => onFocusChange(true)}
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) onFocusChange(false);
-      }}
-    >
+    <form onSubmit={onSubmit} className={styles.composerArea}>
       <div className={styles.composer}>
         <label htmlFor="aero-ai-message" className="sr-only">
           Message Aero AI
@@ -69,13 +60,8 @@ export function AeroAiComposer({
           placeholder="Message Aero AI…"
           className={styles.textarea}
           disabled={disabled}
-          aria-describedby="aero-ai-composer-hint"
         />
         <div className={styles.composerFooter}>
-          <span id="aero-ai-composer-hint" className={styles.composerHint}>
-            <span className={styles.desktopHint}>Enter to send · Shift + Enter for a new line</span>
-            <span className={styles.mobileHint}>A little room to reflect</span>
-          </span>
           <span className={styles.characterCount} aria-live="off">
             {draft.length > 3600 ? `${draft.length.toLocaleString()} / 4,000` : ''}
           </span>

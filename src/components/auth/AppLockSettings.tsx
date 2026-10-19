@@ -5,6 +5,7 @@ import {
   changeAppLockPin,
   disableAppLock,
   enableAppLock,
+  lockApp,
   updateAppLockTimeout,
   type AppLockState,
 } from '@/actions/app-lock';
@@ -106,9 +107,16 @@ export function AppLockSettings({
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-xs font-semibold text-emerald-700" role="status">
-        App Lock is enabled for this account.
-      </p>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-semibold text-emerald-700" role="status">
+          App Lock is enabled for this account.
+        </p>
+        <form action={lockApp}>
+          <button type="submit" className="aero-btn aero-btn-white shrink-0 px-3 text-sm" aria-label="Lock Aero Diary">
+            Lock now
+          </button>
+        </form>
+      </div>
 
       <form action={pinAction} className="flex flex-col gap-2">
         <label htmlFor="change-app-lock-pin" className="text-xs font-bold text-[#0a2f5c]">

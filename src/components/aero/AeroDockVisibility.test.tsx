@@ -66,19 +66,12 @@ describe('AeroDockVisibilityProvider', () => {
     expect(dock).not.toHaveAttribute('inert');
   });
 
-  it('shows Aero AI only when the signed-in account can use it', () => {
-    const { rerender } = render(
+  it('includes Aero AI in the standard dock without an access-dependent flag', () => {
+    render(
       <AeroDockVisibilityProvider>
-        <AeroDock aeroAiEnabled={false} />
+        <AeroDock />
       </AeroDockVisibilityProvider>,
     );
-    expect(screen.queryByRole('link', { name: 'Aero AI' })).not.toBeInTheDocument();
-
-    rerender(
-      <AeroDockVisibilityProvider>
-        <AeroDock aeroAiEnabled />
-      </AeroDockVisibilityProvider>,
-    );
-    expect(screen.getByRole('link', { name: 'Aero AI' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Aero AI' })).toHaveAttribute('href', '/aero-ai');
   });
 });

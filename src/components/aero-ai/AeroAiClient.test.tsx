@@ -2,6 +2,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AeroAiClient } from './AeroAiClient';
 
+vi.mock('next/navigation', () => ({ useRouter: () => ({ back: vi.fn(), replace: vi.fn() }) }));
+
 const saved = {
   id: 'saved',
   title: 'Saved conversation',
@@ -84,8 +86,6 @@ describe('AeroAiClient blank chats', () => {
     render(<AeroAiClient />);
     await screen.findByText('Earlier reply');
     expect(screen.queryByRole('button', { name: 'Delete Saved conversation' })).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Chat options').closest('details')).not.toHaveAttribute('open');
-    fireEvent.click(screen.getByLabelText('Chat options'));
     expect(screen.getByRole('button', { name: 'Delete chat' })).toBeInTheDocument();
     for (let i = 0; i < 3; i++) fireEvent.click(screen.getAllByRole('button', { name: 'New chat' })[0]);
     expect(screen.queryByText('Earlier reply')).not.toBeInTheDocument();

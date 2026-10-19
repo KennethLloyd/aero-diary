@@ -6,7 +6,7 @@
   width: 100%;
   max-width: 1560px;
   margin-inline: auto;
-  padding: max(14px, env(safe-area-inset-top)) 20px var(--aero-page-bottom);
+  padding: max(14px, env(safe-area-inset-top)) 20px max(14px, env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -20,6 +20,12 @@
   min-height: 42px;
   padding-inline: 10px;
   flex-shrink: 0;
+}
+.backButton {
+  width: 42px;
+  min-height: 42px;
+  padding: 0;
+  border-radius: 50%;
 }
 .title {
   font-size: 30px;
@@ -194,27 +200,8 @@
   color: #46648c;
   margin-top: 2px;
 }
-.orb,
-.welcomeOrb {
-  display: block;
-  flex-shrink: 0;
-  width: 33px;
-  height: 33px;
-  border-radius: 50%;
-  border: 3px solid #e8fbff;
-  background:
-    radial-gradient(ellipse 80% 48% at 36% 20%, #fff 0%, #cffdffba 24%, #6cf6ff00 70%),
-    radial-gradient(circle at 66% 90%, #e2ff58 0%, #7ede5c 22%, #1ec4b0 39%, #008bcc 64%, #1553b0 85%);
-  box-shadow:
-    inset 0 1px 4px #052e6a66,
-    0 0 0 1px #8dc9e0b3,
-    0 2px 5px #26749633;
-}
-.actions {
-  position: relative;
-  flex: none;
-}
 .options {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -224,21 +211,6 @@
   border-radius: 13px;
   font-size: 24px;
   list-style: none;
-}
-.options::-webkit-details-marker {
-  display: none;
-}
-.actionPanel {
-  position: absolute;
-  top: calc(100% + 7px);
-  right: 0;
-  z-index: 5;
-  min-width: 150px;
-  padding: 5px;
-  border: 1px solid #a6c8df;
-  border-radius: 10px;
-  background: #f1faff;
-  box-shadow: 0 8px 24px #143e6626;
 }
 .messageRegion {
   position: relative;
@@ -552,23 +524,15 @@
 }
 .composerFooter {
   display: flex;
+  justify-content: flex-end;
   align-items: center;
   gap: 8px;
   min-height: 40px;
   margin-top: 5px;
 }
-.composerHint {
-  flex: 1;
-  font-size: 11px;
-  line-height: 1.5;
-  color: #607c98;
-}
 .characterCount {
   font-size: 11px;
   color: #607c98;
-}
-.mobileHint {
-  display: none;
 }
 .send {
   width: 42px;
@@ -648,7 +612,7 @@
 }
 @media (max-width: 767px) {
   .page {
-    padding: max(7px, env(safe-area-inset-top)) 7px var(--aero-page-bottom);
+    padding: max(7px, env(safe-area-inset-top)) 7px max(7px, env(safe-area-inset-bottom));
     gap: 6px;
   }
   .pageHeader {
@@ -663,6 +627,11 @@
   }
   .tagline {
     display: none;
+  }
+  .backButton {
+    width: 42px;
+    min-height: 42px;
+    padding: 0;
   }
   .historyToggle,
   .mobileNew {
@@ -740,15 +709,6 @@
   }
   .composerFooter {
     margin-top: 3px;
-  }
-  .desktopHint {
-    display: none;
-  }
-  .mobileHint {
-    display: inline;
-  }
-  .composing {
-    padding-bottom: max(7px, env(safe-area-inset-bottom));
   }
   .welcome h3 {
     font-size: 21px;

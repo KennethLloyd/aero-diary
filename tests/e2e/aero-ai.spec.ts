@@ -65,6 +65,8 @@ test.describe('Aero AI chat experience', () => {
       await page.goto('/aero-ai');
       const composer = page.getByRole('textbox', { name: 'Message Aero AI', exact: true });
       await expect(composer).toBeEnabled();
+      await expect(page.getByRole('navigation', { name: 'Main navigation' })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Back to previous page' })).toBeVisible();
       const messages = page.getByRole('region', { name: 'Messages', exact: true });
       await expect
         .poll(() => messages.evaluate((node) => node.scrollHeight - node.scrollTop - node.clientHeight))
@@ -122,12 +124,39 @@ test.describe('Aero AI chat experience', () => {
         await expect(drawer).not.toBeVisible();
         await expect(page.getByRole('button', { name: 'Open chat history' })).toBeFocused();
       } else {
-        await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible();
+        await expect(page.getByRole('navigation', { name: 'Main navigation' })).toHaveCount(0);
         await page.getByRole('searchbox', { name: 'Search conversations' }).fill('absent');
         await expect(page.getByText('No conversations match your search.')).toBeVisible();
       }
     });
   }
+
+  test('Back returns to the previous page and falls back to Timeline on a direct visit', async ({
+    page,
+    context,
+  }) => {
+    await page.goto('/calendar');
+    await page.getByRole('link', { name: 'Aero AI', exact: true }).click();
+    await page.getByRole('button', { name: 'Back to previous page' }).click();
+    await expect(page).toHaveURL(/\/calendar$/);
+    await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible();
+
+    const direct = await context.newPage();
+    let releaseChats!: () => void;
+    const chatsPending = new Promise<void>((resolve) => {
+      releaseChats = resolve;
+    });
+    await direct.route('**/api/aero-ai/threads', async (route) => {
+      await chatsPending;
+      await route.fulfill({ json: [thread] }).catch(() => {});
+    });
+    await direct.goto('/aero-ai');
+    await expect(direct.getByRole('navigation', { name: 'Main navigation' })).toHaveCount(0);
+    await direct.getByRole('button', { name: 'Back to previous page' }).click();
+    releaseChats();
+    await expect(direct).toHaveURL(/\/timeline$/);
+    await direct.close();
+  });
 
   test('keeps a reader in place when a reply arrives and can jump to the latest', async ({ page }) => {
     let release!: () => void;
@@ -182,7 +211,6 @@ test.describe('Aero AI chat experience', () => {
     await expect(page.getByText('A fresh reply.', { exact: true })).toBeVisible();
     expect(requests).toHaveLength(2);
     expect(requests[1]).toEqual(requests[0]);
-    await page.getByLabel('Chat options', { exact: true }).click();
     await page.getByRole('button', { name: 'Delete chat', exact: true }).click();
     const confirmation = page.getByRole('dialog', { name: 'Delete chat?' });
     await expect(confirmation.getByRole('button', { name: 'Cancel' })).toBeFocused();
@@ -193,7 +221,6 @@ test.describe('Aero AI chat experience', () => {
       deleted = route.request().method() === 'DELETE';
       await route.fulfill({ json: { deleted: true } });
     });
-    await page.getByLabel('Chat options', { exact: true }).click();
     await page.getByRole('button', { name: 'Delete chat', exact: true }).click();
     await confirmation.getByRole('button', { name: 'Delete chat', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'What’s on your mind?' })).toBeVisible();
