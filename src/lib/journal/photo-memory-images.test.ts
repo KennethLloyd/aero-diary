@@ -98,6 +98,26 @@ describe('photo normalization', () => {
     expect(store.download).toHaveBeenCalledWith('photos/a.jpg', 'file', expect.any(AbortSignal));
   });
 
+  it('preserves the original download exception as the failure cause', async () => {
+    const cause = Object.assign(new Error('Drive unavailable'), { code: 'ECONNRESET' });
+    const store: PhotoStore = {
+      upload: vi.fn(),
+      resolve: vi.fn(),
+      delete: vi.fn(),
+      deleteById: vi.fn(),
+      download: vi.fn().mockRejectedValue(cause),
+    };
+
+    const result = downloadAndNormalizePhoto(store, {
+      drivePath: 'photos/a.jpg',
+      driveFileId: 'file',
+      mimeType: 'image/jpeg',
+      sizeBytes: null,
+    });
+
+    await expect(result).rejects.toMatchObject({ code: 'DRIVE_DOWNLOAD', cause });
+  });
+
   it('invalidates sources changed with the same identity', () => {
     const source = {
       id: 'p',

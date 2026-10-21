@@ -28,8 +28,9 @@ export class PhotoMemoryError extends Error {
     public readonly code: string,
     message: string,
     public readonly retryable = false,
+    options?: ErrorOptions,
   ) {
-    super(message);
+    super(message, options);
     this.name = 'PhotoMemoryError';
   }
 }
@@ -135,12 +136,16 @@ export async function normalizeMemoryPhoto(
       throw new PhotoMemoryError(
         'PIXEL_LIMIT',
         'Photo exceeds the configured decoded-pixel safety ceiling.',
+        false,
+        { cause: error },
       );
     }
 
     throw new PhotoMemoryError(
       'INVALID_IMAGE',
       'Photo could not be safely decoded as JPEG or PNG.',
+      false,
+      { cause: error },
     );
   }
 }
@@ -202,6 +207,7 @@ export async function downloadAndNormalizePhoto(
       'DRIVE_DOWNLOAD',
       'Private photo download failed or timed out.',
       true,
+      { cause: error },
     );
   } finally {
     signal.removeEventListener('abort', abort);

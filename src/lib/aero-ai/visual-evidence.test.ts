@@ -1,10 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { JournalMemoryResult } from '@/lib/journal/memory-selection';
+import { DriveConfigurationError } from '@/lib/drive/store';
+import { PhotoMemoryError } from '@/lib/journal/photo-memory-images';
 
 const mocks = vi.hoisted(() => ({ findFirst: vi.fn(), normalize: vi.fn(), store: vi.fn() }));
 vi.mock('@/lib/db', () => ({ db: { photo: { findFirst: mocks.findFirst } } }));
 vi.mock('@/lib/drive/server-store', () => ({ getPhotoStore: mocks.store }));
-vi.mock('@/lib/journal/photo-memory-images', () => ({
+vi.mock('@/lib/journal/photo-memory-images', async (original) => ({
+  ...(await original<typeof import('@/lib/journal/photo-memory-images')>()),
   downloadAndNormalizePhoto: mocks.normalize,
 }));
 
@@ -35,6 +38,8 @@ const photo = {
 describe('private visual evidence', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    mocks.store.mockReset().mockReturnValue({});
     vi.stubEnv('PHOTO_MEMORY_ENABLED', 'true');
     vi.stubEnv('PHOTO_VISION_ENABLED', 'true');
     vi.stubEnv('PHOTO_VISION_MAX_IMAGES', '3');
@@ -42,7 +47,10 @@ describe('private visual evidence', () => {
     mocks.normalize.mockResolvedValue({ bytes: Buffer.from('normalized-jpeg') });
   });
 
-  afterEach(() => vi.unstubAllEnvs());
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
 
   it('bounds image forwarding and rechecks ownership and source after each private download', async () => {
     const result = await visualEvidenceMessage('owner-1', evidence);
@@ -102,10 +110,99 @@ describe('private visual evidence', () => {
     },
   );
 
-  it('keeps text replies available when Drive or normalization fails', async () => {
-    mocks.normalize.mockRejectedValue(new Error('Invalid private image'));
+  it('logs the underlying Drive failure while preserving text fallback and private data', async () => {
+    vi.stubEnv('PHOTO_VISION_MAX_IMAGES', '1');
+    const cause = Object.assign(
+      new Error('Request to https://drive.example/private failed: SECRET'),
+      {
+        name: 'GaxiosError',
+        code: 403,
+        status: 403,
+        config: { headers: { authorization: 'Bearer SECRET' } },
+        response: { data: 'PRIVATE_IMAGE' },
+      },
+    );
+    mocks.normalize.mockRejectedValue(
+      new PhotoMemoryError('DRIVE_DOWNLOAD', 'Private photo download failed or timed out.', true, {
+        cause,
+      }),
+    );
 
-    expect(await visualEvidenceMessage('owner-1', evidence)).toBeNull();
+    const result = await visualEvidenceMessage('owner-1', evidence);
+
+    expect(result).toBeNull();
+    expect(console.warn).toHaveBeenCalledOnce();
+    expect(console.warn).toHaveBeenCalledWith(
+      'Photo forwarding failed; continuing with text evidence.',
+      {
+        code: 'PHOTO_FORWARDING_FAILED',
+        photoId: 'photo-0',
+        entryId: 'entry-1',
+        stage: 'download_or_normalization',
+        error: {
+          name: 'PhotoMemoryError',
+          code: 'DRIVE_DOWNLOAD',
+          message: 'Private photo download failed or timed out.',
+          cause: { name: 'GaxiosError', code: 403, status: 403 },
+        },
+      },
+    );
+    const logged = JSON.stringify(vi.mocked(console.warn).mock.calls);
+    expect(logged).not.toContain('SECRET');
+    expect(logged).not.toContain('PRIVATE_IMAGE');
+    expect(logged).not.toContain('https://drive.example');
+  });
+
+  it('identifies missing Drive configuration without blocking text replies', async () => {
+    vi.stubEnv('PHOTO_VISION_MAX_IMAGES', '1');
+    mocks.store.mockImplementation(() => {
+      throw new DriveConfigurationError();
+    });
+
+    const result = await visualEvidenceMessage('owner-1', evidence);
+
+    expect(result).toBeNull();
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        stage: 'drive_configuration',
+        error: {
+          name: 'DriveConfigurationError',
+          message: 'Google Drive photo storage is not configured.',
+        },
+      }),
+    );
+  });
+
+  it('identifies a failed source recheck without exposing database query contents', async () => {
+    vi.stubEnv('PHOTO_VISION_MAX_IMAGES', '1');
+    const error = Object.assign(new Error('Query contained PRIVATE_NOTE'), { code: 'P1001' });
+    mocks.findFirst.mockResolvedValueOnce(photo).mockRejectedValueOnce(error);
+
+    const result = await visualEvidenceMessage('owner-1', evidence);
+
+    expect(result).toBeNull();
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        stage: 'source_recheck',
+        error: { name: 'Error', code: 'P1001' },
+      }),
+    );
+    expect(JSON.stringify(vi.mocked(console.warn).mock.calls)).not.toContain('PRIVATE_NOTE');
+  });
+
+  it('propagates request cancellation without reporting a photo failure', async () => {
+    const controller = new AbortController();
+    const error = new Error('Request cancelled');
+    mocks.normalize.mockImplementationOnce(async () => {
+      controller.abort();
+      throw error;
+    });
+
+    await expect(visualEvidenceMessage('owner-1', evidence, controller.signal)).rejects.toBe(error);
+
+    expect(console.warn).not.toHaveBeenCalled();
   });
 
   it('deduplicates repeated evidence and re-fetches the photo on a subsequent turn', async () => {

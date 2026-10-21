@@ -29,6 +29,14 @@ safe photo/entry references from the latest retrieval, preserving its ranking, a
 recheck ownership/source state before sending freshly downloaded images. Image
 payloads never enter chat evidence storage or summaries.
 
+Photo forwarding failures emit a server warning with `PHOTO_FORWARDING_FAILED`,
+photo/entry IDs, the failed step, and the exception's diagnostic fields. Download
+and decode errors retain their original exception as `cause`. Application-defined
+messages are logged; provider/database causes expose their type, code, and HTTP
+status when available. Raw SDK messages, request/response objects, private URLs,
+credentials, and image bytes are excluded. Request cancellation is propagated
+without a warning, and text-only fallback behavior is unchanged.
+
 ## Read-only inspection
 
 Both commands require an explicit owner. They default to a dry run and inspect at
