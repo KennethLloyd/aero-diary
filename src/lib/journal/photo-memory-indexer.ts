@@ -80,21 +80,19 @@ export async function processJournalPhotoMemory(
     vector = await (dependencies.embed ?? embedJournalPhoto)(normalized);
     journalVectorLiteral(vector);
   } catch (error) {
-    const inferenceFailure = error instanceof MemoryEmbeddingError;
-    status = inferenceFailure
-      ? 'PAUSED'
-      : error instanceof PhotoMemoryError && !error.retryable
-        ? 'SKIPPED'
-        : 'FAILED';
-    errorCode = inferenceFailure
-      ? `EMBEDDING_${error.code}`
-      : error instanceof PhotoMemoryError
-        ? error.code
-        : 'PHOTO_PROCESSING';
-    errorMessage =
-      error instanceof PhotoMemoryError || inferenceFailure
-        ? error.message
-        : 'Photo processing failed; check worker configuration and retry explicitly.';
+    if (error instanceof MemoryEmbeddingError) {
+      status = 'PAUSED';
+      errorCode = `EMBEDDING_${error.code}`;
+      errorMessage = error.message;
+    } else if (error instanceof PhotoMemoryError) {
+      status = error.retryable ? 'FAILED' : 'SKIPPED';
+      errorCode = error.code;
+      errorMessage = error.message;
+    } else {
+      status = 'FAILED';
+      errorCode = 'PHOTO_PROCESSING';
+      errorMessage = 'Photo processing failed; check worker configuration and retry explicitly.';
+    }
   }
 
   return database.$transaction(async (transaction) => {
@@ -140,6 +138,9 @@ export async function processJournalPhotoMemory(
       UPDATE "JournalPhotoMemory" SET "embedding" = ${vector ? journalVectorLiteral(vector) : null}::vector WHERE "photoId" = ${photoId}
     `);
 
-    return status === 'INDEXED' ? 'indexed' : status === 'PAUSED' ? 'paused' : 'failed';
+    if (status === 'INDEXED') return 'indexed';
+    if (status === 'PAUSED') return 'paused';
+
+    return 'failed';
   });
 }

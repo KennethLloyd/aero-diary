@@ -84,8 +84,8 @@ async function requestEmbeddings(
   inputs: string[] | { image: string },
   fetcher: typeof fetch,
   externalSignal?: AbortSignal,
-  image = false,
 ): Promise<number[][]> {
+  const isImage = !Array.isArray(inputs);
   let response: Response;
 
   try {
@@ -97,14 +97,14 @@ async function requestEmbeddings(
         input: inputs,
         truncate: false,
         keep_alive: keepAlive(),
-        ...(image ? { options: { num_thread: getPhotoMemoryConfig().inferenceThreads } } : {}),
+        ...(isImage ? { options: { num_thread: getPhotoMemoryConfig().inferenceThreads } } : {}),
       }),
       signal: externalSignal
         ? AbortSignal.any([
             externalSignal,
-            AbortSignal.timeout(image ? getPhotoMemoryConfig().inferenceTimeoutMs : timeoutMs()),
+            AbortSignal.timeout(isImage ? getPhotoMemoryConfig().inferenceTimeoutMs : timeoutMs()),
           ])
-        : AbortSignal.timeout(image ? getPhotoMemoryConfig().inferenceTimeoutMs : timeoutMs()),
+        : AbortSignal.timeout(isImage ? getPhotoMemoryConfig().inferenceTimeoutMs : timeoutMs()),
     });
   } catch {
     throw new MemoryEmbeddingError(
@@ -237,7 +237,6 @@ export async function embedJournalPhoto(
     { image: photo.bytes.toString('base64') },
     fetcher,
     signal,
-    true,
   );
   if (!embedding)
     throw new MemoryEmbeddingError('INVALID_RESPONSE', 'No image vector was returned.');

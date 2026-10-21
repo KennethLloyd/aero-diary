@@ -72,14 +72,20 @@ describe('photo indexing', () => {
   it('is disabled by default and does not touch photos', async () => {
     vi.stubEnv('PHOTO_INDEXING_ENABLED', 'false');
     const { db, mocks } = database();
-    expect(await processJournalPhotoMemory(db, 'photo', 'owner')).toBe('disabled');
+
+    const result = await processJournalPhotoMemory(db, 'photo', 'owner');
+
+    expect(result).toBe('disabled');
     expect(mocks.photo.findFirst).not.toHaveBeenCalled();
   });
 
   it('normalizes before inference and persists only after revalidating source', async () => {
     const { db, mocks, transaction } = database();
     const deps = await dependencies();
-    expect(await processJournalPhotoMemory(db, 'photo', 'owner', deps)).toBe('indexed');
+
+    const result = await processJournalPhotoMemory(db, 'photo', 'owner', deps);
+
+    expect(result).toBe('indexed');
     expect(mocks.photo.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: 'photo', entry: { userId: 'owner' } } }),
     );
@@ -105,7 +111,10 @@ describe('photo indexing', () => {
       preprocessingVersion: getPhotoMemoryPreprocessingVersion(),
     });
     const deps = await dependencies();
-    expect(await processJournalPhotoMemory(db, 'photo', 'owner', deps)).toBe('current');
+
+    const result = await processJournalPhotoMemory(db, 'photo', 'owner', deps);
+
+    expect(result).toBe('current');
     expect(deps.embed).not.toHaveBeenCalled();
     expect(deps.store.download).not.toHaveBeenCalled();
   });
@@ -115,24 +124,33 @@ describe('photo indexing', () => {
     transaction.$queryRaw.mockResolvedValue(
       state === 'deleted' ? [] : [{ ...photo, sourceVersion: 2 }],
     );
-    expect(await processJournalPhotoMemory(db, 'photo', 'owner', await dependencies())).toBe(
-      state === 'deleted' ? 'missing' : 'stale',
-    );
+    const deps = await dependencies();
+
+    const result = await processJournalPhotoMemory(db, 'photo', 'owner', deps);
+
+    expect(result).toBe(state === 'deleted' ? 'missing' : 'stale');
     expect(transaction.journalPhotoMemory.upsert).not.toHaveBeenCalled();
   });
 
-  it('records Drive failure without inference and malformed input as skipped', async () => {
+  it('records a failed Drive download without attempting inference', async () => {
     const { db, transaction } = database();
     const deps = await dependencies();
     vi.mocked(deps.store.download).mockRejectedValue(new Error('Drive unavailable'));
-    expect(await processJournalPhotoMemory(db, 'photo', 'owner', deps)).toBe('failed');
-    expect(transaction.journalPhotoMemory.upsert).toHaveBeenLastCalledWith(
+
+    const result = await processJournalPhotoMemory(db, 'photo', 'owner', deps);
+
+    expect(result).toBe('failed');
+    expect(transaction.journalPhotoMemory.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         create: expect.objectContaining({ status: 'FAILED', errorCode: 'DRIVE_DOWNLOAD' }),
       }),
     );
     expect(deps.embed).not.toHaveBeenCalled();
+  });
 
+  it('records a corrupt image as skipped without attempting inference', async () => {
+    const { db, transaction } = database();
+    const deps = await dependencies();
     vi.mocked(deps.store.download).mockResolvedValue(
       new ReadableStream({
         start(controller) {
@@ -141,28 +159,45 @@ describe('photo indexing', () => {
         },
       }),
     );
-    expect(await processJournalPhotoMemory(db, 'photo', 'owner', deps)).toBe('failed');
-    expect(transaction.journalPhotoMemory.upsert).toHaveBeenLastCalledWith(
+
+    const result = await processJournalPhotoMemory(db, 'photo', 'owner', deps);
+
+    expect(result).toBe('failed');
+    expect(transaction.journalPhotoMemory.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         create: expect.objectContaining({ status: 'SKIPPED', errorCode: 'INVALID_IMAGE' }),
       }),
     );
+    expect(deps.embed).not.toHaveBeenCalled();
   });
 
-  it('records inference pause, persists no vector and allows explicit resume', async () => {
-    const { db, mocks, transaction } = database();
+  it('persists inference failure as a pause without a vector', async () => {
+    const { db, transaction } = database();
     const deps = await dependencies();
     deps.embed.mockRejectedValue(new MemoryEmbeddingError('TRANSPORT', 'inference timeout'));
-    expect(await processJournalPhotoMemory(db, 'photo', 'owner', deps)).toBe('paused');
+
+    const result = await processJournalPhotoMemory(db, 'photo', 'owner', deps);
+
+    expect(result).toBe('paused');
     expect(transaction.journalPhotoMemory.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         create: expect.objectContaining({ status: 'PAUSED', errorCode: 'EMBEDDING_TRANSPORT' }),
       }),
     );
+    expect(transaction.$executeRaw.mock.calls[0][0].values).toContain(null);
+  });
+
+  it('requires explicit acknowledgement to clear a persistent pause', async () => {
+    const { db, mocks } = database();
     mocks.journalPhotoMemory.count.mockResolvedValue(1);
-    expect(await isPhotoIndexingPaused(db)).toBe(true);
+
+    const paused = await isPhotoIndexingPaused(db);
+
+    expect(paused).toBe(true);
+    expect(mocks.journalPhotoMemory.updateMany).not.toHaveBeenCalled();
 
     await resumePhotoIndexing(db);
+
     expect(mocks.journalPhotoMemory.updateMany).toHaveBeenCalledWith({
       where: { status: 'PAUSED' },
       data: { status: 'FAILED' },

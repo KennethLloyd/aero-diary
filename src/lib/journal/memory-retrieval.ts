@@ -58,9 +58,9 @@ export async function retrieveJournalMemoryForUser(
 
   const semanticCandidates =
     mode === 'relevance'
-      ? Prisma.sql`SELECT *, 0::int AS period FROM best_passages
+      ? Prisma.sql`SELECT *, 0::int AS period FROM best_entries
         ORDER BY distance, "journalDate" DESC, "entryId" LIMIT ${limit}`
-      : Prisma.sql`SELECT b.*, COALESCE(p.period, 0)::int AS period FROM best_passages b
+      : Prisma.sql`SELECT b.*, COALESCE(p.period, 0)::int AS period FROM best_entries b
         LEFT JOIN periods p USING ("entryId")
         ORDER BY b.distance, b."journalDate" DESC, b."entryId" LIMIT ${SEMANTIC_CANDIDATE_LIMIT}`;
 
@@ -113,7 +113,8 @@ export async function retrieveJournalMemoryForUser(
       WHERE ("sourceType" = 'text' AND source_rank = 1)
         OR ("sourceType" = 'photo' AND source_rank <= 3)
       GROUP BY "entryId"
-    ), best_passages AS (
+    ), best_entries AS (
+      -- Rank entries by their strongest source; retain the best passage text when available.
       SELECT DISTINCT ON (r."entryId")
         r."entryId", r."journalDate", r.mood, COALESCE(t.content, r.content) AS content, r.distance, g.sources
       FROM ranked_evidence r JOIN grouped_sources g USING ("entryId")
@@ -121,8 +122,8 @@ export async function retrieveJournalMemoryForUser(
         AND t."sourceType" = 'text' AND t.source_rank = 1
       ORDER BY r."entryId", r.distance, r."sourceType", r."passageIndex", r."photoId"
     ), relevant AS (
-      SELECT * FROM best_passages
-      WHERE distance <= (SELECT min(distance) FROM best_passages) + ${TEMPORAL_RELEVANCE_MARGIN}
+      SELECT * FROM best_entries
+      WHERE distance <= (SELECT min(distance) FROM best_entries) + ${TEMPORAL_RELEVANCE_MARGIN}
     ), periods AS (
       SELECT *, LEAST(2, FLOOR(
         3.0 * ("journalDate"::date - min("journalDate"::date) OVER ()) /
