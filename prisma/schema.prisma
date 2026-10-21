@@ -130,6 +130,30 @@ model Photo {
   mimeType  String
   sizeBytes Int?
   createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  sourceVersion Int @default(1)
+  memory JournalPhotoMemory?
+}
+
+model JournalPhotoMemory {
+  photoId String @id
+  entryId String
+  userId String
+  sourceHash String
+  sourceUpdatedAt DateTime
+  sourceVersion Int
+  contentHash String?
+  embeddingModel String
+  preprocessingVersion String
+  status String
+  errorCode String?
+  errorMessage String?
+  embedding Unsupported("vector(768)")?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  photo Photo @relation(fields: [photoId], references: [id], onDelete: Cascade)
+
+  @@index([userId, entryId])
 }
 
 model StagedPhoto {

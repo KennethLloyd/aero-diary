@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Mood } from '@/generated/prisma/enums';
 import { resetTestDb, testDb } from '@/test/test-db';
 import type { PhotoStore } from '@/lib/drive/store';
@@ -18,6 +18,7 @@ import {
   journalEmbeddingSourceHash,
 } from '@/lib/journal/memory-embeddings';
 import { JOURNAL_MEMORY_QUEUE } from '@/lib/journal/memory-queue';
+import { JOURNAL_PHOTO_MEMORY_QUEUE } from './photo-memory-queue';
 
 const mocks = vi.hoisted(() => ({
   deletePhoto: vi.fn(),
@@ -26,6 +27,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/lib/db', async () => {
   const { testDb } = await import('@/test/test-db');
+
   return { db: testDb };
 });
 vi.mock('@/lib/drive/server-store', () => ({ getPhotoStore: mocks.getPhotoStore }));
@@ -86,6 +88,41 @@ describe('entry workflow', () => {
     mocks.getPhotoStore.mockReturnValue(createStore());
   });
 
+  afterEach(() => vi.unstubAllEnvs());
+
+  it.each([false, true])(
+    'schedules only newly attached photos when indexing is %s',
+    async (enabled) => {
+      vi.stubEnv('PHOTO_INDEXING_ENABLED', String(enabled));
+      const user = await createUser();
+      const entry = await testDb.entry.create({
+        data: {
+          userId: user.id,
+          journalDate: '2026-08-18',
+          mood: Mood.GOOD,
+          note: 'Historical entry.',
+          photos: { create: { drivePath: 'photos/existing.jpg', mimeType: 'image/jpeg' } },
+        },
+        include: { photos: true },
+      });
+      const staged = await createStagedPhoto(user.id);
+
+      await updateEntryWorkflow(user.id, entry.id, updateInput(), {
+        draftKey: 'draft-1',
+        ids: [staged.id],
+      });
+
+      const jobs = await testDb.$queryRaw<
+        { data: { photoId: string; userId: string } }[]
+      >`SELECT data FROM pgboss.job WHERE name = ${JOURNAL_PHOTO_MEMORY_QUEUE} AND data->>'userId' = ${user.id}`;
+      const newPhoto = await testDb.photo.findFirstOrThrow({
+        where: { entryId: entry.id, id: { not: entry.photos[0].id } },
+      });
+      expect(jobs.map((job) => job.data.photoId)).toEqual(enabled ? [newPhoto.id] : []);
+      expect(jobs.some((job) => job.data.photoId === entry.photos[0].id)).toBe(false);
+    },
+  );
+
   it('creates an owned entry from typed input', async () => {
     const user = await createUser('ken@example.com');
     const activity = await testDb.activity.create({
@@ -120,12 +157,11 @@ describe('entry workflow', () => {
       },
     });
 
-    await expect(updateEntryWorkflow(
-      user.id,
-      entry.id,
-      updateInput({ activityIds: [activity.id] }),
-      { ids: [] },
-    )).resolves.toEqual({ id: entry.id });
+    await expect(
+      updateEntryWorkflow(user.id, entry.id, updateInput({ activityIds: [activity.id] }), {
+        ids: [],
+      }),
+    ).resolves.toEqual({ id: entry.id });
 
     await expect(testDb.entryActivity.findMany()).resolves.toEqual([
       { entryId: entry.id, activityId: activity.id },
@@ -152,15 +188,11 @@ describe('entry workflow', () => {
       },
     });
 
-    await updateEntryWorkflow(
-      user.id,
-      entry.id,
-      updateInput({ note: entry.note }),
-      { ids: [] },
-    );
+    await updateEntryWorkflow(user.id, entry.id, updateInput({ note: entry.note }), { ids: [] });
 
-    await expect(testDb.journalMemoryGeneration.findUnique({ where: { entryId: entry.id } }))
-      .resolves.toBeNull();
+    await expect(
+      testDb.journalMemoryGeneration.findUnique({ where: { entryId: entry.id } }),
+    ).resolves.toBeNull();
     const jobs = await testDb.$queryRaw<{ id: string }[]>`
       SELECT id::text AS "id"
       FROM pgboss.job
@@ -174,11 +206,9 @@ describe('entry workflow', () => {
   it('rejects a future journal date before writing', async () => {
     const user = await createUser();
 
-    await expect(createEntryWorkflow(
-      user.id,
-      createInput({ journalDate: '2999-01-01' }),
-      { ids: [] },
-    )).rejects.toBeInstanceOf(EntryDateInFutureError);
+    await expect(
+      createEntryWorkflow(user.id, createInput({ journalDate: '2999-01-01' }), { ids: [] }),
+    ).rejects.toBeInstanceOf(EntryDateInFutureError);
     expect(await testDb.entry.count()).toBe(0);
   });
 
@@ -189,11 +219,9 @@ describe('entry workflow', () => {
       data: { userId: otherUser.id, name: 'private', emoji: '🔒' },
     });
 
-    await expect(createEntryWorkflow(
-      user.id,
-      createInput({ activityIds: [activity.id] }),
-      { ids: [] },
-    )).rejects.toBeInstanceOf(EntryActivityOwnershipError);
+    await expect(
+      createEntryWorkflow(user.id, createInput({ activityIds: [activity.id] }), { ids: [] }),
+    ).rejects.toBeInstanceOf(EntryActivityOwnershipError);
     expect(await testDb.entry.count()).toBe(0);
   });
 
@@ -206,11 +234,10 @@ describe('entry workflow', () => {
       createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000),
     });
 
-    const created = await createEntryWorkflow(
-      user.id,
-      createInput(),
-      { draftKey: 'draft-1', ids: [expired.id] },
-    );
+    const created = await createEntryWorkflow(user.id, createInput(), {
+      draftKey: 'draft-1',
+      ids: [expired.id],
+    });
 
     expect(created.note).toBe('A good day to write things down.');
     expect(await testDb.photo.count()).toBe(0);
@@ -224,8 +251,9 @@ describe('entry workflow', () => {
 
     await createEntryWorkflow(user.id, createInput(), selection);
 
-    await expect(createEntryWorkflow(user.id, createInput(), selection))
-      .rejects.toBeInstanceOf(StagedPhotoUnavailableError);
+    await expect(createEntryWorkflow(user.id, createInput(), selection)).rejects.toBeInstanceOf(
+      StagedPhotoUnavailableError,
+    );
     expect(await testDb.entry.count({ where: { userId: user.id } })).toBe(1);
     expect(await testDb.photo.count()).toBe(1);
   });
@@ -248,12 +276,12 @@ describe('entry workflow', () => {
     });
     const staged = await createStagedPhoto(user.id);
 
-    await expect(updateEntryWorkflow(
-      user.id,
-      entry.id,
-      updateInput(),
-      { draftKey: staged.draftKey, ids: [staged.id] },
-    )).rejects.toBeInstanceOf(EntryPhotoCapacityError);
+    await expect(
+      updateEntryWorkflow(user.id, entry.id, updateInput(), {
+        draftKey: staged.draftKey,
+        ids: [staged.id],
+      }),
+    ).rejects.toBeInstanceOf(EntryPhotoCapacityError);
     expect(await testDb.photo.count({ where: { entryId: entry.id } })).toBe(20);
     expect(await testDb.stagedPhoto.findUnique({ where: { id: staged.id } })).not.toBeNull();
   });
@@ -277,18 +305,20 @@ describe('entry workflow', () => {
     });
     const staged = await createStagedPhoto(user.id, { sizeBytes: 1_000_001 });
 
-    await expect(updateEntryWorkflow(
-      user.id,
-      entry.id,
-      updateInput(),
-      { draftKey: staged.draftKey, ids: [staged.id] },
-    )).resolves.toEqual({ id: entry.id });
+    await expect(
+      updateEntryWorkflow(user.id, entry.id, updateInput(), {
+        draftKey: staged.draftKey,
+        ids: [staged.id],
+      }),
+    ).resolves.toEqual({ id: entry.id });
     expect(await testDb.photo.count({ where: { entryId: entry.id } })).toBe(2);
-    expect(await testDb.photo.findMany({
-      where: { entryId: entry.id },
-      orderBy: { createdAt: 'asc' },
-      select: { sizeBytes: true },
-    })).toEqual([{ sizeBytes: 20 * 1024 * 1024 - 1 }, { sizeBytes: 1_000_001 }]);
+    expect(
+      await testDb.photo.findMany({
+        where: { entryId: entry.id },
+        orderBy: { createdAt: 'asc' },
+        select: { sizeBytes: true },
+      }),
+    ).toEqual([{ sizeBytes: 20 * 1024 * 1024 - 1 }, { sizeBytes: 1_000_001 }]);
     expect(await testDb.stagedPhoto.findUnique({ where: { id: staged.id } })).toBeNull();
   });
 
@@ -310,12 +340,10 @@ describe('entry workflow', () => {
     });
     const staged = await createStagedPhoto(user.id);
 
-    await updateEntryWorkflow(
-      user.id,
-      entry.id,
-      updateInput(),
-      { draftKey: staged.draftKey, ids: [staged.id] },
-    );
+    await updateEntryWorkflow(user.id, entry.id, updateInput(), {
+      draftKey: staged.draftKey,
+      ids: [staged.id],
+    });
 
     expect(await testDb.photo.count({ where: { entryId: entry.id } })).toBe(2);
     expect(await testDb.stagedPhoto.findUnique({ where: { id: staged.id } })).toBeNull();

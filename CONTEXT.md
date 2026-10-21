@@ -24,6 +24,6 @@ A self-hosted mood journal ("your memories, vividly preserved") in the Frutiger 
 ## Storage and journal memory
 
 - PostgreSQL is the application's canonical database; its schema history lives in `prisma/migrations/`.
-- Journal note embeddings are derived data in pgvector. Saves enqueue work transactionally through pg-boss; the separate local-Ollama worker indexes current notes and excludes the configured demo account.
-- Embedding retries are bounded. After pg-boss exhausts them, restore Ollama/database availability and run `pnpm memory:backfill` to requeue private entries.
+- Journal passages and private photos use one EmbeddingGemma 2 model (`embeddinggemma-2:440m`) and separate derived pgvector tables. One query vector searches both; evidence is grouped per entry. Saves enqueue text work transactionally through pg-boss; separate controlled workers exclude the configured demo account.
+- Text retries are bounded; photo inference failures pause photo work for explicit acknowledgement. Manual text/photo backfills default to bounded owner-scoped dry runs. Startup, migrations, and flags never schedule historical photo work. See `docs/multimodal-memory-operations.md` before any reindex operation.
 - Tests require `TEST_DATABASE_URL` to point at a disposable, isolated PostgreSQL database. Test setup truncates its application tables; never point it at a live database.

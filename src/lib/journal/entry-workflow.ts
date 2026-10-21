@@ -1,6 +1,10 @@
 import 'server-only';
 
 import { db } from '@/lib/db';
+import type { Prisma } from '@/generated/prisma/client';
+import { getDemoCredentials } from '@/lib/auth/demo-config';
+import { getPhotoMemoryConfig } from './photo-memory-config';
+import { enqueueJournalPhotoMemoryJob } from './photo-memory-queue';
 import { getPhotoStore } from '@/lib/drive/server-store';
 import type { PhotoStore } from '@/lib/drive/store';
 import { getTodayDateKey, isFutureDateKey } from '@/lib/journal/dates';
@@ -10,14 +14,11 @@ import {
   type StagedPhotoSelection,
 } from '@/lib/journal/photo-staging';
 import { MAX_PHOTO_COUNT } from '@/lib/journal/photos';
-import {
-  createJournalEntry,
-  updateJournalEntry,
-} from '@/lib/journal/mutations';
+import { createJournalEntry, updateJournalEntry } from '@/lib/journal/mutations';
 import { invalidateAndScheduleJournalMemory } from '@/lib/journal/memory-indexer';
 import type { CreateEntryInput, UpdateEntryInput } from '@/lib/journal/schemas';
 
-export type EntryPhotoSelection = StagedPhotoSelection
+export type EntryPhotoSelection = StagedPhotoSelection;
 
 export class EntryDateInFutureError extends Error {
   constructor() {
@@ -41,17 +42,17 @@ export class EntryPhotoCapacityError extends Error {
 }
 
 type EntryPhoto = {
-  drivePath: string
-  driveFileId: string | null
-  mimeType: string
-  sizeBytes: number | null
-}
+  drivePath: string;
+  driveFileId: string | null;
+  mimeType: string;
+  sizeBytes: number | null;
+};
 
 export type CreatedEntry = {
-  id: string
-  note: string
-  updatedAt: Date
-}
+  id: string;
+  note: string;
+  updatedAt: Date;
+};
 
 function photoWrites(photos: readonly EntryPhoto[]) {
   return photos.map((photo) => ({
@@ -61,7 +62,8 @@ function photoWrites(photos: readonly EntryPhoto[]) {
     sizeBytes: photo.sizeBytes,
   }));
 }
-type EntryContentInput = Pick<CreateEntryInput, 'mood' | 'note'>
+
+type EntryContentInput = Pick<CreateEntryInput, 'mood' | 'note'>;
 
 function entryMutationInput(
   input: EntryContentInput,
@@ -76,18 +78,17 @@ function entryMutationInput(
   };
 }
 
-async function stagedPhotosFor(
-  userId: string,
-  selection: EntryPhotoSelection,
-) {
+async function stagedPhotosFor(userId: string, selection: EntryPhotoSelection) {
   if (selection.ids.length === 0) return { ids: [], data: [] };
 
   let store: PhotoStore | undefined;
+
   try {
     store = getPhotoStore();
   } catch (error) {
     console.error('Photo staging cleanup could not access Drive.', error);
   }
+
   return loadStagedPhotos(db, store, userId, selection);
 }
 
@@ -104,34 +105,35 @@ async function ownedActivityIds(
     where: {
       id: { in: ids },
       userId,
-      OR: [
-        { isArchived: false },
-        { isArchived: true, id: { in: [...allowedArchivedIds] } },
-      ],
+      OR: [{ isArchived: false }, { isArchived: true, id: { in: [...allowedArchivedIds] } }],
     },
     select: { id: true },
   });
   if (activities.length !== ids.length) throw new EntryActivityOwnershipError();
+
   return ids;
 }
 
-async function cleanupDeletedPhotos(
-  photos: { driveFileId: string | null; drivePath: string }[],
-) {
+async function cleanupDeletedPhotos(photos: { driveFileId: string | null; drivePath: string }[]) {
   if (photos.length === 0) return;
 
   let store: PhotoStore;
+
   try {
     store = getPhotoStore();
   } catch (error) {
     console.error('Database photo deletion succeeded but Drive cleanup could not start.', error);
+
     return;
   }
-  const results = await Promise.allSettled(photos.map((photo) => (
-    photo.driveFileId
-      ? store.delete(photo.drivePath, photo.driveFileId)
-      : store.delete(photo.drivePath)
-  )));
+
+  const results = await Promise.allSettled(
+    photos.map((photo) =>
+      photo.driveFileId
+        ? store.delete(photo.drivePath, photo.driveFileId)
+        : store.delete(photo.drivePath),
+    ),
+  );
   results.forEach((result) => {
     if (result.status === 'rejected') {
       console.error('Database photo deletion succeeded but Drive cleanup failed.', result.reason);
@@ -143,7 +145,32 @@ function journalDateFor(input: CreateEntryInput) {
   const now = new Date();
   const journalDate = input.journalDate ?? getTodayDateKey(now);
   if (isFutureDateKey(journalDate, now)) throw new EntryDateInFutureError();
+
   return journalDate;
+}
+
+async function scheduleNewPhotoMemory(
+  transaction: Prisma.TransactionClient,
+  entryId: string,
+  userId: string,
+  existingPhotoIds: string[] = [],
+): Promise<void> {
+  if (!getPhotoMemoryConfig().indexingEnabled) return;
+
+  const user = await transaction.user.findUnique({
+    where: { id: userId },
+    select: { email: true },
+  });
+  if (!user || user.email.toLowerCase() === getDemoCredentials()?.email) return;
+
+  const photos = await transaction.photo.findMany({
+    where: { entryId, id: { notIn: existingPhotoIds } },
+    select: { id: true },
+  });
+
+  for (const photo of photos) {
+    await enqueueJournalPhotoMemoryJob(db, photo.id, userId, transaction);
+  }
 }
 
 export async function createEntryWorkflow(
@@ -163,6 +190,8 @@ export async function createEntryWorkflow(
       ...entryMutationInput(input, activityIds, photosToAttach),
     });
     await invalidateAndScheduleJournalMemory(db, transaction, created.id, userId);
+    if (photosToAttach.length) await scheduleNewPhotoMemory(transaction, created.id, userId);
+
     return created;
   });
 }
@@ -198,16 +227,25 @@ export async function updateEntryWorkflow(
     if (!currentEntry) throw new Error('Entry was deleted while it was being edited.');
 
     const photosToAttach = await consumeStagedPhotos(transaction, userId, staged);
+
     if (currentEntry.photos.length + photosToAttach.length > MAX_PHOTO_COUNT) {
       throw new EntryPhotoCapacityError();
     }
 
-    await updateJournalEntry(
-      transaction,
-      entry.id,
-      { ...entryMutationInput(input, activityIds, photosToAttach), journalDate },
-    );
+    await updateJournalEntry(transaction, entry.id, {
+      ...entryMutationInput(input, activityIds, photosToAttach),
+      journalDate,
+    });
     await invalidateAndScheduleJournalMemory(db, transaction, entry.id, userId);
+
+    if (photosToAttach.length) {
+      await scheduleNewPhotoMemory(
+        transaction,
+        entry.id,
+        userId,
+        currentEntry.photos.map((photo) => photo.id),
+      );
+    }
   });
 
   return { id: entry.id };
@@ -222,6 +260,7 @@ export async function deleteEntryWorkflow(userId: string, entryId: string) {
 
   await db.entry.delete({ where: { id: entry.id } });
   await cleanupDeletedPhotos(entry.photos);
+
   return { id: entry.id };
 }
 
@@ -239,5 +278,6 @@ export async function deletePhotoWorkflow(userId: string, photoId: string) {
   if (result.count !== 1) return null;
 
   await cleanupDeletedPhotos([photo]);
+
   return { entryId: photo.entryId };
 }

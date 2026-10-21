@@ -16,26 +16,35 @@ const driveConfigSchema = z.object({
   refreshToken: z.string().trim().min(1),
 });
 
-
-export type DriveFilesApi = Pick<drive_v3.Resource$Files, 'create' | 'delete' | 'get' | 'list'>
+export type DriveFilesApi = Pick<drive_v3.Resource$Files, 'create' | 'delete' | 'get' | 'list'>;
 
 export type UploadedPhoto = {
-  drivePath: string
-  fileId: string
-  mimeType: string
-}
+  drivePath: string;
+  fileId: string;
+  mimeType: string;
+};
 
 export type DrivePhotoResolution =
-  | { status: 'resolved'; drivePath: string; fileId: string; mimeType: string; sizeBytes: number | null }
+  | {
+      status: 'resolved';
+      drivePath: string;
+      fileId: string;
+      mimeType: string;
+      sizeBytes: number | null;
+    }
   | { status: 'missing'; drivePath: string }
-  | { status: 'duplicate'; drivePath: string; fileIds: string[] }
+  | { status: 'duplicate'; drivePath: string; fileIds: string[] };
 
 export interface PhotoStore {
-  upload(file: File): Promise<UploadedPhoto>
-  resolve(drivePath: string): Promise<DrivePhotoResolution>
-  download(drivePath: string, knownFileId?: string): Promise<ReadableStream<Uint8Array>>
-  delete(drivePath: string, knownFileId?: string): Promise<void>
-  deleteById(fileId: string): Promise<void>
+  upload(file: File): Promise<UploadedPhoto>;
+  resolve(drivePath: string, signal?: AbortSignal): Promise<DrivePhotoResolution>;
+  download(
+    drivePath: string,
+    knownFileId?: string,
+    signal?: AbortSignal,
+  ): Promise<ReadableStream<Uint8Array>>;
+  delete(drivePath: string, knownFileId?: string): Promise<void>;
+  deleteById(fileId: string): Promise<void>;
 }
 
 export class DriveConfigurationError extends Error {
@@ -89,6 +98,7 @@ function photoFileName(drivePath: string, rootPath: string) {
   const pathSegments = drivePath.split('/');
   const rootSegments = rootPath.split('/');
   const rootLeaf = rootSegments.at(-1);
+
   if (
     pathSegments.length !== 2 ||
     pathSegments[0] !== rootLeaf ||
@@ -97,6 +107,7 @@ function photoFileName(drivePath: string, rootPath: string) {
   ) {
     throw new DrivePhotoNotFoundError(drivePath);
   }
+
   return pathSegments[1];
 }
 
@@ -111,36 +122,44 @@ async function normalizePhoto(file: File) {
   const jpegBuffer = new ArrayBuffer(jpeg.byteLength);
   new Uint8Array(jpegBuffer).set(jpeg);
   const name = file.name.replace(/\.(heic|heif)$/i, '') || 'photo';
+
   return new File([jpegBuffer], `${name}.jpg`, { type: 'image/jpeg' });
 }
 
 export function createPhotoStore(drive: DriveFilesApi, photosRoot: string): PhotoStore {
   const rootSegments = photosRoot.split('/').filter(Boolean);
+
   if (rootSegments.length === 0) {
     throw new DriveConfigurationError();
   }
 
-  async function findFolderId(name: string, parentId: string) {
-    const response = await drive.list({
-      fields: 'files(id,name)',
-      pageSize: 1,
-      q: queryForFolder(name, parentId),
-      spaces: 'drive',
-    });
+  async function findFolderId(name: string, parentId: string, signal?: AbortSignal) {
+    const response = await drive.list(
+      {
+        fields: 'files(id,name)',
+        pageSize: 1,
+        q: queryForFolder(name, parentId),
+        spaces: 'drive',
+      },
+      { signal },
+    );
+
     return fileId(response.data.files?.[0]);
   }
 
   let photosFolderId: string | undefined;
   let photosFolderLookup: Promise<string | undefined> | undefined;
 
-  async function getPhotosFolderId(createMissing: boolean) {
+  async function getPhotosFolderId(createMissing: boolean, signal?: AbortSignal) {
     if (!createMissing && photosFolderId) return photosFolderId;
-    if (!createMissing && photosFolderLookup) return photosFolderLookup;
+    if (!createMissing && !signal && photosFolderLookup) return photosFolderLookup;
 
     const lookup = (async () => {
       let parentId = 'root';
+
       for (const segment of rootSegments) {
-        let folderId = await findFolderId(segment, parentId);
+        let folderId = await findFolderId(segment, parentId, signal);
+
         if (!folderId && createMissing) {
           const response = await drive.create({
             fields: 'id',
@@ -153,29 +172,39 @@ export function createPhotoStore(drive: DriveFilesApi, photosRoot: string): Phot
           folderId = fileId(response.data);
         }
         if (!folderId) return undefined;
+
         parentId = folderId;
       }
+
       photosFolderId = parentId;
+
       return photosFolderId;
     })();
 
-    if (!createMissing) {
+    if (!createMissing && !signal) {
       photosFolderLookup = lookup;
     }
+
     return lookup;
   }
 
-  async function resolvePhoto(drivePath: string): Promise<DrivePhotoResolution> {
+  async function resolvePhoto(
+    drivePath: string,
+    signal?: AbortSignal,
+  ): Promise<DrivePhotoResolution> {
     const name = photoFileName(drivePath, photosRoot);
-    const folderId = await getPhotosFolderId(false);
+    const folderId = await getPhotosFolderId(false, signal);
     if (!folderId) return { status: 'missing', drivePath };
 
-    const response = await drive.list({
-      fields: 'files(id,name,mimeType,size)',
-      pageSize: 1000,
-      q: queryForFile(name, folderId),
-      spaces: 'drive',
-    });
+    const response = await drive.list(
+      {
+        fields: 'files(id,name,mimeType,size)',
+        pageSize: 1000,
+        q: queryForFile(name, folderId),
+        spaces: 'drive',
+      },
+      { signal },
+    );
     const files = response.data.files ?? [];
     if (files.length === 0) return { status: 'missing', drivePath };
     if (files.length > 1) {
@@ -189,6 +218,7 @@ export function createPhotoStore(drive: DriveFilesApi, photosRoot: string): Phot
     const [file] = files;
     const id = fileId(file);
     if (!id) return { status: 'missing', drivePath };
+
     return {
       status: 'resolved',
       drivePath,
@@ -198,10 +228,11 @@ export function createPhotoStore(drive: DriveFilesApi, photosRoot: string): Phot
     };
   }
 
-  async function requirePhotoId(drivePath: string): Promise<string> {
-    const resolution = await resolvePhoto(drivePath);
+  async function requirePhotoId(drivePath: string, signal?: AbortSignal): Promise<string> {
+    const resolution = await resolvePhoto(drivePath, signal);
     if (resolution.status === 'missing') throw new DrivePhotoNotFoundError(drivePath);
     if (resolution.status === 'duplicate') throw new DrivePhotoAmbiguousError(drivePath);
+
     return resolution.fileId;
   }
 
@@ -235,16 +266,17 @@ export function createPhotoStore(drive: DriveFilesApi, photosRoot: string): Phot
 
     resolve: resolvePhoto,
 
-    async download(drivePath, knownFileId) {
+    async download(drivePath, knownFileId, signal) {
       const response = await drive.get(
-        { alt: 'media', fileId: knownFileId ?? await requirePhotoId(drivePath) },
-        { responseType: 'stream' },
+        { alt: 'media', fileId: knownFileId ?? (await requirePhotoId(drivePath, signal)) },
+        { responseType: 'stream', signal },
       );
+
       return Readable.toWeb(response.data as Readable) as ReadableStream<Uint8Array>;
     },
 
     async delete(drivePath, knownFileId) {
-      await this.deleteById(knownFileId ?? await requirePhotoId(drivePath));
+      await this.deleteById(knownFileId ?? (await requirePhotoId(drivePath)));
     },
 
     async deleteById(uploadedFileId) {
@@ -260,6 +292,7 @@ export function getPhotoStore(): PhotoStore {
     photosRoot: process.env.GOOGLE_DRIVE_PHOTOS_ROOT,
     refreshToken: process.env.GOOGLE_DRIVE_REFRESH_TOKEN,
   });
+
   if (!config.success) {
     throw new DriveConfigurationError();
   }
@@ -267,5 +300,6 @@ export function getPhotoStore(): PhotoStore {
   const auth = new google.auth.OAuth2(config.data.clientId, config.data.clientSecret);
   auth.setCredentials({ refresh_token: config.data.refreshToken });
   const drive = google.drive({ version: 'v3', auth });
+
   return createPhotoStore(drive.files, config.data.photosRoot);
 }

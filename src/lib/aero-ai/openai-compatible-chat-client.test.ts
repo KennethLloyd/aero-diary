@@ -19,16 +19,20 @@ describe('OpenAiCompatibleChatClient', () => {
   const request = { messages: [{ role: 'user' as const, content: 'Reply briefly.' }] };
 
   function mockStream(chunks: string[]) {
-    const events = chunks.map((content) =>
-      `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`,
-    ).join('') + 'data: [DONE]\n\n';
+    const events =
+      chunks
+        .map((content) => `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`)
+        .join('') + 'data: [DONE]\n\n';
     fetchMock.mockResolvedValue(new Response(events, { status: 200 }));
   }
 
   const outputCases = [
     ['<think>reasoning</think>Answer', 'Answer'],
     ['First<think>hidden</think>Second<think>also hidden</think>Third', 'FirstSecondThird'],
-    ['I think this is thoughtful. The <thinker> sculpture is nice.', 'I think this is thoughtful. The <thinker> sculpture is nice.'],
+    [
+      'I think this is thoughtful. The <thinker> sculpture is nice.',
+      'I think this is thoughtful. The <thinker> sculpture is nice.',
+    ],
     ['<THINK>hidden</THINK>Answer', 'Answer'],
     ['Answer<think>unfinished reasoning', 'Answer'],
     ['<think>reasoning only</think>', ''],
@@ -38,11 +42,32 @@ describe('OpenAiCompatibleChatClient', () => {
   ];
 
   it.each(outputCases)('filters completed provider content: %s', async (content, expected) => {
-    fetchMock.mockResolvedValue(new Response(JSON.stringify({
-      choices: [{ message: { content } }],
-    }), { status: 200 }));
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [{ message: { content } }],
+        }),
+        { status: 200 },
+      ),
+    );
 
     expect(await client.generate(request)).toEqual({ content: expected, toolCalls: [] });
+  });
+
+  it('serializes multimodal user content through the existing chat endpoint', async () => {
+    fetchMock.mockResolvedValue(
+      Response.json({ choices: [{ message: { content: 'A dinosaur skeleton.' } }] }),
+    );
+    const content = [
+      { type: 'text' as const, text: 'Inspect this private journal photo.' },
+      { type: 'image_url' as const, image_url: { url: 'data:image/jpeg;base64,bm9ybWFsaXplZA==' } },
+    ];
+
+    await client.generate({ messages: [{ role: 'user', content }] });
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('http://chatmock.test/v1/chat/completions');
+    expect(JSON.parse(String(init.body)).messages).toEqual([{ role: 'user', content }]);
   });
 
   it('holds split reasoning tags before emitting any user-facing text', async () => {
@@ -53,16 +78,23 @@ describe('OpenAiCompatibleChatClient', () => {
     expect(onText.mock.calls).toEqual([['Hello']]);
   });
 
-  it.each(outputCases)('filters streamed provider content at every character boundary: %s', async (content, expected) => {
-    mockStream([...content]);
-    const onText = vi.fn();
+  it.each(outputCases)(
+    'filters streamed provider content at every character boundary: %s',
+    async (content, expected) => {
+      mockStream([...content]);
+      const onText = vi.fn();
 
-    expect(await client.generate(request, { onText })).toEqual({ content: expected, toolCalls: [] });
-    expect(onText.mock.calls.map(([text]) => text).join('')).toBe(expected);
-  });
+      expect(await client.generate(request, { onText })).toEqual({
+        content: expected,
+        toolCalls: [],
+      });
+      expect(onText.mock.calls.map(([text]) => text).join('')).toBe(expected);
+    },
+  );
 
   it('filters multiple reasoning blocks at every possible two-chunk split', async () => {
     const content = '<think>hidden</think>First<think>also hidden</think>Second';
+
     for (let split = 1; split < content.length; split++) {
       mockStream([content.slice(0, split), content.slice(split)]);
       const onText = vi.fn();
@@ -80,14 +112,19 @@ describe('OpenAiCompatibleChatClient', () => {
       'data: [DONE]\n\n',
     ];
     const bytes = new TextEncoder().encode(events.join(''));
-    fetchMock.mockResolvedValue(new Response(new ReadableStream({
-      start(controller) {
-        controller.enqueue(bytes.slice(0, 23));
-        controller.enqueue(bytes.slice(23, 117));
-        controller.enqueue(bytes.slice(117));
-        controller.close();
-      },
-    }), { status: 200 }));
+    fetchMock.mockResolvedValue(
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(bytes.slice(0, 23));
+            controller.enqueue(bytes.slice(23, 117));
+            controller.enqueue(bytes.slice(117));
+            controller.close();
+          },
+        }),
+        { status: 200 },
+      ),
+    );
 
     const client = new OpenAiCompatibleChatClient({
       baseUrl: 'http://chatmock.test/v1/',
@@ -97,16 +134,27 @@ describe('OpenAiCompatibleChatClient', () => {
       timeoutMs: 30_000,
     });
     const onText = vi.fn();
-    const result = await client.generate({
-      messages: [{ role: 'user', content: 'Where was I hiking?' }],
-      tools: [{ name: 'retrieve_journal', description: 'Find memories.', parameters: { type: 'object' } }],
-    }, { onText });
+    const result = await client.generate(
+      {
+        messages: [{ role: 'user', content: 'Where was I hiking?' }],
+        tools: [
+          {
+            name: 'retrieve_journal',
+            description: 'Find memories.',
+            parameters: { type: 'object' },
+          },
+        ],
+      },
+      { onText },
+    );
 
-    expect(result.toolCalls).toEqual([{
-      id: 'call_1',
-      name: 'retrieve_journal',
-      arguments: '{"query":"where did I go hiking?","limit":4}',
-    }]);
+    expect(result.toolCalls).toEqual([
+      {
+        id: 'call_1',
+        name: 'retrieve_journal',
+        arguments: '{"query":"where did I go hiking?","limit":4}',
+      },
+    ]);
     expect(onText).not.toHaveBeenCalled();
     const [, request] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(JSON.parse(String(request.body))).toMatchObject({
@@ -118,12 +166,17 @@ describe('OpenAiCompatibleChatClient', () => {
 
   it('rejects streamed text when the provider closes before its completion marker', async () => {
     const event = `data: ${JSON.stringify({ choices: [{ delta: { content: 'A partial answer.' } }] })}\n\n`;
-    fetchMock.mockResolvedValue(new Response(new ReadableStream({
-      start(controller) {
-        controller.enqueue(new TextEncoder().encode(event));
-        controller.close();
-      },
-    }), { status: 200 }));
+    fetchMock.mockResolvedValue(
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode(event));
+            controller.close();
+          },
+        }),
+        { status: 200 },
+      ),
+    );
     const client = new OpenAiCompatibleChatClient({
       baseUrl: 'http://chatmock.test/v1',
       model: 'local-chat-model',
@@ -133,17 +186,27 @@ describe('OpenAiCompatibleChatClient', () => {
     });
     const onText = vi.fn();
 
-    await expect(client.generate({
-      messages: [{ role: 'user', content: 'Reply briefly.' }],
-    }, { onText })).rejects.toThrow('LLM stream ended before completion.');
+    await expect(
+      client.generate(
+        {
+          messages: [{ role: 'user', content: 'Reply briefly.' }],
+        },
+        { onText },
+      ),
+    ).rejects.toThrow('LLM stream ended before completion.');
 
     expect(onText).toHaveBeenCalledWith('A partial answer.');
   });
 
   it('returns a completed JSON response through the same chat endpoint', async () => {
-    fetchMock.mockResolvedValue(new Response(JSON.stringify({
-      choices: [{ message: { content: 'A concise summary.' } }],
-    }), { status: 200 }));
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [{ message: { content: 'A concise summary.' } }],
+        }),
+        { status: 200 },
+      ),
+    );
     const client = new OpenAiCompatibleChatClient({
       baseUrl: 'http://chatmock.test/v1',
       model: 'local-chat-model',
@@ -152,10 +215,15 @@ describe('OpenAiCompatibleChatClient', () => {
       timeoutMs: 10_000,
     });
 
-    await expect(client.generate({
-      messages: [{ role: 'system', content: 'Summarize.' }, { role: 'user', content: 'Conversation.' }],
-      responseFormat: 'json_object',
-    })).resolves.toEqual({ content: 'A concise summary.', toolCalls: [] });
+    await expect(
+      client.generate({
+        messages: [
+          { role: 'system', content: 'Summarize.' },
+          { role: 'user', content: 'Conversation.' },
+        ],
+        responseFormat: 'json_object',
+      }),
+    ).resolves.toEqual({ content: 'A concise summary.', toolCalls: [] });
 
     const [, request] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(JSON.parse(String(request.body))).toMatchObject({
