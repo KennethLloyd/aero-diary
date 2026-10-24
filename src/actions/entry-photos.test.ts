@@ -1,6 +1,10 @@
+// @vitest-environment node
+// Keep multipart parsing on Node's Web APIs rather than jsdom's File shim.
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Mood } from '@/generated/prisma/enums';
 import { resetTestDb, testDb } from '@/test/test-db';
+
 const mocks = vi.hoisted(() => ({
   after: vi.fn(),
   deleteById: vi.fn(),
@@ -20,10 +24,14 @@ vi.mock('@/lib/dal', () => ({ verifySession: mocks.verifySession }));
 vi.mock('@/lib/drive/server-store', () => ({ getPhotoStore: mocks.getPhotoStore }));
 vi.mock('@/lib/db', async () => {
   const { testDb } = await import('@/test/test-db');
+
   return { db: testDb };
 });
 
-import { DELETE as deleteStagedPhotoByKey, POST as stagePhotoUpload } from '@/app/api/photo-stages/route';
+import {
+  DELETE as deleteStagedPhotoByKey,
+  POST as stagePhotoUpload,
+} from '@/app/api/photo-stages/route';
 import { createEntry, deleteEntry, deletePhoto, updateEntry } from '@/actions/entries';
 
 const NEXT_REDIRECT = 'NEXT_REDIRECT';
@@ -36,6 +44,7 @@ function form(photo?: File, stagedPhotoId?: string) {
   data.set('draftKey', 'draft-1');
   if (photo) data.append('photo', photo);
   if (stagedPhotoId) data.set('stagedPhotoId', stagedPhotoId);
+
   return data;
 }
 
@@ -66,6 +75,7 @@ describe('entry photo actions', () => {
       sizeBytes: 1,
     });
   });
+
   it('stages selected photos before saving and attaches the durable upload', async () => {
     const user = await testDb.user.create({
       data: { email: 'ken@example.com', passwordHash: 'x' },
@@ -73,12 +83,14 @@ describe('entry photo actions', () => {
     mocks.verifySession.mockResolvedValue({ isAuth: true, userId: user.id });
     const photo = new File(['photo'], 'photo.jpg', { type: 'image/jpeg' });
 
-    const stagedResponse = await stagePhotoUpload(new Request('http://localhost/api/photo-stages', {
-      method: 'POST',
-      body: form(photo),
-    }));
+    const stagedResponse = await stagePhotoUpload(
+      new Request('http://localhost/api/photo-stages', {
+        method: 'POST',
+        body: form(photo),
+      }),
+    );
     expect(stagedResponse.status).toBe(200);
-    const staged = await stagedResponse.json() as { id: string };
+    const staged = (await stagedResponse.json()) as { id: string };
 
     await expect(createEntry(undefined, form(undefined, staged.id))).rejects.toThrow(NEXT_REDIRECT);
 
@@ -110,8 +122,9 @@ describe('entry photo actions', () => {
       },
     });
 
-
-    await expect(createEntry(undefined, form(undefined, expired.id))).rejects.toThrow(NEXT_REDIRECT);
+    await expect(createEntry(undefined, form(undefined, expired.id))).rejects.toThrow(
+      NEXT_REDIRECT,
+    );
     await expect(testDb.entry.findFirst({ where: { userId: user.id } })).resolves.toMatchObject({
       note: 'A memory with a photo.',
     });
@@ -122,11 +135,13 @@ describe('entry photo actions', () => {
       data: { email: 'ken@example.com', passwordHash: 'x' },
     });
     mocks.verifySession.mockResolvedValue({ isAuth: true, userId: user.id });
-    const stagedResponse = await stagePhotoUpload(new Request('http://localhost/api/photo-stages', {
-      method: 'POST',
-      body: form(new File(['photo'], 'photo.jpg', { type: 'image/jpeg' })),
-    }));
-    const staged = await stagedResponse.json() as { id: string };
+    const stagedResponse = await stagePhotoUpload(
+      new Request('http://localhost/api/photo-stages', {
+        method: 'POST',
+        body: form(new File(['photo'], 'photo.jpg', { type: 'image/jpeg' })),
+      }),
+    );
+    const staged = (await stagedResponse.json()) as { id: string };
     const stagedForm = form(undefined, staged.id);
 
     await expect(createEntry(undefined, stagedForm)).rejects.toThrow(NEXT_REDIRECT);
@@ -156,11 +171,13 @@ describe('entry photo actions', () => {
       },
     });
     mocks.verifySession.mockResolvedValue({ isAuth: true, userId: user.id });
-    const stagedResponse = await stagePhotoUpload(new Request('http://localhost/api/photo-stages', {
-      method: 'POST',
-      body: form(new File(['photo'], 'photo.jpg', { type: 'image/jpeg' })),
-    }));
-    const staged = await stagedResponse.json() as { id: string };
+    const stagedResponse = await stagePhotoUpload(
+      new Request('http://localhost/api/photo-stages', {
+        method: 'POST',
+        body: form(new File(['photo'], 'photo.jpg', { type: 'image/jpeg' })),
+      }),
+    );
+    const staged = (await stagedResponse.json()) as { id: string };
 
     const state = await updateEntry(entry.id, undefined, form(undefined, staged.id));
 
@@ -201,13 +218,17 @@ describe('entry photo actions', () => {
       },
     });
 
-    await expect(updateEntry(entry.id, undefined, form(undefined, staged.id))).rejects.toThrow(NEXT_REDIRECT);
+    await expect(updateEntry(entry.id, undefined, form(undefined, staged.id))).rejects.toThrow(
+      NEXT_REDIRECT,
+    );
     expect(await testDb.photo.count({ where: { entryId: entry.id } })).toBe(2);
-    expect(await testDb.photo.findMany({
-      where: { entryId: entry.id },
-      orderBy: { createdAt: 'asc' },
-      select: { sizeBytes: true },
-    })).toEqual([{ sizeBytes: 20 * 1024 * 1024 - 1 }, { sizeBytes: 1_000_001 }]);
+    expect(
+      await testDb.photo.findMany({
+        where: { entryId: entry.id },
+        orderBy: { createdAt: 'asc' },
+        select: { sizeBytes: true },
+      }),
+    ).toEqual([{ sizeBytes: 20 * 1024 * 1024 - 1 }, { sizeBytes: 1_000_001 }]);
     expect(await testDb.stagedPhoto.findUnique({ where: { id: staged.id } })).toBeNull();
   });
 
@@ -230,15 +251,22 @@ describe('entry photo actions', () => {
       },
     });
     mocks.verifySession.mockResolvedValue({ isAuth: true, userId: user.id });
-    const stagedResponse = await stagePhotoUpload(new Request('http://localhost/api/photo-stages', {
-      method: 'POST',
-      body: form(new File(['photo'], 'photo.jpg', { type: 'image/jpeg' })),
-    }));
-    const staged = await stagedResponse.json() as { id: string };
+    const stagedResponse = await stagePhotoUpload(
+      new Request('http://localhost/api/photo-stages', {
+        method: 'POST',
+        body: form(new File(['photo'], 'photo.jpg', { type: 'image/jpeg' })),
+      }),
+    );
+    const staged = (await stagedResponse.json()) as { id: string };
 
-    await expect(updateEntry(entry.id, undefined, form(undefined, staged.id))).rejects.toThrow(NEXT_REDIRECT);
+    await expect(updateEntry(entry.id, undefined, form(undefined, staged.id))).rejects.toThrow(
+      NEXT_REDIRECT,
+    );
 
-    const updated = await testDb.entry.findUniqueOrThrow({ where: { id: entry.id }, include: { photos: true } });
+    const updated = await testDb.entry.findUniqueOrThrow({
+      where: { id: entry.id },
+      include: { photos: true },
+    });
     expect(updated.photos).toHaveLength(2);
     expect(await testDb.stagedPhoto.findUnique({ where: { id: staged.id } })).toBeNull();
   });
@@ -249,10 +277,12 @@ describe('entry photo actions', () => {
     });
     mocks.verifySession.mockResolvedValue({ isAuth: true, userId: user.id });
 
-    const response = await stagePhotoUpload(new Request('http://localhost/api/photo-stages', {
-      method: 'POST',
-      body: form(new File(['not an image'], 'notes.txt', { type: 'text/plain' })),
-    }));
+    const response = await stagePhotoUpload(
+      new Request('http://localhost/api/photo-stages', {
+        method: 'POST',
+        body: form(new File(['not an image'], 'notes.txt', { type: 'text/plain' })),
+      }),
+    );
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
@@ -267,16 +297,19 @@ describe('entry photo actions', () => {
       data: { email: 'ken@example.com', passwordHash: 'x' },
     });
     mocks.verifySession.mockResolvedValue({ isAuth: true, userId: user.id });
-    const stagedResponse = await stagePhotoUpload(new Request('http://localhost/api/photo-stages', {
-      method: 'POST',
-      body: form(new File(['photo'], 'photo.jpg', { type: 'image/jpeg' })),
-    }));
-    const staged = await stagedResponse.json() as { id: string };
+    const stagedResponse = await stagePhotoUpload(
+      new Request('http://localhost/api/photo-stages', {
+        method: 'POST',
+        body: form(new File(['photo'], 'photo.jpg', { type: 'image/jpeg' })),
+      }),
+    );
+    const staged = (await stagedResponse.json()) as { id: string };
 
-    const response = await deleteStagedPhotoByKey(new Request(
-      'http://localhost/api/photo-stages?draftKey=draft-1&clientKey=client-1',
-      { method: 'DELETE' },
-    ));
+    const response = await deleteStagedPhotoByKey(
+      new Request('http://localhost/api/photo-stages?draftKey=draft-1&clientKey=client-1', {
+        method: 'DELETE',
+      }),
+    );
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ deleted: true });
@@ -360,7 +393,9 @@ describe('entry photo actions', () => {
     await expect(deletePhoto('photo-id', undefined, new FormData())).rejects.toThrow(NEXT_REDIRECT);
 
     mocks.verifySession.mockResolvedValue({ isAuth: true, userId: 'user-id' });
-    expect(await deletePhoto(' ', undefined, new FormData())).toEqual({ error: 'Photo not found.' });
+    expect(await deletePhoto(' ', undefined, new FormData())).toEqual({
+      error: 'Photo not found.',
+    });
 
     const otherUser = await testDb.user.create({
       data: { email: 'other@example.com', passwordHash: 'x' },
@@ -376,7 +411,9 @@ describe('entry photo actions', () => {
     });
     const otherPhoto = await testDb.photo.findFirstOrThrow({ where: { entryId: otherEntry.id } });
 
-    expect(await deletePhoto(otherPhoto.id, undefined, new FormData())).toEqual({ error: 'Photo not found.' });
+    expect(await deletePhoto(otherPhoto.id, undefined, new FormData())).toEqual({
+      error: 'Photo not found.',
+    });
     expect(mocks.deletePhotoFile).not.toHaveBeenCalled();
   });
 });
