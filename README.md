@@ -26,7 +26,8 @@ LLM features support OpenAI-compatible APIs.
 
 ## Local Development
 
-Requires Node.js 22+ and pnpm.
+Requires Node.js 26.12.1 (pinned in `.nvmrc`) and pnpm.
+
 ```bash
 cp .env.example .env.local
 docker compose up -d

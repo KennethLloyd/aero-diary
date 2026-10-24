@@ -1,51 +1,62 @@
 # AGENTS.md
 
-## GitHub issues and pull requests
+# Engineering Guidelines
 
-Use GitHub issues as the issue tracker through the `gh` CLI.
+## Core Principles
 
-For issue work:
+- Prioritize simplicity, readability, and maintainability. Prefer solutions that are easier to understand and change, not merely shorter.
+- Prefer idiomatic, framework-native solutions over clever code, hacks, or workarounds.
+- Keep implementations proportional to current requirements. Avoid overengineering, speculative features, and boilerplate for hypothetical future needs (YAGNI).
+- Introduce abstractions, dependencies, or infrastructure only when they solve a concrete problem.
+- Follow existing project and framework conventions. Prefer sensible defaults over unnecessary configuration.
 
-1. Create `feat/issue-<n>-<slug>` before editing (for example, `feat/issue-1-scaffold`).
-2. Commit all changes on that feature branch.
-3. Push the branch and open a PR with `gh pr create`; start its body with `Closes #<n>`.
-4. Keep the issue open until the PR merges; GitHub closes it from the closing phrase.
+## Architecture & Code Quality
 
-Delivery is complete when the changes are committed on the feature branch and the PR is open. Issue closure follows the merge.
+- Keep responsibilities clear and related logic together. Separate concerns at meaningful boundaries without introducing unnecessary architectural layers.
+- Keep functions focused on one cohesive responsibility. Prefer straightforward control flow, low nesting, and minimal indirection.
+- Write code for human readability over clever or compressed syntax. Use meaningful names, clear structure, and semantic spacing: keep related statements together and separate distinct logical steps with blank lines.
+- Maintain a single source of truth for business rules and data-access responsibilities. Distinguish genuine knowledge duplication from superficial code similarity before abstracting (DRY).
+- Avoid magic values, brittle workarounds, and monkey patches.
+- Prefer explicit, safe types where applicable. Avoid unjustified type assertions and unsafe shortcuts.
+- Handle meaningful errors appropriately without hiding failures or suppressing warnings.
+- Keep comments concise and explain why something exists rather than restating what the code does.
+- Remove obsolete code instead of preserving unused implementations.
 
-### Triage labels
+## Scope & Changes
 
-Use these canonical role labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix`.
+- Understand the existing implementation, technology stack, and project conventions before making changes. Consult relevant documentation for unfamiliar or version-sensitive APIs.
+- Implement only what the task requires. Avoid unrelated refactoring or speculative improvements.
+- When ambiguous requirements would materially affect behavior or complexity, clarify the intended flow and trade-offs instead of inventing additional scenarios.
+- Preserve existing behavior, user experience, and established conventions unless changes are explicitly requested or necessary to fix a defect.
+- Favor the smallest coherent change that fully solves the problem.
+- Respect existing boundaries and avoid introducing unnecessary coupling.
+
+## Testing & Verification
+
+- Test meaningful behavior, business rules, important boundaries, and realistic failure scenarios.
+- Prefer the most appropriate testing level for the behavior being protected.
+- Avoid redundant tests or tests that merely verify framework internals and implementation details without meaningful regression value.
+- Run relevant formatting, linting, type-checking, testing, and build commands provided by the project.
+- For UI changes, verify actual interactions and affected states in a browser when practical, including responsive behavior.
+- Report completed checks, failures, and anything that could not be verified accurately.
+
+## Safety & Delivery
+
+- Preserve unrelated work and avoid destructive Git operations.
+- Never commit credentials, secrets, or sensitive environment files. When screenshots are requested as PR evidence, upload them to the PR rather than committing them to the repository.
+- Obtain confirmation before destructive database, infrastructure, or cloud operations.
+- Review changes before completion and ensure the diff contains only intended modifications.
+- Follow the repository's established development and delivery workflow.
 
 ### Domain context
 
 Use `CONTEXT.md` at the repository root as the single domain context for vocabulary and constraints.
-
-## Architecture
-
-Treat idiomatic, framework-native architecture as a hard constraint.
-
-Prefer the capabilities already provided by Next.js, Tailwind, and the existing feature boundaries. Use custom scripts, monkey patches, test harnesses, or workaround layers only after checking those capabilities. If a workaround is unavoidable, isolate it, keep it minimal, and document its architectural reason.
 
 ## Code readability
 
 Write code for a human reviewing the diff. Keep related statements together and separate distinct logical steps with one blank line: validation, preparation, execution, and result handling. In tests, separate setup, action, and assertions, and visually separate independent interaction scenarios. Keep related declarations together; use multiline JSX when props or children become difficult to scan. Separate CSS rules with one blank line.
 
 Before committing, run `pnpm format <files>` and `pnpm lint:readability <files>` on the changed files. Then read every changed hunk and add any semantic separation the tools cannot infer. This pass is complete when each logical phase is easy to identify and the formatting, readability lint, and existing checks pass. CI enforces formatting and readability lint on added or modified files; existing untouched files adopt the standard when changed.
-
-## UI verification and PR evidence
-
-Every UI pull request completes a browser-first verification pass:
-
-1. Exercise the changed flow end-to-end with the available browser-control capability (prefer the control-in-app-browser skill when available). Cover affected validation, loading and error states, edits, retrieval and rendering, downloads, and deletes where present. Re-snapshot after navigation and dynamic state changes.
-2. Verify every materially different page or state involved in the change at a desktop viewport of `1280px` or wider and an iPhone 15-sized viewport of `393×852`.
-3. Capture PR screenshots from the in-app browser, but DO NOT commit them to the repo. Use two screenshots only when each shows a complete page and together covers the change; otherwise include additional screenshots. Evidence must include both mobile and desktop views and visibly showcase the new behavior.
-4. Add a `What to expect` section to the PR description or a PR comment in simplified technical, product-facing English. Explain the visible change, key interactions, responsive behavior, and demo-data limitations.
-5. For destructive cloud actions, confirm at the moment of the action. If confirmation is unavailable, use safe checks and document the limitation.
-
-Use the relevant `agent-browser` flow as a complementary automated check or as a fallback when the in-app browser is unavailable. Direct browser verification remains the acceptance check.
-
-The UI verification step is complete when the relevant browser scenarios pass, the required desktop and mobile screenshots are attached (not committed), and the PR includes the `What to expect` section.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

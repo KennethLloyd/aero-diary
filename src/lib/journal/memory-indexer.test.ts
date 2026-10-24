@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Mood } from '@/generated/prisma/enums';
 import { resetTestDb, testDb } from '@/test/test-db';
 import { processJournalMemoryEntry } from '@/lib/journal/memory-indexer';
-import { JOURNAL_EMBEDDING_DIMENSIONS } from '@/lib/journal/memory-embeddings';
+import {
+  JOURNAL_EMBEDDING_DIMENSIONS,
+  JOURNAL_EMBEDDING_GENERATION,
+} from '@/lib/journal/memory-embeddings';
 
 function vectorsFor(passages: readonly string[]): number[][] {
   return passages.map(() => Array.from({ length: JOURNAL_EMBEDDING_DIMENSIONS }, () => 0.01));
@@ -15,6 +18,7 @@ async function createEntry(note: string) {
   const entry = await testDb.entry.create({
     data: { userId: user.id, journalDate: '2026-09-29', mood: Mood.GOOD, note },
   });
+
   return { user, entry };
 }
 
@@ -28,8 +32,12 @@ describe('journal memory indexing', () => {
     const { user, entry } = await createEntry(note);
     const embed = vi.fn(async (passages: readonly string[]) => vectorsFor(passages));
 
-    await expect(processJournalMemoryEntry(testDb, entry.id, user.id, embed)).resolves.toBe('indexed');
-    await expect(processJournalMemoryEntry(testDb, entry.id, user.id, embed)).resolves.toBe('current');
+    await expect(processJournalMemoryEntry(testDb, entry.id, user.id, embed)).resolves.toBe(
+      'indexed',
+    );
+    await expect(processJournalMemoryEntry(testDb, entry.id, user.id, embed)).resolves.toBe(
+      'current',
+    );
 
     const indexed = await testDb.journalMemoryGeneration.findUniqueOrThrow({
       where: { entryId: entry.id },
@@ -37,7 +45,10 @@ describe('journal memory indexing', () => {
         sourceHash: true,
         embeddingModel: true,
         passageVersion: true,
-        passages: { orderBy: { passageIndex: 'asc' }, select: { passageIndex: true, content: true } },
+        passages: {
+          orderBy: { passageIndex: 'asc' },
+          select: { passageIndex: true, content: true },
+        },
       },
     });
     expect(indexed.passages.length).toBeGreaterThan(1);
@@ -45,11 +56,13 @@ describe('journal memory indexing', () => {
     const sourceCharacters = Array.from(note);
     expect(passageContents[0]).toBe(sourceCharacters.slice(0, 700).join(''));
     expect(passageContents.at(-1)).toBe(sourceCharacters.slice(-318).join(''));
+
     for (let index = 1; index < passageContents.length; index += 1) {
       const previous = Array.from(passageContents[index - 1] ?? '');
       const current = Array.from(passageContents[index] ?? '');
       expect(current.slice(0, 100)).toEqual(previous.slice(-100));
     }
+
     expect(embed).toHaveBeenCalledTimes(1);
     const dimensions = await testDb.$queryRaw<{ dimensions: number }[]>`
       SELECT vector_dims("embedding") AS "dimensions"
@@ -60,26 +73,79 @@ describe('journal memory indexing', () => {
     expect(dimensions[0]?.dimensions).toBe(JOURNAL_EMBEDDING_DIMENSIONS);
   });
 
+  it('replaces an old model generation atomically and retains it if regeneration fails', async () => {
+    const { user, entry } = await createEntry('A canonical journal source.');
+    await processJournalMemoryEntry(testDb, entry.id, user.id, async (passages) =>
+      vectorsFor(passages),
+    );
+    await testDb.journalMemoryGeneration.update({
+      where: { entryId: entry.id },
+      data: { embeddingModel: 'embeddinggemma:old' },
+    });
+    const before = await testDb.journalMemoryPassage.count({ where: { generationId: entry.id } });
+
+    await expect(
+      processJournalMemoryEntry(testDb, entry.id, user.id, async () => {
+        throw new Error('inference failed');
+      }),
+    ).rejects.toThrow('inference failed');
+
+    expect(
+      (await testDb.journalMemoryGeneration.findUniqueOrThrow({ where: { entryId: entry.id } }))
+        .embeddingModel,
+    ).toBe('embeddinggemma:old');
+    expect(await testDb.journalMemoryPassage.count({ where: { generationId: entry.id } })).toBe(
+      before,
+    );
+
+    await processJournalMemoryEntry(testDb, entry.id, user.id, async (passages) =>
+      vectorsFor(passages),
+    );
+
+    expect(
+      (await testDb.journalMemoryGeneration.findUniqueOrThrow({ where: { entryId: entry.id } }))
+        .embeddingModel,
+    ).toBe(JOURNAL_EMBEDDING_GENERATION.model);
+    expect(await testDb.journalMemoryPassage.count({ where: { generationId: entry.id } })).toBe(
+      before,
+    );
+  });
+
   it('discards embeddings when the source note changes during inference', async () => {
     const { user, entry } = await createEntry('This note changes while Ollama is working.');
     const embed = vi.fn(async (passages: readonly string[]) => {
-      await testDb.entry.update({ where: { id: entry.id }, data: { note: 'A newer note is now canonical.' } });
+      await testDb.entry.update({
+        where: { id: entry.id },
+        data: { note: 'A newer note is now canonical.' },
+      });
+
       return vectorsFor(passages);
     });
 
-    await expect(processJournalMemoryEntry(testDb, entry.id, user.id, embed)).resolves.toBe('stale');
-    await expect(testDb.journalMemoryGeneration.findUnique({ where: { entryId: entry.id } })).resolves.toBeNull();
-    await expect(testDb.journalMemoryPassage.count({ where: { generationId: entry.id } })).resolves.toBe(0);
+    await expect(processJournalMemoryEntry(testDb, entry.id, user.id, embed)).resolves.toBe(
+      'stale',
+    );
+    await expect(
+      testDb.journalMemoryGeneration.findUnique({ where: { entryId: entry.id } }),
+    ).resolves.toBeNull();
+    await expect(
+      testDb.journalMemoryPassage.count({ where: { generationId: entry.id } }),
+    ).resolves.toBe(0);
   });
 
   it('treats an entry deleted during inference as a successful no-op', async () => {
     const { user, entry } = await createEntry('This entry will be deleted during inference.');
     const embed = vi.fn(async (passages: readonly string[]) => {
       await testDb.entry.delete({ where: { id: entry.id } });
+
       return vectorsFor(passages);
     });
 
-    await expect(processJournalMemoryEntry(testDb, entry.id, user.id, embed)).resolves.toBe('missing');
-    await expect(testDb.journalMemoryGeneration.findUnique({ where: { entryId: entry.id } })).resolves.toBeNull();
+    await expect(processJournalMemoryEntry(testDb, entry.id, user.id, embed)).resolves.toBe(
+      'missing',
+    );
+    await expect(
+      testDb.journalMemoryGeneration.findUnique({ where: { entryId: entry.id } }),
+    ).resolves.toBeNull();
   });
 });

@@ -4,12 +4,15 @@ import {
   JOURNAL_MEMORY_QUEUE,
   prepareJournalMemoryQueue,
 } from '../src/lib/journal/memory-queue';
+import { prepareJournalPhotoMemoryQueue } from '../src/lib/journal/photo-memory-queue';
 import { getDatabaseUrl } from '../src/lib/db-client';
 
 async function main(): Promise<void> {
   const boss = createJournalMemoryWorkerClient(getDatabaseUrl());
+
   try {
     await prepareJournalMemoryQueue(boss);
+    await prepareJournalPhotoMemoryQueue(boss);
     console.log(`Journal memory queue ${JOURNAL_MEMORY_QUEUE} is ready.`);
   } finally {
     await boss.stop();

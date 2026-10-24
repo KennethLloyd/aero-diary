@@ -15,23 +15,37 @@ const jobDataSchema = z.object({
 });
 
 async function main(): Promise<void> {
+  if (process.env.JOURNAL_TEXT_INDEXING_ENABLED !== 'true') {
+    throw new Error(
+      'Text indexing is disabled. Set JOURNAL_TEXT_INDEXING_ENABLED=true after migration approval.',
+    );
+  }
+
   const database = createDatabaseClient();
   const boss = createJournalMemoryWorkerClient(getDatabaseUrl());
   boss.on('error', () => console.error('Journal memory worker reported a queue error.'));
   boss.on('warning', () => console.warn('Journal memory queue warning.'));
 
   let shuttingDown = false;
+
   const shutdown = async () => {
     if (shuttingDown) return;
+
     shuttingDown = true;
+
     try {
       await boss.stop({ graceful: true, timeout: 30_000 });
     } finally {
       await database.$disconnect();
     }
   };
-  process.on('SIGINT', () => { void shutdown(); });
-  process.on('SIGTERM', () => { void shutdown(); });
+
+  process.on('SIGINT', () => {
+    void shutdown();
+  });
+  process.on('SIGTERM', () => {
+    void shutdown();
+  });
 
   await prepareJournalMemoryQueue(boss);
   await boss.work<{ entryId: string; userId: string }>(
@@ -41,6 +55,7 @@ async function main(): Promise<void> {
       for (const job of jobs) {
         const parsed = jobDataSchema.safeParse(job.data);
         if (!parsed.success) throw new Error('Journal memory job data is invalid.');
+
         await processJournalMemoryEntry(database, parsed.data.entryId, parsed.data.userId);
       }
     },

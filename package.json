@@ -26,7 +26,11 @@
     "test:e2e": "playwright test",
     "format": "prettier --write --ignore-unknown",
     "format:check": "prettier --check --ignore-unknown",
-    "lint:readability": "eslint --config eslint.readability.config.mjs --no-warn-ignored"
+    "lint:readability": "eslint --config eslint.readability.config.mjs --no-warn-ignored",
+    "memory:photo:worker": "tsx scripts/journal-photo-memory-worker.ts",
+    "memory:photos:backfill": "tsx scripts/journal-photo-memory-backfill.ts",
+    "memory:status": "tsx scripts/journal-memory-backfill.ts --status",
+    "memory:photos:status": "tsx scripts/journal-photo-memory-backfill.ts --status"
   },
   "dependencies": {
     "@node-rs/argon2": "2.1.0",
@@ -43,6 +47,7 @@
     "react-markdown": "10.1.0",
     "remark-gfm": "4.0.1",
     "server-only": "0.0.1",
+    "sharp": "0.35.5",
     "zod": "4.4.3"
   },
   "devDependencies": {
@@ -66,6 +71,9 @@
     "tsx": "4.23.12",
     "typescript": "^6.0.3",
     "vitest": "4.1.10"
+  },
+  "engines": {
+    "node": "26.12.1"
   },
   "packageManager": "pnpm@11.17.0"
 }

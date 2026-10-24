@@ -2,49 +2,53 @@ import 'server-only';
 
 import { Prisma } from '@/generated/prisma/client';
 import { db } from '@/lib/db';
+import { journalEvidenceSchema } from './schemas';
 import type { JournalMemoryResult } from '@/lib/journal/memory-retrieval';
 
 export class AeroAiStoreError extends Error {
-  constructor(message: string, readonly status: 404 | 409) {
+  constructor(
+    message: string,
+    readonly status: 404 | 409,
+  ) {
     super(message);
     this.name = 'AeroAiStoreError';
   }
 }
 
 export type AeroAiTurnView = {
-  id: string
-  clientRequestId: string
-  sequence: number
-  userContent: string
-  assistantContent: string | null
-  status: 'GENERATING' | 'COMPLETE' | 'FAILED'
-}
+  id: string;
+  clientRequestId: string;
+  sequence: number;
+  userContent: string;
+  assistantContent: string | null;
+  status: 'GENERATING' | 'COMPLETE' | 'FAILED';
+};
 
 export type AeroAiThreadView = {
-  id: string
-  title: string
-  updatedAt: Date
-  isGenerating: boolean
-  turns?: AeroAiTurnView[]
-}
+  id: string;
+  title: string;
+  updatedAt: Date;
+  isGenerating: boolean;
+  turns?: AeroAiTurnView[];
+};
 
 export type TurnReservation = {
-  threadId: string
-  turnId: string
-  sequence: number
-  userContent: string
-  summary: string | null
-  summaryThroughTurn: number
-  title: string
-}
+  threadId: string;
+  turnId: string;
+  sequence: number;
+  userContent: string;
+  summary: string | null;
+  summaryThroughTurn: number;
+  title: string;
+};
 
 export type CompletedTurn = {
-  id: string
-  sequence: number
-  userContent: string
-  assistantContent: string
-  evidence: JournalMemoryResult[]
-}
+  id: string;
+  sequence: number;
+  userContent: string;
+  assistantContent: string;
+  evidence: JournalMemoryResult[];
+};
 
 export async function listThreadsForUser(userId: string): Promise<AeroAiThreadView[]> {
   return db.aeroAiThread.findMany({
@@ -89,6 +93,7 @@ export async function getThreadForUser(
 
 export async function deleteThreadForUser(userId: string, threadId: string): Promise<boolean> {
   const deleted = await db.aeroAiThread.deleteMany({ where: { id: threadId, userId } });
+
   return deleted.count > 0;
 }
 
@@ -97,7 +102,10 @@ export async function reserveTurn(
   threadId: string,
   clientRequestId: string,
   userContent: string,
-): Promise<{ kind: 'completed'; turn: AeroAiTurnView & { assistantContent: string; title: string } } | { kind: 'started'; reservation: TurnReservation }> {
+): Promise<
+  | { kind: 'completed'; turn: AeroAiTurnView & { assistantContent: string; title: string } }
+  | { kind: 'started'; reservation: TurnReservation }
+> {
   return db.$transaction(async (tx) => {
     const thread = await tx.aeroAiThread.findFirst({
       where: { id: threadId, userId },
@@ -107,6 +115,7 @@ export async function reserveTurn(
 
     const requestWhere = { threadId_clientRequestId: { threadId, clientRequestId } };
     let existing = await tx.aeroAiTurn.findUnique({ where: requestWhere });
+
     if (existing && existing.userContent !== userContent) {
       throw new AeroAiStoreError('This request ID was already used for another message.', 409);
     }
@@ -132,12 +141,14 @@ export async function reserveTurn(
       where: { id: threadId, userId, isGenerating: false },
       data: { isGenerating: true },
     });
+
     if (!claimed.count) {
       throw new AeroAiStoreError('A reply is already being generated for this chat.', 409);
     }
 
     // Recheck after the claim so a just-finished retry with the same ID is replayed.
     existing = await tx.aeroAiTurn.findUnique({ where: requestWhere });
+
     if (existing && existing.userContent !== userContent) {
       throw new AeroAiStoreError('This request ID was already used for another message.', 409);
     }
@@ -150,6 +161,7 @@ export async function reserveTurn(
         where: { id: threadId },
         data: { isGenerating: false },
       });
+
       return {
         kind: 'completed',
         turn: {
@@ -173,6 +185,7 @@ export async function reserveTurn(
     });
     let turnId: string;
     let sequence: number;
+
     if (existing?.status === 'FAILED') {
       const retry = await tx.aeroAiTurn.update({
         where: { id: existing.id },
@@ -225,13 +238,17 @@ export async function getCompletedTurnsBefore(
       evidence: true,
     },
   });
+
   return turns.flatMap((turn) => {
     if (turn.assistantContent === null) return [];
-    return [{
-      ...turn,
-      assistantContent: turn.assistantContent,
-      evidence: parseEvidence(turn.evidence),
-    }];
+
+    return [
+      {
+        ...turn,
+        assistantContent: turn.assistantContent,
+        evidence: parseEvidence(turn.evidence),
+      },
+    ];
   });
 }
 
@@ -259,7 +276,9 @@ export async function finishTurn(
       data: {
         assistantContent,
         status: 'COMPLETE',
-        evidence: evidence.length ? evidence as Prisma.InputJsonValue : Prisma.DbNull,
+        evidence: evidence.length
+          ? (evidence.map((item) => journalEvidenceSchema.parse(item)) as Prisma.InputJsonValue)
+          : Prisma.DbNull,
       },
     });
     const released = await tx.aeroAiThread.updateMany({
@@ -285,27 +304,16 @@ export async function failTurn(threadId: string, turnId: string): Promise<void> 
 
 function threadTitleFromMessage(content: string): string {
   const firstLine = content.split(/\r?\n/, 1)[0]?.trim().replace(/\s+/g, ' ') ?? '';
+
   return firstLine.length > 56 ? `${firstLine.slice(0, 55).trimEnd()}…` : firstLine;
 }
 
 function parseEvidence(value: Prisma.JsonValue | null): JournalMemoryResult[] {
   if (!Array.isArray(value)) return [];
+
   return value.flatMap((item) => {
-    if (!item || typeof item !== 'object' || Array.isArray(item)) return [];
-    const evidence = item as Record<string, Prisma.JsonValue>;
-    if (
-      typeof evidence.entryId !== 'string'
-      || typeof evidence.journalDate !== 'string'
-      || typeof evidence.mood !== 'string'
-      || typeof evidence.content !== 'string'
-      || typeof evidence.score !== 'number'
-    ) return [];
-    return [{
-      entryId: evidence.entryId,
-      journalDate: evidence.journalDate,
-      mood: evidence.mood,
-      content: evidence.content,
-      score: evidence.score,
-    }];
+    const parsed = journalEvidenceSchema.safeParse(item);
+
+    return parsed.success ? [parsed.data] : [];
   });
 }
