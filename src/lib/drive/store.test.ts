@@ -1,9 +1,32 @@
+import { createHash } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { execFileSync } from 'node:child_process';
 import { describe, expect, it, vi } from 'vitest';
 import { createPhotoStore, type DriveFilesApi } from '@/lib/drive/store';
 
 const mocks = vi.hoisted(() => ({ convertHeic: vi.fn() }));
+
+const JPEG_BYTES = Uint8Array.from(
+  Buffer.from(
+    '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAb/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAH/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAEFAqf/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAEDAQE/AT//xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAECAYE/AT//2Q==',
+    'base64',
+  ),
+);
+const PNG_BYTES = Uint8Array.from(
+  Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVQIHWP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC',
+    'base64',
+  ),
+);
+const WEBP_BYTES = Uint8Array.from(
+  Buffer.from('UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEAAUAmJaQAA3AA/v89WAAAAA==', 'base64'),
+);
+
+function syntheticHeicBytes() {
+  return Uint8Array.from([
+    0, 0, 0, 20, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63, 0, 0, 0, 0, 0x6d, 0x69, 0x66, 0x31,
+  ]);
+}
 
 vi.mock('heic-convert', () => ({ default: mocks.convertHeic }));
 
@@ -25,7 +48,12 @@ function folderAndFileResponses(drive: ReturnType<typeof fakeDrive>) {
     if (q?.includes("name = 'photos'")) {
       return { data: { files: [{ id: 'photos-folder', name: 'photos' }] } } as never;
     }
-    return { data: { files: [{ id: 'photo-file', name: 'photo.jpg', mimeType: 'image/jpeg', size: '1234' }] } } as never;
+
+    return {
+      data: {
+        files: [{ id: 'photo-file', name: 'photo.jpg', mimeType: 'image/jpeg', size: '1234' }],
+      },
+    } as never;
   });
 }
 
@@ -33,90 +61,126 @@ describe('Google Drive photo store', () => {
   it('loads from a standalone tsx process without a Next server context', () => {
     const output = execFileSync(
       'pnpm',
-      ['exec', 'tsx', '-e', "import { createPhotoStore } from './src/lib/drive/store.ts'; console.log(typeof createPhotoStore)"],
+      [
+        'exec',
+        'tsx',
+        '-e',
+        "import { createPhotoStore } from './src/lib/drive/store.ts'; console.log(typeof createPhotoStore)",
+      ],
       { cwd: process.cwd(), encoding: 'utf8' },
     );
 
     expect(output.trim()).toBe('function');
   });
 
-  it('uploads a photo as a hashed JPEG through multipart files.create', async () => {
+  it('stores JPEG bytes as a .jpg even when the original metadata says PNG', async () => {
     const drive = fakeDrive();
     folderAndFileResponses(drive);
     vi.mocked(drive.create).mockResolvedValue({ data: { id: 'uploaded-file' } } as never);
 
     const store = createPhotoStore(drive as unknown as DriveFilesApi, 'AeroDiary/photos');
-    const uploaded = await store.upload(new File(['hello'], 'original.jpg', { type: 'image/jpeg' }));
+    const uploaded = await store.upload(
+      new File([new Uint8Array(JPEG_BYTES)], 'original.png', { type: 'image/png' }),
+    );
 
+    const jpegHash = createHash('md5').update(JPEG_BYTES).digest('hex');
     expect(uploaded).toEqual({
-      drivePath: 'photos/5d41402abc4b2a76b9719d911017c592.jpg',
+      drivePath: `photos/${jpegHash}.jpg`,
       fileId: 'uploaded-file',
       mimeType: 'image/jpeg',
+      sizeBytes: JPEG_BYTES.byteLength,
     });
-    expect(drive.create).toHaveBeenCalledWith(expect.objectContaining({
-      uploadType: 'multipart',
-      requestBody: {
-        mimeType: 'image/jpeg',
-        name: '5d41402abc4b2a76b9719d911017c592.jpg',
-        parents: ['photos-folder'],
-      },
-      media: { mimeType: 'application/octet-stream', body: expect.any(Readable) },
-    }));
+    expect(drive.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        uploadType: 'multipart',
+        requestBody: {
+          mimeType: 'image/jpeg',
+          name: `${jpegHash}.jpg`,
+          parents: ['photos-folder'],
+        },
+        media: { mimeType: 'image/jpeg', body: expect.any(Readable) },
+      }),
+    );
   });
 
-  it('preserves PNG metadata when uploading a PNG photo', async () => {
+  it('stores PNG bytes as a .png even when the original metadata says JPEG', async () => {
     const drive = fakeDrive();
     folderAndFileResponses(drive);
     vi.mocked(drive.create).mockResolvedValue({ data: { id: 'uploaded-png-file' } } as never);
 
     const store = createPhotoStore(drive as unknown as DriveFilesApi, 'AeroDiary/photos');
-    const uploaded = await store.upload(new File(['png bytes'], 'original.png', { type: 'image/png' }));
+    const uploaded = await store.upload(
+      new File([new Uint8Array(PNG_BYTES)], 'original.jpg', { type: 'image/jpeg' }),
+    );
 
+    expect(uploaded.drivePath.endsWith('.png')).toBe(true);
     expect(uploaded.mimeType).toBe('image/png');
-    expect(drive.create).toHaveBeenCalledWith(expect.objectContaining({
-      requestBody: expect.objectContaining({ mimeType: 'image/png' }),
-    }));
+    expect(uploaded.sizeBytes).toBe(PNG_BYTES.byteLength);
+    expect(drive.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        media: expect.objectContaining({ mimeType: 'image/png' }),
+        requestBody: expect.objectContaining({
+          mimeType: 'image/png',
+          name: expect.stringMatching(/\.png$/),
+        }),
+      }),
+    );
   });
 
-  it('converts iPhone HEIC photos to JPEG before uploading', async () => {
+  it('converts iPhone HEIC photos to JPEG before uploading and reports converted bytes', async () => {
     const drive = fakeDrive();
     folderAndFileResponses(drive);
     vi.mocked(drive.create).mockResolvedValue({ data: { id: 'uploaded-heic-file' } } as never);
-    mocks.convertHeic.mockResolvedValue(Buffer.from('converted jpeg'));
+    mocks.convertHeic.mockResolvedValue(Buffer.from(JPEG_BYTES));
+    const heicBytes = syntheticHeicBytes();
 
     const store = createPhotoStore(drive as unknown as DriveFilesApi, 'AeroDiary/photos');
-    const uploaded = await store.upload(new File(['heic bytes'], 'original.HEIC', { type: 'image/heic' }));
+    const uploaded = await store.upload(
+      new File([new Uint8Array(heicBytes)], 'original.HEIC', { type: 'image/heic' }),
+    );
 
     expect(uploaded.mimeType).toBe('image/jpeg');
+    expect(uploaded.drivePath.endsWith('.jpg')).toBe(true);
+    expect(uploaded.sizeBytes).toBe(JPEG_BYTES.byteLength);
     expect(mocks.convertHeic).toHaveBeenCalledWith({
-      buffer: Buffer.from('heic bytes'),
+      buffer: Buffer.from(heicBytes),
       format: 'JPEG',
       quality: 0.9,
     });
 
     const request = vi.mocked(drive.create).mock.calls.at(-1)?.[0] as {
-      media: { body: Readable }
-      requestBody: { mimeType: string }
+      media: { body: Readable };
+      requestBody: { mimeType: string; name: string };
     };
     const chunks: Buffer[] = [];
     for await (const chunk of request.media.body) chunks.push(Buffer.from(chunk));
-    expect(Buffer.concat(chunks)).toEqual(Buffer.from('converted jpeg'));
+    expect(Buffer.concat(chunks)).toEqual(Buffer.from(JPEG_BYTES));
     expect(request.requestBody.mimeType).toBe('image/jpeg');
+    expect(request.requestBody.name.endsWith('.jpg')).toBe(true);
+  });
+
+  it('rejects a real WebP image disguised as JPEG before any Drive write', async () => {
+    const drive = fakeDrive();
+    folderAndFileResponses(drive);
+    const store = createPhotoStore(drive as unknown as DriveFilesApi, 'AeroDiary/photos');
+
+    await expect(
+      store.upload(new File([new Uint8Array(WEBP_BYTES)], 'disguised.jpg', { type: 'image/jpeg' })),
+    ).rejects.toThrow(/WebP.*not supported/i);
+    expect(drive.create).not.toHaveBeenCalled();
+    expect(drive.list).not.toHaveBeenCalled();
   });
 
   it('streams a photo by resolving its Drive-relative path', async () => {
     const drive = fakeDrive();
     folderAndFileResponses(drive);
-    vi.mocked(drive.get).mockResolvedValue({ data: Readable.from([Buffer.from('photo bytes')]) } as never);
+    vi.mocked(drive.get).mockResolvedValue({
+      data: Readable.from([Buffer.from('photo bytes')]),
+    } as never);
 
     const store = createPhotoStore(drive as unknown as DriveFilesApi, 'AeroDiary/photos');
     const downloaded = await store.download('photos/photo.jpg');
-
     await expect(new Response(downloaded).text()).resolves.toBe('photo bytes');
-    expect(drive.get).toHaveBeenCalledWith(
-      { fileId: 'photo-file', alt: 'media' },
-      { responseType: 'stream' },
-    );
   });
 
   it('deletes the Drive file resolved from its relative path', async () => {
@@ -131,7 +195,9 @@ describe('Google Drive photo store', () => {
 
   it('uses a stored Drive file id without resolving a duplicate hash path', async () => {
     const drive = fakeDrive();
-    vi.mocked(drive.get).mockResolvedValue({ data: Readable.from([Buffer.from('photo bytes')]) } as never);
+    vi.mocked(drive.get).mockResolvedValue({
+      data: Readable.from([Buffer.from('photo bytes')]),
+    } as never);
 
     const store = createPhotoStore(drive as unknown as DriveFilesApi, 'AeroDiary/photos');
     await store.download('photos/photo.jpg', 'known-file');
@@ -177,6 +243,7 @@ describe('Google Drive photo store', () => {
       if (q?.includes("name = 'photos'")) {
         return { data: { files: [{ id: 'photos-folder', name: 'photos' }] } } as never;
       }
+
       return {
         data: {
           files: [

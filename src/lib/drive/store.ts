@@ -4,7 +4,12 @@ import { google } from 'googleapis';
 import convertHeic from 'heic-convert';
 import type { drive_v3 } from 'googleapis';
 import { z } from 'zod';
-import { isHeifPhoto } from '@/lib/journal/photos';
+import {
+  MAX_PHOTO_SIZE_BYTES,
+  PhotoSizeError,
+  sniffPhotoContentType,
+  type SupportedPhotoContentType,
+} from '@/lib/journal/photos';
 
 export const GOOGLE_DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive';
 const FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder';
@@ -22,6 +27,7 @@ export type UploadedPhoto = {
   drivePath: string;
   fileId: string;
   mimeType: string;
+  sizeBytes: number;
 };
 
 export type DrivePhotoResolution =
@@ -111,19 +117,24 @@ function photoFileName(drivePath: string, rootPath: string) {
   return pathSegments[1];
 }
 
-async function normalizePhoto(file: File) {
-  if (!isHeifPhoto(file)) return file;
+async function normalizePhoto(
+  file: File,
+  contentType: SupportedPhotoContentType,
+): Promise<{ bytes: Buffer; mimeType: 'image/jpeg' | 'image/png' }> {
+  if (contentType !== 'image/heic' && contentType !== 'image/heif') {
+    return {
+      bytes: Buffer.from(await file.arrayBuffer()),
+      mimeType: contentType,
+    };
+  }
 
   const jpeg = await convertHeic({
     buffer: Buffer.from(await file.arrayBuffer()),
     format: 'JPEG',
     quality: 0.9,
   });
-  const jpegBuffer = new ArrayBuffer(jpeg.byteLength);
-  new Uint8Array(jpegBuffer).set(jpeg);
-  const name = file.name.replace(/\.(heic|heif)$/i, '') || 'photo';
 
-  return new File([jpegBuffer], `${name}.jpg`, { type: 'image/jpeg' });
+  return { bytes: Buffer.from(jpeg), mimeType: 'image/jpeg' };
 }
 
 export function createPhotoStore(drive: DriveFilesApi, photosRoot: string): PhotoStore {
@@ -238,10 +249,16 @@ export function createPhotoStore(drive: DriveFilesApi, photosRoot: string): Phot
 
   return {
     async upload(file) {
-      const normalizedFile = await normalizePhoto(file);
-      const bytes = Buffer.from(await normalizedFile.arrayBuffer());
+      if (file.size > MAX_PHOTO_SIZE_BYTES) throw new PhotoSizeError();
+
+      const contentType = await sniffPhotoContentType(file);
+      const normalizedPhoto = await normalizePhoto(file, contentType);
+      const bytes = normalizedPhoto.bytes;
+      if (bytes.byteLength > MAX_PHOTO_SIZE_BYTES) throw new PhotoSizeError();
+
       const hash = createHash('md5').update(bytes).digest('hex');
-      const name = `${hash}.jpg`;
+      const extension = normalizedPhoto.mimeType === 'image/png' ? 'png' : 'jpg';
+      const name = `${hash}.${extension}`;
       const folderId = await getPhotosFolderId(true);
       if (!folderId) throw new DriveConfigurationError();
 
@@ -249,9 +266,9 @@ export function createPhotoStore(drive: DriveFilesApi, photosRoot: string): Phot
         fields: 'id,name,mimeType',
         media: {
           body: Readable.from(bytes),
-          mimeType: 'application/octet-stream',
+          mimeType: normalizedPhoto.mimeType,
         },
-        requestBody: { mimeType: normalizedFile.type, name, parents: [folderId] },
+        requestBody: { mimeType: normalizedPhoto.mimeType, name, parents: [folderId] },
         uploadType: 'multipart',
       });
       const uploadedFileId = fileId(response.data);
@@ -260,7 +277,8 @@ export function createPhotoStore(drive: DriveFilesApi, photosRoot: string): Phot
       return {
         drivePath: `${rootSegments.at(-1)}/${name}`,
         fileId: uploadedFileId,
-        mimeType: normalizedFile.type,
+        mimeType: normalizedPhoto.mimeType,
+        sizeBytes: bytes.byteLength,
       };
     },
 

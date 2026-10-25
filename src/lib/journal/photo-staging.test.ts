@@ -10,6 +10,17 @@ import {
   stagePhoto,
 } from '@/lib/journal/photo-staging';
 
+const JPEG_BYTES = Uint8Array.from(
+  Buffer.from(
+    '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAb/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAH/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAEFAqf/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAEDAQE/AT//xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9o/ACAECAQE/AT//2Q==',
+    'base64',
+  ),
+);
+
+function jpegFile() {
+  return new File([new Uint8Array(JPEG_BYTES)], 'photo.jpg', { type: 'image/jpeg' });
+}
+
 function createStore() {
   return {
     delete: vi.fn(),
@@ -20,6 +31,7 @@ function createStore() {
       drivePath: 'photos/hash.jpg',
       fileId: 'drive-file',
       mimeType: 'image/jpeg',
+      sizeBytes: 3,
     }),
   } as unknown as PhotoStore;
 }
@@ -38,7 +50,7 @@ describe('staged photo workflow', () => {
   it('stores a Drive upload as a user-owned staged photo', async () => {
     const user = await createUser();
     const store = createStore();
-    const file = new File(['photo'], 'photo.jpg', { type: 'image/jpeg' });
+    const file = jpegFile();
 
     const staged = await stagePhoto(testDb, store, {
       userId: user.id,
@@ -51,7 +63,7 @@ describe('staged photo workflow', () => {
       drivePath: 'photos/hash.jpg',
       driveFileId: 'drive-file',
       mimeType: 'image/jpeg',
-      sizeBytes: file.size,
+      sizeBytes: 3,
     });
     expect(await testDb.stagedPhoto.count({ where: { userId: user.id } })).toBe(1);
   });
@@ -59,7 +71,7 @@ describe('staged photo workflow', () => {
   it('is idempotent for a retried client key', async () => {
     const user = await createUser();
     const store = createStore();
-    const file = new File(['photo'], 'photo.jpg', { type: 'image/jpeg' });
+    const file = jpegFile();
 
     const first = await stagePhoto(testDb, store, {
       userId: user.id,
@@ -99,40 +111,40 @@ describe('staged photo workflow', () => {
       userId: user.id,
       draftKey: 'draft-1',
       clientKey: 'new-photo',
-      file: new File(['photo'], 'photo.jpg', { type: 'image/jpeg' }),
+      file: jpegFile(),
     });
 
     expect(await testDb.stagedPhoto.findUnique({ where: { id: expired.id } })).toBeNull();
     expect(store.delete).toHaveBeenCalledWith('photos/expired.jpg', 'drive-expired');
-    expect(await testDb.stagedPhotoCancellation.findUnique({
-      where: {
-        userId_draftKey_clientKey: {
-          userId: user.id,
-          draftKey: 'draft-1',
-          clientKey: 'expired',
+    expect(
+      await testDb.stagedPhotoCancellation.findUnique({
+        where: {
+          userId_draftKey_clientKey: {
+            userId: user.id,
+            draftKey: 'draft-1',
+            clientKey: 'expired',
+          },
         },
-      },
-    })).toMatchObject({ stagedPhotoId: expired.id, expired: true });
+      }),
+    ).toMatchObject({ stagedPhotoId: expired.id, expired: true });
   });
 
   it('records a cancellation before a late upload can commit', async () => {
     const user = await createUser();
     const store = createStore();
 
-    await expect(deleteStagedPhotoByKey(
-      testDb,
-      store,
-      user.id,
-      'draft-1',
-      'cancelled',
-    )).resolves.toBe(false);
+    await expect(
+      deleteStagedPhotoByKey(testDb, store, user.id, 'draft-1', 'cancelled'),
+    ).resolves.toBe(false);
 
-    await expect(stagePhoto(testDb, store, {
-      userId: user.id,
-      draftKey: 'draft-1',
-      clientKey: 'cancelled',
-      file: new File(['photo'], 'photo.jpg', { type: 'image/jpeg' }),
-    })).rejects.toBeInstanceOf(PhotoStageCancelledError);
+    await expect(
+      stagePhoto(testDb, store, {
+        userId: user.id,
+        draftKey: 'draft-1',
+        clientKey: 'cancelled',
+        file: jpegFile(),
+      }),
+    ).rejects.toBeInstanceOf(PhotoStageCancelledError);
     expect(store.upload).not.toHaveBeenCalled();
   });
 
@@ -141,19 +153,23 @@ describe('staged photo workflow', () => {
     const store = createStore();
     vi.mocked(store.upload).mockImplementationOnce(async () => {
       await deleteStagedPhotoByKey(testDb, store, user.id, 'draft-1', 'race');
+
       return {
         drivePath: 'photos/race.jpg',
         fileId: 'drive-race',
         mimeType: 'image/jpeg',
+        sizeBytes: 6,
       };
     });
 
-    await expect(stagePhoto(testDb, store, {
-      userId: user.id,
-      draftKey: 'draft-1',
-      clientKey: 'race',
-      file: new File(['photo'], 'photo.jpg', { type: 'image/jpeg' }),
-    })).rejects.toBeInstanceOf(PhotoStageCancelledError);
+    await expect(
+      stagePhoto(testDb, store, {
+        userId: user.id,
+        draftKey: 'draft-1',
+        clientKey: 'race',
+        file: jpegFile(),
+      }),
+    ).rejects.toBeInstanceOf(PhotoStageCancelledError);
     expect(store.deleteById).toHaveBeenCalledWith('drive-race');
     expect(await testDb.stagedPhoto.count()).toBe(0);
   });
@@ -161,24 +177,30 @@ describe('staged photo workflow', () => {
   it('rejects a new stage after twenty staged photos without calling Drive', async () => {
     const user = await createUser();
     const store = createStore();
-    await Promise.all(Array.from({ length: 20 }, (_, index) => testDb.stagedPhoto.create({
-      data: {
+    await Promise.all(
+      Array.from({ length: 20 }, (_, index) =>
+        testDb.stagedPhoto.create({
+          data: {
+            userId: user.id,
+            draftKey: 'draft-1',
+            clientKey: `existing-${index}`,
+            drivePath: `photos/${index}.jpg`,
+            driveFileId: `drive-${index}`,
+            mimeType: 'image/jpeg',
+            sizeBytes: 1,
+          },
+        }),
+      ),
+    );
+
+    await expect(
+      stagePhoto(testDb, store, {
         userId: user.id,
         draftKey: 'draft-1',
-        clientKey: `existing-${index}`,
-        drivePath: `photos/${index}.jpg`,
-        driveFileId: `drive-${index}`,
-        mimeType: 'image/jpeg',
-        sizeBytes: 1,
-      },
-    })));
-
-    await expect(stagePhoto(testDb, store, {
-      userId: user.id,
-      draftKey: 'draft-1',
-      clientKey: 'twenty-first',
-      file: new File(['photo'], 'photo.jpg', { type: 'image/jpeg' }),
-    })).rejects.toBeInstanceOf(PhotoStageCapacityError);
+        clientKey: 'twenty-first',
+        file: jpegFile(),
+      }),
+    ).rejects.toBeInstanceOf(PhotoStageCapacityError);
     expect(store.upload).not.toHaveBeenCalled();
   });
 
@@ -202,15 +224,17 @@ describe('staged photo workflow', () => {
 
     expect(await testDb.stagedPhoto.findUnique({ where: { id: staged.id } })).toBeNull();
     expect(store.delete).toHaveBeenCalledWith('photos/remove.jpg', 'drive-remove');
-    expect(await testDb.stagedPhotoCancellation.findUnique({
-      where: {
-        userId_draftKey_clientKey: {
-          userId: user.id,
-          draftKey: 'draft-1',
-          clientKey: 'remove-me',
+    expect(
+      await testDb.stagedPhotoCancellation.findUnique({
+        where: {
+          userId_draftKey_clientKey: {
+            userId: user.id,
+            draftKey: 'draft-1',
+            clientKey: 'remove-me',
+          },
         },
-      },
-    })).not.toBeNull();
+      }),
+    ).not.toBeNull();
   });
 
   it('deletes a staged photo by its draft and client keys', async () => {
@@ -228,24 +252,22 @@ describe('staged photo workflow', () => {
       },
     });
 
-    await expect(deleteStagedPhotoByKey(
-      testDb,
-      store,
-      user.id,
-      staged.draftKey,
-      staged.clientKey,
-    )).resolves.toBe(true);
+    await expect(
+      deleteStagedPhotoByKey(testDb, store, user.id, staged.draftKey, staged.clientKey),
+    ).resolves.toBe(true);
 
     expect(await testDb.stagedPhoto.findUnique({ where: { id: staged.id } })).toBeNull();
     expect(store.delete).toHaveBeenCalledWith('photos/lost-response.jpg', 'drive-lost-response');
-    expect(await testDb.stagedPhotoCancellation.findUnique({
-      where: {
-        userId_draftKey_clientKey: {
-          userId: user.id,
-          draftKey: staged.draftKey,
-          clientKey: staged.clientKey,
+    expect(
+      await testDb.stagedPhotoCancellation.findUnique({
+        where: {
+          userId_draftKey_clientKey: {
+            userId: user.id,
+            draftKey: staged.draftKey,
+            clientKey: staged.clientKey,
+          },
         },
-      },
-    })).not.toBeNull();
+      }),
+    ).not.toBeNull();
   });
 });

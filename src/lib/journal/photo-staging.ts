@@ -9,27 +9,30 @@ export const PHOTO_STAGE_CAPACITY_ERROR = 'You can attach up to 20 photos per en
 export const PHOTO_STAGE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 export type StagedPhotoView = {
-  id: string
-  clientKey: string
-  drivePath: string
-  driveFileId: string
-  mimeType: string
-  sizeBytes: number
-}
+  id: string;
+  clientKey: string;
+  drivePath: string;
+  driveFileId: string;
+  mimeType: string;
+  sizeBytes: number;
+};
 
-type StagedPhotoDatabase = Pick<PrismaClient, '$transaction' | 'stagedPhoto' | 'stagedPhotoCancellation'>;
+type StagedPhotoDatabase = Pick<
+  PrismaClient,
+  '$transaction' | 'stagedPhoto' | 'stagedPhotoCancellation'
+>;
 
 export type StagedPhotoTransaction = Pick<PrismaClient, 'stagedPhoto' | 'stagedPhotoCancellation'>;
 
 export type StagedPhotoSelection = {
-  readonly ids: readonly string[]
-  readonly draftKey?: string
-}
+  readonly ids: readonly string[];
+  readonly draftKey?: string;
+};
 
 export type StagedPhotoRecord = Pick<
   StagedPhotoView,
   'id' | 'drivePath' | 'driveFileId' | 'mimeType' | 'sizeBytes'
->
+>;
 
 export class StagedPhotoUnavailableError extends Error {
   constructor() {
@@ -39,11 +42,11 @@ export class StagedPhotoUnavailableError extends Error {
 }
 
 type StagePhotoInput = {
-  userId: string
-  draftKey: string
-  clientKey: string
-  file: File
-}
+  userId: string;
+  draftKey: string;
+  clientKey: string;
+  file: File;
+};
 
 export class PhotoStageCapacityError extends Error {
   constructor() {
@@ -92,6 +95,7 @@ export async function cleanupExpiredStagedPhotos(
 ) {
   const cutoff = new Date(Date.now() - PHOTO_STAGE_MAX_AGE_MS);
   const cancellationCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
   try {
     await database.stagedPhotoCancellation.deleteMany({
       where: { createdAt: { lt: cancellationCutoff } },
@@ -99,14 +103,16 @@ export async function cleanupExpiredStagedPhotos(
   } catch (error) {
     console.error('Unable to remove expired photo cancellation records.', error);
   }
+
   let expired: {
-    id: string
-    userId: string
-    draftKey: string
-    clientKey: string
-    drivePath: string
-    driveFileId: string
+    id: string;
+    userId: string;
+    draftKey: string;
+    clientKey: string;
+    drivePath: string;
+    driveFileId: string;
   }[];
+
   try {
     expired = await database.stagedPhoto.findMany({
       where: { createdAt: { lt: cutoff } },
@@ -121,14 +127,17 @@ export async function cleanupExpiredStagedPhotos(
     });
   } catch (error) {
     console.error('Unable to find expired staged photos.', error);
+
     return;
   }
 
   const claimed: typeof expired = [];
+
   for (const photo of expired) {
     try {
       const deleted = await database.$transaction(async (transaction) => {
         const result = await transaction.stagedPhoto.deleteMany({ where: { id: photo.id } });
+
         if (result.count === 1) {
           await transaction.stagedPhotoCancellation.upsert({
             where: {
@@ -152,6 +161,7 @@ export async function cleanupExpiredStagedPhotos(
             },
           });
         }
+
         return result.count;
       });
       if (deleted === 1) claimed.push(photo);
@@ -164,18 +174,19 @@ export async function cleanupExpiredStagedPhotos(
     if (claimed.length > 0) {
       console.error('Expired staged photos were removed but Drive cleanup was unavailable.');
     }
+
     return;
   }
-  const results = await Promise.allSettled(claimed.map((photo) => (
-    store.delete(photo.drivePath, photo.driveFileId)
-  )));
+
+  const results = await Promise.allSettled(
+    claimed.map((photo) => store.delete(photo.drivePath, photo.driveFileId)),
+  );
   results.forEach((result) => {
     if (result.status === 'rejected') {
       console.error('Expired staged photo was removed but Drive cleanup failed.', result.reason);
     }
   });
 }
-
 
 export async function loadStagedPhotos(
   database: StagedPhotoDatabase,
@@ -202,9 +213,10 @@ export async function loadStagedPhotos(
       select: { stagedPhotoId: true, expired: true },
     }),
   ]);
-  const expiredIds = cancellations.flatMap((cancellation) => (
-    cancellation.expired && cancellation.stagedPhotoId ? [cancellation.stagedPhotoId] : []
-  ));
+  const expiredIds = cancellations.flatMap((cancellation) =>
+    cancellation.expired && cancellation.stagedPhotoId ? [cancellation.stagedPhotoId] : [],
+  );
+
   if (photos.length + expiredIds.length !== ids.length) {
     throw new StagedPhotoUnavailableError();
   }
@@ -216,6 +228,7 @@ export async function loadStagedPhotos(
     mimeType,
     sizeBytes,
   }));
+
   return { ids: data.map((photo) => photo.id), data };
 }
 
@@ -225,6 +238,7 @@ export async function consumeStagedPhotos<T extends { id: string }>(
   staged: { ids: readonly string[]; data: readonly T[] },
 ): Promise<T[]> {
   if (staged.ids.length === 0) return [...staged.data];
+
   const consumed = await transaction.stagedPhoto.deleteMany({
     where: { id: { in: [...staged.ids] }, userId },
   });
@@ -239,16 +253,17 @@ export async function consumeStagedPhotos<T extends { id: string }>(
     select: { stagedPhotoId: true },
   });
   const expiredIds = new Set(
-    expiredCancellations.flatMap((cancellation) => (
-      cancellation.stagedPhotoId ? [cancellation.stagedPhotoId] : []
-    )),
+    expiredCancellations.flatMap((cancellation) =>
+      cancellation.stagedPhotoId ? [cancellation.stagedPhotoId] : [],
+    ),
   );
+
   if (expiredIds.size !== staged.ids.length - consumed.count) {
     throw new StagedPhotoUnavailableError();
   }
+
   return staged.data.filter((photo) => !expiredIds.has(photo.id));
 }
-
 
 export async function stagePhoto(
   database: StagedPhotoDatabase,
@@ -267,6 +282,7 @@ export async function stagePhoto(
     select: stagedPhotoSelect(),
   });
   if (existing) return toView(existing);
+
   const cancellation = await database.stagedPhotoCancellation.findUnique({
     where: {
       userId_draftKey_clientKey: {
@@ -280,12 +296,14 @@ export async function stagePhoto(
   if (cancellation) throw new PhotoStageCancelledError();
 
   const stagedCount = await stagedPhotoCount(database, input.userId, input.draftKey);
+
   if (stagedCount >= MAX_PHOTO_COUNT) {
     throw new PhotoStageCapacityError();
   }
 
   const uploaded = await store.upload(input.file);
   let created: StagedPhotoView | undefined;
+
   try {
     created = await database.$transaction(async (transaction) => {
       const cancellation = await transaction.stagedPhotoCancellation.findUnique({
@@ -299,6 +317,7 @@ export async function stagePhoto(
         select: { userId: true },
       });
       if (cancellation) throw new PhotoStageCancelledError();
+
       return transaction.stagedPhoto.create({
         data: {
           userId: input.userId,
@@ -307,13 +326,14 @@ export async function stagePhoto(
           drivePath: uploaded.drivePath,
           driveFileId: uploaded.fileId,
           mimeType: uploaded.mimeType,
-          sizeBytes: input.file.size,
+          sizeBytes: uploaded.sizeBytes,
         },
         select: stagedPhotoSelect(),
       });
     });
 
     const finalStagedCount = await stagedPhotoCount(database, input.userId, input.draftKey);
+
     if (finalStagedCount > MAX_PHOTO_COUNT) {
       await database.stagedPhoto.delete({ where: { id: created.id } });
       throw new PhotoStageCapacityError();
@@ -337,8 +357,10 @@ export async function stagePhoto(
           },
           select: stagedPhotoSelect(),
         });
+
         if (winner) {
           await cleanupUploadedPhoto(store, uploaded);
+
           return toView(winner);
         }
       } catch (lookupError) {
@@ -374,6 +396,7 @@ export async function deleteStagedPhoto(
       select: { id: true, draftKey: true, clientKey: true, drivePath: true, driveFileId: true },
     });
     if (!photo) return null;
+
     await transaction.stagedPhoto.delete({ where: { id: photo.id } });
     await transaction.stagedPhotoCancellation.upsert({
       where: {
@@ -391,10 +414,13 @@ export async function deleteStagedPhoto(
       },
       update: { createdAt: new Date(), stagedPhotoId: photo.id, expired: false },
     });
+
     return photo;
   });
   if (!staged) return false;
+
   await cleanupStagedPhoto(store, staged);
+
   return true;
 }
 
@@ -407,6 +433,7 @@ export async function deleteStagedPhotoByKey(
   waitForUploadMs = 0,
 ): Promise<boolean> {
   let remainingWaitMs = waitForUploadMs;
+
   while (true) {
     const staged = await database.$transaction(async (transaction) => {
       const photo = await transaction.stagedPhoto.findUnique({
@@ -415,6 +442,7 @@ export async function deleteStagedPhotoByKey(
         },
         select: { id: true, draftKey: true, clientKey: true, drivePath: true, driveFileId: true },
       });
+
       if (photo) {
         await transaction.stagedPhoto.delete({ where: { id: photo.id } });
         await transaction.stagedPhotoCancellation.upsert({
@@ -433,16 +461,20 @@ export async function deleteStagedPhotoByKey(
           },
           update: { createdAt: new Date(), stagedPhotoId: photo.id, expired: false },
         });
+
         return photo;
       }
       if (remainingWaitMs > 0) return undefined;
+
       await transaction.stagedPhotoCancellation.upsert({
         where: { userId_draftKey_clientKey: { userId, draftKey, clientKey } },
         create: { userId, draftKey, clientKey },
         update: { createdAt: new Date(), stagedPhotoId: null, expired: false },
       });
+
       return null;
     });
+
     if (staged === undefined) {
       const delayMs = Math.min(500, remainingWaitMs);
       remainingWaitMs -= delayMs;
@@ -452,7 +484,9 @@ export async function deleteStagedPhotoByKey(
       continue;
     }
     if (staged === null) return false;
+
     await cleanupStagedPhoto(store, staged);
+
     return true;
   }
 }
