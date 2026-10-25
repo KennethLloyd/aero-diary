@@ -102,6 +102,35 @@ describe('photo indexing', () => {
     expect(transaction.$executeRaw).toHaveBeenCalled();
   });
 
+  it.each(['webp', 'jpeg-without-eoi'] as const)(
+    'passes legacy %s through shared normalization before indexing',
+    async (format) => {
+      const input = sharp({
+        create: { width: 1024, height: 768, channels: 3, background: 'white' },
+      });
+      const encoded =
+        format === 'webp' ? await input.webp().toBuffer() : await input.jpeg().toBuffer();
+      const source = format === 'jpeg-without-eoi' ? encoded.subarray(0, -2) : encoded;
+      const { db } = database();
+      const deps = await dependencies();
+      vi.mocked(deps.store.download).mockResolvedValue(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(source);
+            controller.close();
+          },
+        }),
+      );
+
+      const result = await processJournalPhotoMemory(db, 'photo', 'owner', deps);
+
+      expect(result).toBe('indexed');
+      expect(deps.embed).toHaveBeenCalledWith(
+        expect.objectContaining({ mimeType: 'image/jpeg', width: 512, height: 384 }),
+      );
+    },
+  );
+
   it('skips a current generation without fetching or inference', async () => {
     const { db, mocks } = database();
     mocks.journalPhotoMemory.findUnique.mockResolvedValue({

@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import sharp from 'sharp';
 import type { JournalMemoryResult } from '@/lib/journal/memory-selection';
 import { DriveConfigurationError } from '@/lib/drive/store';
+import type { PhotoStore } from '@/lib/drive/store';
 import { PhotoMemoryError } from '@/lib/journal/photo-memory-images';
+import type * as PhotoMemoryImages from '@/lib/journal/photo-memory-images';
 
 const mocks = vi.hoisted(() => ({ findFirst: vi.fn(), normalize: vi.fn(), store: vi.fn() }));
 vi.mock('@/lib/db', () => ({ db: { photo: { findFirst: mocks.findFirst } } }));
@@ -30,6 +33,10 @@ const evidence: JournalMemoryResult[] = [
 const photo = {
   id: 'photo-0',
   entryId: 'entry-1',
+  drivePath: 'photos/legacy.jpg',
+  driveFileId: 'file',
+  mimeType: 'image/jpeg',
+  sizeBytes: null,
   updatedAt: new Date(),
   sourceVersion: 1,
   entry: { journalDate: '2026-10-01', user: { email: 'synthetic@example.test' } },
@@ -83,6 +90,49 @@ describe('private visual evidence', () => {
     });
     expect(JSON.stringify(result)).not.toContain('drive.google');
   });
+
+  it.each(['webp', 'jpeg-without-eoi'] as const)(
+    'forwards a legacy %s through the shared normalizer as a JPEG',
+    async (format) => {
+      const actualImages = await vi.importActual<typeof PhotoMemoryImages>(
+        '@/lib/journal/photo-memory-images',
+      );
+      const input = sharp({
+        create: { width: 100, height: 50, channels: 3, background: 'teal' },
+      });
+      const encoded =
+        format === 'webp' ? await input.webp().toBuffer() : await input.jpeg().toBuffer();
+      const source = format === 'jpeg-without-eoi' ? encoded.subarray(0, -2) : encoded;
+      const store = {
+        download: vi.fn(
+          async () =>
+            new ReadableStream({
+              start(controller) {
+                controller.enqueue(source);
+                controller.close();
+              },
+            }),
+        ),
+      } as unknown as PhotoStore;
+      mocks.store.mockReturnValue(store);
+      mocks.normalize.mockImplementation(actualImages.downloadAndNormalizePhoto);
+
+      const result = await visualEvidenceMessage('owner-1', evidence);
+
+      if (!result || result.role !== 'user' || typeof result.content === 'string') {
+        throw new Error('Vision message did not include image content.');
+      }
+
+      const imagePart = result.content.find((part) => part.type === 'image_url');
+      expect(imagePart?.type).toBe('image_url');
+      if (imagePart?.type !== 'image_url') return;
+
+      const encodedImage = imagePart.image_url.url.split(',')[1];
+      const metadata = await sharp(Buffer.from(encodedImage, 'base64')).metadata();
+      expect(metadata.format).toBe('jpeg');
+      expect([metadata.width, metadata.height]).toEqual([100, 50]);
+    },
+  );
 
   it('does not download unauthorized, deleted, or mismatched entry references', async () => {
     mocks.findFirst.mockResolvedValue(null);
