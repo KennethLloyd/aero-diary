@@ -6,11 +6,12 @@ is the intended single model for passages, photos, and queries; old-model vector
 must be regenerated from source, never converted or searched using a new-model
 query vector.
 
-**This PR does not run either production backfill.** Schema migration, application
-startup, worker startup, and enabling a flag never scan or enqueue historical photos.
-Production execution requires a separate approved operation. The known historical
-photo gap, **July 16–August 17, 2026**, must be restored and verified before the
-production photo backfill is approved.
+**Preserve the completed production backfill.** The owner reports that 3,500+
+photos have already been indexed. Issue [#104](https://github.com/KennethLloyd/aero-diary/issues/104)
+does not authorize another backfill, reindex, deployment, or activation of indexing,
+retrieval, or vision. Schema migration, application startup, worker startup, and
+enabling a flag never scan or enqueue historical photos. Any further production
+operation requires separate approval.
 
 ## Retrieval and conversation
 
@@ -138,6 +139,43 @@ the decoded-pixel ceiling is 64,000,000, allowing ordinary 24 MP and 48 MP photo
 within the byte limit. Oversized/corrupt/unsupported images produce an explicit
 failure/skip status. Adjust a safety limit deliberately after inspecting a failure;
 do not silently skip valid phone photos.
+
+New uploads are checked by their encoded signatures, not just browser labels.
+WebP is rejected, including files disguised as JPEG or PNG. JPEG and PNG keep
+their bytes; HEIC/HEIF retain JPEG conversion. New Drive filenames, MIME types,
+and staged byte counts describe the bytes actually stored.
+
+Indexing and vision share the same normalizer. It also accepts single-frame
+legacy WebP labeled `image/jpeg` or `image/webp`, but rejects animated WebP and
+other format mismatches. Incomplete or invalid photos are skipped, not repaired.
+JPEGs must contain a real end-of-image marker outside metadata and pass strict
+`failOn: 'warning'` decoding. No ending bytes are synthesized: decoding after an
+EOI append cannot prove the original image was complete, even for baseline JPEGs.
+Originals and source records are never repaired or renamed.
+
+The valid JPEG/PNG pipeline and `jpeg-exif-white-v1` version remain unchanged.
+Completed indexes stay searchable, including any existing embeddings for damaged
+photos, but an invalid original is not sent to vision. Other usable photos and text
+evidence remain available. New indexing attempts record invalid inputs as skipped,
+without calling the embedding model. There is no index purge or automatic reindex.
+
+The temporary backfill workaround used derived JPEGs and EOI appends. Its exact
+source/configuration is unavailable in the repository or recorded triage, so
+parity for usable photos still needs checking before rollout. Skipping invalid
+originals is the agreed policy, not a reason to invalidate completed indexes.
+Any output difference requiring selective reindexing needs separate approval.
+
+Local built-runtime verification for #104 used synthetic images, an isolated
+PostgreSQL database, and an in-memory Drive sink. It exercised the authenticated
+upload endpoint with storage unconfigured, plus built upload/normalization helpers:
+disguised WebP was rejected before storage; JPEG/PNG retained consistent bytes,
+MIME, extension, and size; valid JPEG/PNG normalized bytes matched the previous
+pipeline; and legacy WebP became oriented, resized, metadata-free JPEG. Follow-up
+built-runtime checks confirmed that JPEGs missing ending bytes or later scans are
+rejected, while intact baseline/progressive JPEG and PNG output is unchanged.
+The temporary HTTP harnesses were removed afterward. No private photos, real Drive
+writes, model calls, production backfill, or production feature activation were
+used for this verification.
 
 Native Sharp/libvips decode is bounded by input bytes and decoded pixels; a
 JavaScript abort signal cannot reliably interrupt native decoding. Processing runs

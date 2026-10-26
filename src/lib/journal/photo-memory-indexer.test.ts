@@ -102,6 +102,31 @@ describe('photo indexing', () => {
     expect(transaction.$executeRaw).toHaveBeenCalled();
   });
 
+  it('passes legacy WebP through shared normalization before indexing', async () => {
+    const source = await sharp({
+      create: { width: 1024, height: 768, channels: 3, background: 'white' },
+    })
+      .webp()
+      .toBuffer();
+    const { db } = database();
+    const deps = await dependencies();
+    vi.mocked(deps.store.download).mockResolvedValue(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(source);
+          controller.close();
+        },
+      }),
+    );
+
+    const result = await processJournalPhotoMemory(db, 'photo', 'owner', deps);
+
+    expect(result).toBe('indexed');
+    expect(deps.embed).toHaveBeenCalledWith(
+      expect.objectContaining({ mimeType: 'image/jpeg', width: 512, height: 384 }),
+    );
+  });
+
   it('skips a current generation without fetching or inference', async () => {
     const { db, mocks } = database();
     mocks.journalPhotoMemory.findUnique.mockResolvedValue({
@@ -148,28 +173,42 @@ describe('photo indexing', () => {
     expect(deps.embed).not.toHaveBeenCalled();
   });
 
-  it('records a corrupt image as skipped without attempting inference', async () => {
-    const { db, transaction } = database();
-    const deps = await dependencies();
-    vi.mocked(deps.store.download).mockResolvedValue(
-      new ReadableStream({
-        start(controller) {
-          controller.enqueue(Buffer.from('corrupt'));
-          controller.close();
-        },
-      }),
-    );
+  it.each(['corrupt', 'baseline-without-eoi', 'progressive-without-eoi'])(
+    'records %s as skipped without attempting inference',
+    async (format) => {
+      let source = Buffer.from('corrupt');
 
-    const result = await processJournalPhotoMemory(db, 'photo', 'owner', deps);
+      if (format !== 'corrupt') {
+        const encoded = await sharp({
+          create: { width: 100, height: 50, channels: 3, background: 'teal' },
+        })
+          .jpeg({ progressive: format === 'progressive-without-eoi' })
+          .toBuffer();
+        source = encoded.subarray(0, -2);
+      }
 
-    expect(result).toBe('failed');
-    expect(transaction.journalPhotoMemory.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        create: expect.objectContaining({ status: 'SKIPPED', errorCode: 'INVALID_IMAGE' }),
-      }),
-    );
-    expect(deps.embed).not.toHaveBeenCalled();
-  });
+      const { db, transaction } = database();
+      const deps = await dependencies();
+      vi.mocked(deps.store.download).mockResolvedValue(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(source);
+            controller.close();
+          },
+        }),
+      );
+
+      const result = await processJournalPhotoMemory(db, 'photo', 'owner', deps);
+
+      expect(result).toBe('failed');
+      expect(transaction.journalPhotoMemory.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({ status: 'SKIPPED', errorCode: 'INVALID_IMAGE' }),
+        }),
+      );
+      expect(deps.embed).not.toHaveBeenCalled();
+    },
+  );
 
   it('persists inference failure as a pause without a vector', async () => {
     const { db, transaction } = database();

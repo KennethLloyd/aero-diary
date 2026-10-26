@@ -63,6 +63,39 @@ export function journalPhotoSourceHash(photo: PhotoMemorySource): string {
     .digest('hex');
 }
 
+// Skip length-delimited metadata and stuffed scan bytes; neither can supply the image's EOI.
+function hasJpegEndMarker(bytes: Buffer): boolean {
+  if (bytes[0] !== 0xff || bytes[1] !== 0xd8) return false;
+
+  let offset = 2;
+  let inScan = false;
+
+  while (offset < bytes.length) {
+    if (inScan) {
+      while (offset < bytes.length && bytes[offset] !== 0xff) offset++;
+    } else if (bytes[offset] !== 0xff) {
+      return false;
+    }
+
+    while (bytes[offset] === 0xff) offset++;
+    const marker = bytes[offset++];
+    if (marker === undefined) return false;
+    if (marker === 0xd9) return true;
+    if (inScan && (marker === 0 || (marker >= 0xd0 && marker <= 0xd7))) continue;
+    if (marker === 0x01) continue;
+    if (marker === 0 || marker === 0xd8 || (marker >= 0xd0 && marker <= 0xd7)) return false;
+    if (offset + 2 > bytes.length) return false;
+
+    const length = bytes.readUInt16BE(offset);
+    if (length < 2 || offset + length > bytes.length) return false;
+
+    offset += length;
+    inScan = marker === 0xda;
+  }
+
+  return false;
+}
+
 export async function normalizeMemoryPhoto(
   bytes: Buffer,
   mimeType: string,
@@ -75,19 +108,21 @@ export async function normalizeMemoryPhoto(
       'Photo exceeds the configured download byte limit.',
     );
   }
-  if (!['image/jpeg', 'image/png'].includes(mimeType)) {
+  if (mimeType !== 'image/jpeg' && mimeType !== 'image/png' && mimeType !== 'image/webp') {
     throw new PhotoMemoryError(
       'UNSUPPORTED_FORMAT',
-      'Photo must use its JPEG or PNG representation.',
+      'Photo must use its JPEG, PNG or WebP representation.',
     );
   }
 
+  const sharpOptions = {
+    limitInputPixels: config.maxDecodedPixels,
+    failOn: 'warning' as const,
+    animated: false,
+  };
+
   try {
-    const image = sharp(bytes, {
-      limitInputPixels: config.maxDecodedPixels,
-      failOn: 'warning',
-      animated: false,
-    });
+    const image = sharp(bytes, sharpOptions);
     const metadata = await image.metadata();
 
     if (
@@ -101,13 +136,20 @@ export async function normalizeMemoryPhoto(
       );
     }
 
-    const expectedFormat = mimeType === 'image/png' ? 'png' : 'jpeg';
+    const mimeMatchesFormat =
+      (metadata.format === 'jpeg' && mimeType === 'image/jpeg') ||
+      (metadata.format === 'png' && mimeType === 'image/png') ||
+      (metadata.format === 'webp' && (mimeType === 'image/jpeg' || mimeType === 'image/webp'));
 
-    if (metadata.format !== expectedFormat || (metadata.pages ?? 1) > 1) {
+    if (!mimeMatchesFormat || (metadata.pages ?? 1) > 1) {
       throw new PhotoMemoryError(
         'MIME_MISMATCH',
-        'Photo contents do not match its JPEG or PNG MIME type.',
+        'Photo contents do not match the permitted JPEG, PNG or single-frame WebP MIME type.',
       );
+    }
+
+    if (metadata.format === 'jpeg' && !hasJpegEndMarker(bytes)) {
+      throw new PhotoMemoryError('INVALID_IMAGE', 'JPEG is missing its end marker.');
     }
 
     const normalized = await image
@@ -143,7 +185,7 @@ export async function normalizeMemoryPhoto(
 
     throw new PhotoMemoryError(
       'INVALID_IMAGE',
-      'Photo could not be safely decoded as JPEG or PNG.',
+      'Photo could not be safely decoded as a supported image.',
       false,
       { cause: error },
     );

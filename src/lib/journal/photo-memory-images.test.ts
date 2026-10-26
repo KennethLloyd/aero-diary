@@ -7,11 +7,25 @@ import {
 } from './photo-memory-images';
 import type { PhotoStore } from '@/lib/drive/store';
 
-async function image(width: number, height: number, format: 'jpeg' | 'png' = 'jpeg') {
+async function image(width: number, height: number, format: 'jpeg' | 'png' | 'webp' = 'jpeg') {
   return sharp({
     create: { width, height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
   })
     [format]()
+    .toBuffer();
+}
+
+async function detailedJpeg(progressive = false, width = 128, height = 128) {
+  const pixels = Buffer.alloc(width * height * 3);
+  let value = 0x12345678;
+
+  for (let index = 0; index < pixels.length; index += 1) {
+    value = (value * 1664525 + 1013904223) >>> 0;
+    pixels[index] = value >>> 24;
+  }
+
+  return sharp(pixels, { raw: { width, height, channels: 3 } })
+    .jpeg({ quality: 95, progressive })
     .toBuffer();
 }
 
@@ -51,6 +65,141 @@ describe('photo normalization', () => {
     const metadata = await sharp(result.bytes).metadata();
     expect(metadata.orientation).toBeUndefined();
     expect(metadata.exif).toBeUndefined();
+  });
+
+  it.each(['image/jpeg', 'image/webp'])(
+    'normalizes a single-frame WebP labeled %s and strips its orientation metadata',
+    async (mimeType) => {
+      const source = await sharp(await image(100, 50))
+        .withMetadata({ orientation: 6 })
+        .webp()
+        .toBuffer();
+
+      const result = await normalizeMemoryPhoto(source, mimeType);
+
+      expect([result.width, result.height]).toEqual([50, 100]);
+      expect(result.mimeType).toBe('image/jpeg');
+      const metadata = await sharp(result.bytes).metadata();
+      expect(metadata.format).toBe('jpeg');
+      expect(metadata.orientation).toBeUndefined();
+      expect(metadata.exif).toBeUndefined();
+    },
+  );
+
+  it('rejects animated WebP and WebP labeled as PNG', async () => {
+    const red = await sharp({
+      create: { width: 10, height: 10, channels: 3, background: 'red' },
+    })
+      .webp()
+      .toBuffer();
+    const blue = await sharp({
+      create: { width: 10, height: 10, channels: 3, background: 'blue' },
+    })
+      .webp()
+      .toBuffer();
+    const animated = await sharp([red, blue], { join: { animated: true } })
+      .webp()
+      .toBuffer();
+
+    await expect(normalizeMemoryPhoto(animated, 'image/webp')).rejects.toMatchObject({
+      code: 'MIME_MISMATCH',
+    });
+    await expect(normalizeMemoryPhoto(animated, 'image/jpeg')).rejects.toMatchObject({
+      code: 'MIME_MISMATCH',
+    });
+    await expect(normalizeMemoryPhoto(red, 'image/png')).rejects.toMatchObject({
+      code: 'MIME_MISMATCH',
+    });
+  });
+
+  it.each([
+    [1, 1],
+    [8, 8],
+    [17, 17],
+    [128, 128],
+  ])('rejects missing-marker and truncated baseline JPEGs at %sx%s', async (width, height) => {
+    const source = await detailedJpeg(false, width, height);
+
+    for (let removed = 2; removed <= 12; removed++) {
+      await expect(
+        normalizeMemoryPhoto(source.subarray(0, -removed), 'image/jpeg'),
+      ).rejects.toMatchObject({ code: 'INVALID_IMAGE' });
+    }
+  });
+
+  it('does not mistake an end-marker byte pair in metadata for a complete JPEG', async () => {
+    const source = await image(8, 8);
+    const withMetadataMarker = Buffer.concat([
+      source.subarray(0, 2),
+      Buffer.from([0xff, 0xef, 0, 4, 0xff, 0xd9]),
+      source.subarray(2, -2),
+    ]);
+
+    await expect(normalizeMemoryPhoto(withMetadataMarker, 'image/jpeg')).rejects.toMatchObject({
+      code: 'INVALID_IMAGE',
+    });
+  });
+
+  it('preserves valid JPEGs with trailing bytes after their end marker', async () => {
+    const source = await image(64, 32);
+    const withTrailingBytes = Buffer.concat([source, Buffer.from('trailing bytes')]);
+
+    const original = await normalizeMemoryPhoto(source, 'image/jpeg');
+    const result = await normalizeMemoryPhoto(withTrailingBytes, 'image/jpeg');
+
+    expect(result.bytes).toEqual(original.bytes);
+    expect(result.contentHash).toBe(original.contentHash);
+  });
+
+  it('keeps intact progressive JPEG processing unchanged', async () => {
+    const source = await detailedJpeg(true);
+    const expected = await sharp(source, { failOn: 'warning' })
+      .rotate()
+      .resize({ width: 512, height: 512, fit: 'inside', withoutEnlargement: true })
+      .flatten({ background: '#ffffff' })
+      .jpeg({ quality: 85 })
+      .toBuffer();
+
+    const result = await normalizeMemoryPhoto(source, 'image/jpeg');
+
+    expect(result.bytes).toEqual(expected);
+  });
+
+  it('rejects progressive JPEGs without an end marker, including truncation between scans', async () => {
+    const source = await detailedJpeg(true);
+    const scanMarker = Buffer.from([0xff, 0xda]);
+    const cutoffs = [source.length - 2];
+    let scanOffset = source.indexOf(scanMarker);
+
+    while (scanOffset !== -1) {
+      const nextScan = source.indexOf(scanMarker, scanOffset + 2);
+      if (nextScan !== -1) cutoffs.push(nextScan);
+
+      scanOffset = nextScan;
+    }
+
+    for (const cutoff of cutoffs) {
+      await expect(
+        normalizeMemoryPhoto(source.subarray(0, cutoff), 'image/jpeg'),
+      ).rejects.toMatchObject({ code: 'INVALID_IMAGE' });
+    }
+  });
+
+  it('rejects JPEG corruption and truncation before the final end marker', async () => {
+    const source = await detailedJpeg();
+    const corruptHeader = Buffer.from(source);
+    corruptHeader[0] = 0;
+    const bytesToRemove = [3, 4, 12, 100, Math.floor(source.length / 2)];
+
+    await expect(normalizeMemoryPhoto(corruptHeader, 'image/jpeg')).rejects.toMatchObject({
+      code: 'INVALID_IMAGE',
+    });
+
+    for (const length of bytesToRemove) {
+      await expect(
+        normalizeMemoryPhoto(source.subarray(0, -length), 'image/jpeg'),
+      ).rejects.toMatchObject({ code: 'INVALID_IMAGE' });
+    }
   });
 
   it('rejects unsupported, corrupt, mismatched, oversized and excessive-pixel inputs explicitly', async () => {

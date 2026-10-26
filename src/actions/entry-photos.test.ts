@@ -36,6 +36,20 @@ import { createEntry, deleteEntry, deletePhoto, updateEntry } from '@/actions/en
 
 const NEXT_REDIRECT = 'NEXT_REDIRECT';
 
+const JPEG_BYTES = Uint8Array.from(
+  Buffer.from(
+    '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAb/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAH/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAEFAqf/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAEDAQE/AT//xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9o/ACAECAQE/AT//2Q==',
+    'base64',
+  ),
+);
+const WEBP_BYTES = Uint8Array.from(
+  Buffer.from('UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEAAUAmJaQAA3AA/v89WAAAAA==', 'base64'),
+);
+
+function jpegFile(name = 'photo.jpg') {
+  return new File([new Uint8Array(JPEG_BYTES)], name, { type: 'image/jpeg' });
+}
+
 function form(photo?: File, stagedPhotoId?: string) {
   const data = new FormData();
   data.set('mood', Mood.RAD);
@@ -66,6 +80,7 @@ describe('entry photo actions', () => {
       drivePath: 'photos/hash.jpg',
       fileId: 'drive-file',
       mimeType: 'image/jpeg',
+      sizeBytes: JPEG_BYTES.byteLength,
     });
     mocks.resolve.mockResolvedValue({
       status: 'resolved',
@@ -81,7 +96,7 @@ describe('entry photo actions', () => {
       data: { email: 'ken@example.com', passwordHash: 'x' },
     });
     mocks.verifySession.mockResolvedValue({ isAuth: true, userId: user.id });
-    const photo = new File(['photo'], 'photo.jpg', { type: 'image/jpeg' });
+    const photo = jpegFile();
 
     const stagedResponse = await stagePhotoUpload(
       new Request('http://localhost/api/photo-stages', {
@@ -138,7 +153,7 @@ describe('entry photo actions', () => {
     const stagedResponse = await stagePhotoUpload(
       new Request('http://localhost/api/photo-stages', {
         method: 'POST',
-        body: form(new File(['photo'], 'photo.jpg', { type: 'image/jpeg' })),
+        body: form(jpegFile()),
       }),
     );
     const staged = (await stagedResponse.json()) as { id: string };
@@ -174,7 +189,7 @@ describe('entry photo actions', () => {
     const stagedResponse = await stagePhotoUpload(
       new Request('http://localhost/api/photo-stages', {
         method: 'POST',
-        body: form(new File(['photo'], 'photo.jpg', { type: 'image/jpeg' })),
+        body: form(jpegFile()),
       }),
     );
     const staged = (await stagedResponse.json()) as { id: string };
@@ -254,7 +269,7 @@ describe('entry photo actions', () => {
     const stagedResponse = await stagePhotoUpload(
       new Request('http://localhost/api/photo-stages', {
         method: 'POST',
-        body: form(new File(['photo'], 'photo.jpg', { type: 'image/jpeg' })),
+        body: form(jpegFile()),
       }),
     );
     const staged = (await stagedResponse.json()) as { id: string };
@@ -292,6 +307,35 @@ describe('entry photo actions', () => {
     expect(await testDb.stagedPhoto.count()).toBe(0);
   });
 
+  it.each(['image/jpeg', 'image/png'])(
+    'rejects WebP content declared as %s before initializing photo storage',
+    async (declaredType) => {
+      mocks.verifySession.mockResolvedValue({ isAuth: true, userId: 'webp-test-user' });
+      mocks.getPhotoStore.mockImplementation(() => {
+        throw new Error('Google Drive photo storage is not configured.');
+      });
+      const extension = declaredType === 'image/png' ? 'png' : 'jpg';
+      const disguisedWebp = new File([new Uint8Array(WEBP_BYTES)], `photo.${extension}`, {
+        type: declaredType,
+      });
+
+      const response = await stagePhotoUpload(
+        new Request('http://localhost/api/photo-stages', {
+          method: 'POST',
+          body: form(disguisedWebp),
+        }),
+      );
+
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toEqual({
+        error: 'WebP photos are not supported. Please choose a JPEG, PNG, HEIC, or HEIF image.',
+      });
+      expect(mocks.getPhotoStore).not.toHaveBeenCalled();
+      expect(mocks.upload).not.toHaveBeenCalled();
+      expect(await testDb.stagedPhoto.count()).toBe(0);
+    },
+  );
+
   it('removes a staged upload through its draft and client keys', async () => {
     const user = await testDb.user.create({
       data: { email: 'ken@example.com', passwordHash: 'x' },
@@ -300,7 +344,7 @@ describe('entry photo actions', () => {
     const stagedResponse = await stagePhotoUpload(
       new Request('http://localhost/api/photo-stages', {
         method: 'POST',
-        body: form(new File(['photo'], 'photo.jpg', { type: 'image/jpeg' })),
+        body: form(jpegFile()),
       }),
     );
     const staged = (await stagedResponse.json()) as { id: string };
