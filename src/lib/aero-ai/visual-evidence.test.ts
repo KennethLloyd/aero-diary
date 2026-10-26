@@ -91,48 +91,84 @@ describe('private visual evidence', () => {
     expect(JSON.stringify(result)).not.toContain('drive.google');
   });
 
-  it.each(['webp', 'jpeg-without-eoi'] as const)(
-    'forwards a legacy %s through the shared normalizer as a JPEG',
-    async (format) => {
-      const actualImages = await vi.importActual<typeof PhotoMemoryImages>(
-        '@/lib/journal/photo-memory-images',
-      );
-      const input = sharp({
-        create: { width: 100, height: 50, channels: 3, background: 'teal' },
-      });
-      const encoded =
-        format === 'webp' ? await input.webp().toBuffer() : await input.jpeg().toBuffer();
-      const source = format === 'jpeg-without-eoi' ? encoded.subarray(0, -2) : encoded;
-      const store = {
-        download: vi.fn(
-          async () =>
-            new ReadableStream({
-              start(controller) {
-                controller.enqueue(source);
-                controller.close();
-              },
-            }),
-        ),
-      } as unknown as PhotoStore;
-      mocks.store.mockReturnValue(store);
-      mocks.normalize.mockImplementation(actualImages.downloadAndNormalizePhoto);
+  it('forwards a legacy WebP through the shared normalizer as a JPEG', async () => {
+    const actualImages = await vi.importActual<typeof PhotoMemoryImages>(
+      '@/lib/journal/photo-memory-images',
+    );
+    const source = await sharp({
+      create: { width: 100, height: 50, channels: 3, background: 'teal' },
+    })
+      .webp()
+      .toBuffer();
+    const store = {
+      download: vi.fn(
+        async () =>
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(source);
+              controller.close();
+            },
+          }),
+      ),
+    } as unknown as PhotoStore;
+    mocks.store.mockReturnValue(store);
+    mocks.normalize.mockImplementation(actualImages.downloadAndNormalizePhoto);
 
-      const result = await visualEvidenceMessage('owner-1', evidence);
+    const result = await visualEvidenceMessage('owner-1', evidence);
 
-      if (!result || result.role !== 'user' || typeof result.content === 'string') {
-        throw new Error('Vision message did not include image content.');
-      }
+    if (!result || result.role !== 'user' || typeof result.content === 'string') {
+      throw new Error('Vision message did not include image content.');
+    }
 
-      const imagePart = result.content.find((part) => part.type === 'image_url');
-      expect(imagePart?.type).toBe('image_url');
-      if (imagePart?.type !== 'image_url') return;
+    const imagePart = result.content.find((part) => part.type === 'image_url');
+    expect(imagePart?.type).toBe('image_url');
+    if (imagePart?.type !== 'image_url') return;
 
-      const encodedImage = imagePart.image_url.url.split(',')[1];
-      const metadata = await sharp(Buffer.from(encodedImage, 'base64')).metadata();
-      expect(metadata.format).toBe('jpeg');
-      expect([metadata.width, metadata.height]).toEqual([100, 50]);
-    },
-  );
+    const encodedImage = imagePart.image_url.url.split(',')[1];
+    const metadata = await sharp(Buffer.from(encodedImage, 'base64')).metadata();
+    expect(metadata.format).toBe('jpeg');
+    expect([metadata.width, metadata.height]).toEqual([100, 50]);
+  });
+
+  it('skips an ambiguous progressive JPEG while forwarding another usable photo', async () => {
+    vi.stubEnv('PHOTO_VISION_MAX_IMAGES', '2');
+    const actualImages = await vi.importActual<typeof PhotoMemoryImages>(
+      '@/lib/journal/photo-memory-images',
+    );
+    const input = sharp({
+      create: { width: 100, height: 50, channels: 3, background: 'teal' },
+    });
+    const progressive = await input.clone().jpeg({ progressive: true }).toBuffer();
+    const valid = await input.jpeg().toBuffer();
+    let downloadCount = 0;
+    const store = {
+      download: vi.fn(async () => {
+        const source = downloadCount++ === 0 ? progressive.subarray(0, -2) : valid;
+
+        return new ReadableStream({
+          start(controller) {
+            controller.enqueue(source);
+            controller.close();
+          },
+        });
+      }),
+    } as unknown as PhotoStore;
+    mocks.store.mockReturnValue(store);
+    mocks.normalize.mockImplementation(actualImages.downloadAndNormalizePhoto);
+
+    const result = await visualEvidenceMessage('owner-1', evidence);
+
+    if (!result || result.role !== 'user' || typeof result.content === 'string') {
+      throw new Error('The usable photo should still reach vision.');
+    }
+
+    const images = result.content.filter((part) => part.type === 'image_url');
+    expect(images).toHaveLength(1);
+    const expected = await actualImages.normalizeMemoryPhoto(valid, 'image/jpeg');
+    expect(images[0].image_url.url).toBe(
+      `data:image/jpeg;base64,${expected.bytes.toString('base64')}`,
+    );
+  });
 
   it('does not download unauthorized, deleted, or mismatched entry references', async () => {
     mocks.findFirst.mockResolvedValue(null);

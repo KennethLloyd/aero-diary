@@ -15,9 +15,7 @@ async function image(width: number, height: number, format: 'jpeg' | 'png' | 'we
     .toBuffer();
 }
 
-async function detailedJpeg() {
-  const width = 128;
-  const height = 128;
+async function detailedJpeg(progressive = false, width = 128, height = 128) {
   const pixels = Buffer.alloc(width * height * 3);
   let value = 0x12345678;
 
@@ -27,7 +25,7 @@ async function detailedJpeg() {
   }
 
   return sharp(pixels, { raw: { width, height, channels: 3 } })
-    .jpeg({ quality: 95 })
+    .jpeg({ quality: 95, progressive })
     .toBuffer();
 }
 
@@ -114,17 +112,77 @@ describe('photo normalization', () => {
     });
   });
 
-  it('recovers only a missing final JPEG end marker with byte-identical normalized output', async () => {
-    const source = await image(100, 50);
-    expect(source.subarray(-2)).toEqual(Buffer.from([0xff, 0xd9]));
-    const withoutEndMarker = source.subarray(0, -2);
+  it.each([
+    [1, 1],
+    [8, 8],
+    [17, 17],
+    [128, 128],
+  ])('rejects missing-marker and truncated baseline JPEGs at %sx%s', async (width, height) => {
+    const source = await detailedJpeg(false, width, height);
 
-    const recovered = await normalizeMemoryPhoto(withoutEndMarker, 'image/jpeg');
+    for (let removed = 2; removed <= 12; removed++) {
+      await expect(
+        normalizeMemoryPhoto(source.subarray(0, -removed), 'image/jpeg'),
+      ).rejects.toMatchObject({ code: 'INVALID_IMAGE' });
+    }
+  });
+
+  it('does not mistake an end-marker byte pair in metadata for a complete JPEG', async () => {
+    const source = await image(8, 8);
+    const withMetadataMarker = Buffer.concat([
+      source.subarray(0, 2),
+      Buffer.from([0xff, 0xef, 0, 4, 0xff, 0xd9]),
+      source.subarray(2, -2),
+    ]);
+
+    await expect(normalizeMemoryPhoto(withMetadataMarker, 'image/jpeg')).rejects.toMatchObject({
+      code: 'INVALID_IMAGE',
+    });
+  });
+
+  it('preserves valid JPEGs with trailing bytes after their end marker', async () => {
+    const source = await image(64, 32);
+    const withTrailingBytes = Buffer.concat([source, Buffer.from('trailing bytes')]);
+
     const original = await normalizeMemoryPhoto(source, 'image/jpeg');
+    const result = await normalizeMemoryPhoto(withTrailingBytes, 'image/jpeg');
 
-    expect(recovered.bytes).toEqual(original.bytes);
-    expect(recovered.contentHash).toBe(original.contentHash);
-    expect(recovered.preprocessingVersion).toBe(original.preprocessingVersion);
+    expect(result.bytes).toEqual(original.bytes);
+    expect(result.contentHash).toBe(original.contentHash);
+  });
+
+  it('keeps intact progressive JPEG processing unchanged', async () => {
+    const source = await detailedJpeg(true);
+    const expected = await sharp(source, { failOn: 'warning' })
+      .rotate()
+      .resize({ width: 512, height: 512, fit: 'inside', withoutEnlargement: true })
+      .flatten({ background: '#ffffff' })
+      .jpeg({ quality: 85 })
+      .toBuffer();
+
+    const result = await normalizeMemoryPhoto(source, 'image/jpeg');
+
+    expect(result.bytes).toEqual(expected);
+  });
+
+  it('rejects progressive JPEGs without an end marker, including truncation between scans', async () => {
+    const source = await detailedJpeg(true);
+    const scanMarker = Buffer.from([0xff, 0xda]);
+    const cutoffs = [source.length - 2];
+    let scanOffset = source.indexOf(scanMarker);
+
+    while (scanOffset !== -1) {
+      const nextScan = source.indexOf(scanMarker, scanOffset + 2);
+      if (nextScan !== -1) cutoffs.push(nextScan);
+
+      scanOffset = nextScan;
+    }
+
+    for (const cutoff of cutoffs) {
+      await expect(
+        normalizeMemoryPhoto(source.subarray(0, cutoff), 'image/jpeg'),
+      ).rejects.toMatchObject({ code: 'INVALID_IMAGE' });
+    }
   });
 
   it('rejects JPEG corruption and truncation before the final end marker', async () => {

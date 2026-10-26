@@ -4,8 +4,6 @@ import type { PhotoStore } from '@/lib/drive/store';
 import { JOURNAL_EMBEDDING_MODEL } from '@/lib/journal/memory-embeddings';
 import { getPhotoMemoryConfig } from '@/lib/journal/photo-memory-config';
 
-const JPEG_END_MARKER = Buffer.from([0xff, 0xd9]);
-
 const PHOTO_MEMORY_PREPROCESSING_VERSION = 'jpeg-exif-white-v1';
 
 export function getPhotoMemoryPreprocessingVersion(): string {
@@ -65,6 +63,39 @@ export function journalPhotoSourceHash(photo: PhotoMemorySource): string {
     .digest('hex');
 }
 
+// Skip length-delimited metadata and stuffed scan bytes; neither can supply the image's EOI.
+function hasJpegEndMarker(bytes: Buffer): boolean {
+  if (bytes[0] !== 0xff || bytes[1] !== 0xd8) return false;
+
+  let offset = 2;
+  let inScan = false;
+
+  while (offset < bytes.length) {
+    if (inScan) {
+      while (offset < bytes.length && bytes[offset] !== 0xff) offset++;
+    } else if (bytes[offset] !== 0xff) {
+      return false;
+    }
+
+    while (bytes[offset] === 0xff) offset++;
+    const marker = bytes[offset++];
+    if (marker === undefined) return false;
+    if (marker === 0xd9) return true;
+    if (inScan && (marker === 0 || (marker >= 0xd0 && marker <= 0xd7))) continue;
+    if (marker === 0x01) continue;
+    if (marker === 0 || marker === 0xd8 || (marker >= 0xd0 && marker <= 0xd7)) return false;
+    if (offset + 2 > bytes.length) return false;
+
+    const length = bytes.readUInt16BE(offset);
+    if (length < 2 || offset + length > bytes.length) return false;
+
+    offset += length;
+    inScan = marker === 0xda;
+  }
+
+  return false;
+}
+
 export async function normalizeMemoryPhoto(
   bytes: Buffer,
   mimeType: string,
@@ -91,7 +122,7 @@ export async function normalizeMemoryPhoto(
   };
 
   try {
-    let image = sharp(bytes, sharpOptions);
+    const image = sharp(bytes, sharpOptions);
     const metadata = await image.metadata();
 
     if (
@@ -117,12 +148,8 @@ export async function normalizeMemoryPhoto(
       );
     }
 
-    // Append only the terminal marker and retain Sharp's existing strict decode checks.
-    if (
-      metadata.format === 'jpeg' &&
-      (bytes.length < 2 || !bytes.subarray(-2).equals(JPEG_END_MARKER))
-    ) {
-      image = sharp(Buffer.concat([bytes, JPEG_END_MARKER]), sharpOptions);
+    if (metadata.format === 'jpeg' && !hasJpegEndMarker(bytes)) {
+      throw new PhotoMemoryError('INVALID_IMAGE', 'JPEG is missing its end marker.');
     }
 
     const normalized = await image

@@ -147,26 +147,33 @@ and staged byte counts describe the bytes actually stored.
 
 Indexing and vision share the same normalizer. It also accepts single-frame
 legacy WebP labeled `image/jpeg` or `image/webp`, but rejects animated WebP and
-other format mismatches. A JPEG without its terminal `FFD9` marker gets only that
-marker appended to a temporary buffer; strict `failOn: 'warning'` decoding still
-applies. Originals and source records are never repaired or renamed.
+other format mismatches. Incomplete or invalid photos are skipped, not repaired.
+JPEGs must contain a real end-of-image marker outside metadata and pass strict
+`failOn: 'warning'` decoding. No ending bytes are synthesized: decoding after an
+EOI append cannot prove the original image was complete, even for baseline JPEGs.
+Originals and source records are never repaired or renamed.
 
-The JPEG/PNG pipeline and `jpeg-exif-white-v1` version remain unchanged, preserving
-completed indexes. The recorded operator workaround used a derived JPEG for
-legacy WebP and an in-memory EOI append for affected JPEGs. Its exact source and
-configuration are not available in the repository or recorded triage, so exact
-backfill-byte parity remains a rollout gate: compare against that artifact before
-deployment; any output difference requiring selective reindexing needs separate
-approval. Do not bump the global version or restart the backfill to resolve it.
+The valid JPEG/PNG pipeline and `jpeg-exif-white-v1` version remain unchanged.
+Completed indexes stay searchable, including any existing embeddings for damaged
+photos, but an invalid original is not sent to vision. Other usable photos and text
+evidence remain available. New indexing attempts record invalid inputs as skipped,
+without calling the embedding model. There is no index purge or automatic reindex.
+
+The temporary backfill workaround used derived JPEGs and EOI appends. Its exact
+source/configuration is unavailable in the repository or recorded triage, so
+parity for usable photos still needs checking before rollout. Skipping invalid
+originals is the agreed policy, not a reason to invalidate completed indexes.
+Any output difference requiring selective reindexing needs separate approval.
 
 Local built-runtime verification for #104 used synthetic images, an isolated
 PostgreSQL database, and an in-memory Drive sink. It exercised the authenticated
 upload endpoint with storage unconfigured, plus built upload/normalization helpers:
 disguised WebP was rejected before storage; JPEG/PNG retained consistent bytes,
 MIME, extension, and size; valid JPEG/PNG normalized bytes matched the previous
-pipeline; legacy WebP became oriented, resized, metadata-free JPEG; and EOI-only
-repair matched intact JPEG output while a truncated scan was rejected. The
-temporary HTTP harness was removed afterward. No private photos, real Drive
+pipeline; and legacy WebP became oriented, resized, metadata-free JPEG. Follow-up
+built-runtime checks confirmed that JPEGs missing ending bytes or later scans are
+rejected, while intact baseline/progressive JPEG and PNG output is unchanged.
+The temporary HTTP harnesses were removed afterward. No private photos, real Drive
 writes, model calls, production backfill, or production feature activation were
 used for this verification.
 
