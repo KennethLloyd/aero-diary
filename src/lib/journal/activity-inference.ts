@@ -7,8 +7,8 @@ import { configuredLlmClient } from '@/lib/journal/llm-client-config';
 import type { LlmClient } from '@/lib/journal/llm-client';
 
 export type EntryInferenceSnapshot = {
-  note: string
-  updatedAt: Date
+  note: string;
+  updatedAt: Date;
 };
 
 export type EntryInferenceResult =
@@ -60,7 +60,7 @@ export async function inferEntryActivities(
   });
   if (activities.length === 0) return { status: 'empty', activityIds: [] };
 
-  const inferredActivityIds = await classifyJournalActivities(
+  const { activityIds: inferredActivityIds } = await classifyJournalActivities(
     snapshot.note,
     activities,
     client ?? configuredLlmClient(),
@@ -77,7 +77,8 @@ export async function inferEntryActivities(
       },
     });
     if (!currentEntry) return { status: 'missing', activityIds: [] } as const;
-    if (!isCurrentEntry(currentEntry, snapshot)) return { status: 'stale', activityIds: [] } as const;
+    if (!isCurrentEntry(currentEntry, snapshot))
+      return { status: 'stale', activityIds: [] } as const;
 
     const validActivities = await transaction.activity.findMany({
       where: {
@@ -89,15 +90,16 @@ export async function inferEntryActivities(
     });
     const validIds = new Set(validActivities.map((activity) => activity.id));
     const attachedIds = new Set(currentEntry.activities.map((activity) => activity.activityId));
-    const activityIdsToAttach = inferredActivityIds.filter((activityId) => (
-      validIds.has(activityId) && !attachedIds.has(activityId)
-    ));
+    const activityIdsToAttach = inferredActivityIds.filter(
+      (activityId) => validIds.has(activityId) && !attachedIds.has(activityId),
+    );
 
     if (activityIdsToAttach.length === 0) return { status: 'empty', activityIds: [] } as const;
 
     await transaction.entryActivity.createMany({
       data: activityIdsToAttach.map((activityId) => ({ entryId, activityId })),
     });
+
     return { status: 'attached', activityIds: activityIdsToAttach } as const;
   });
 
@@ -111,6 +113,7 @@ export async function runEntryActivityInference(
 ): Promise<void> {
   try {
     const result = await inferEntryActivities(userId, entryId, snapshot);
+
     if (result.status === 'attached' || result.status === 'empty') {
       await completeInference(userId, entryId, snapshot, ActivityInferenceStatus.COMPLETE);
     }
@@ -120,6 +123,7 @@ export async function runEntryActivityInference(
     } catch (statusError) {
       console.error('Automatic activity inference status update failed.', statusError);
     }
+
     console.error('Automatic activity inference failed.', error);
   }
 }
