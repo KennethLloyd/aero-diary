@@ -1,3 +1,4 @@
+import { inspect } from 'node:util';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ActivityInferenceStatus, Mood } from '@/generated/prisma/enums';
 import { resetTestDb, testDb } from '@/test/test-db';
@@ -42,6 +43,20 @@ async function createEntry(
 
 function snapshot(entry: { note: string; updatedAt: Date }): EntryInferenceSnapshot {
   return { note: entry.note, updatedAt: entry.updatedAt };
+}
+
+function spyOnConsole() {
+  const methods = ['debug', 'error', 'info', 'log', 'warn'] as const;
+
+  return methods.map((method) => vi.spyOn(console, method).mockImplementation(() => undefined));
+}
+
+// inspect includes Error messages and stacks, which JSON.stringify would drop.
+function loggedText(spies: ReturnType<typeof spyOnConsole>) {
+  return inspect(
+    spies.flatMap((spy) => spy.mock.calls),
+    { depth: null },
+  );
 }
 
 function clientReturning(activityIds: unknown[]) {
@@ -581,5 +596,85 @@ describe('ACTIVITY_INFERENCE_FINISHED event', () => {
     await runEntryActivityInference(user.id, entry.id, snapshot(entry));
 
     expect(console.info).not.toHaveBeenCalled();
+  });
+});
+
+describe('inference log privacy', () => {
+  const secret = 'PRIVATE-MARKER-7f3a';
+
+  beforeEach(async () => {
+    await resetTestDb();
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  async function createPrivateEntry() {
+    const user = await createUser();
+    const activity = await testDb.activity.create({
+      data: { userId: user.id, name: `Activity ${secret}`, emoji: '🔒' },
+    });
+    const entry = await createEntry(
+      user.id,
+      `Journal text ${secret}`,
+      ActivityInferenceStatus.PENDING,
+    );
+
+    return { user, activity, entry };
+  }
+
+  it('keeps private text out of the success path', async () => {
+    const { user, activity, entry } = await createPrivateEntry();
+    mocks.configuredLlmClient.mockReturnValue(clientReturning([activity.id, secret]));
+    const spies = spyOnConsole();
+
+    await runEntryActivityInference(user.id, entry.id, snapshot(entry));
+
+    const logs = loggedText(spies);
+
+    expect(logs).toContain(activity.id);
+    expect(logs).not.toContain(secret);
+  });
+
+  it('keeps private text out of the empty path', async () => {
+    const { user, entry } = await createPrivateEntry();
+    mocks.configuredLlmClient.mockReturnValue(clientReturning([secret]));
+    const spies = spyOnConsole();
+
+    await runEntryActivityInference(user.id, entry.id, snapshot(entry));
+
+    const logs = loggedText(spies);
+
+    expect(logs).toContain('no-usable-ids');
+    expect(logs).not.toContain(secret);
+  });
+
+  it('keeps private text out of the failure path', async () => {
+    const { user, entry } = await createPrivateEntry();
+    mocks.configuredLlmClient.mockReturnValue({
+      complete: vi.fn().mockRejectedValue(new Error(`Provider echoed ${secret}`)),
+    });
+    const spies = spyOnConsole();
+
+    await runEntryActivityInference(user.id, entry.id, snapshot(entry));
+
+    const logs = loggedText(spies);
+
+    expect(logs).toContain(entry.id);
+    expect(logs).not.toContain(secret);
+  });
+
+  it('keeps private text out of a failed status update', async () => {
+    const { user, entry } = await createPrivateEntry();
+    mocks.configuredLlmClient.mockReturnValue(clientReturning([]));
+    vi.spyOn(testDb.entry, 'updateMany').mockRejectedValue(new Error(`Query had ${secret}`));
+    const spies = spyOnConsole();
+
+    await runEntryActivityInference(user.id, entry.id, snapshot(entry));
+
+    const logs = loggedText(spies);
+
+    expect(logs).toContain('status update failed');
+    expect(logs).not.toContain(secret);
   });
 });

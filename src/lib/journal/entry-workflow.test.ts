@@ -1,3 +1,4 @@
+import { inspect } from 'node:util';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ActivityInferenceStatus, Mood } from '@/generated/prisma/enums';
 import { resetTestDb, testDb } from '@/test/test-db';
@@ -541,6 +542,26 @@ describe('ENTRY_ACTIVITIES_EDITED event', () => {
         removedActivityIds: [inferred.id],
       }),
     );
+  });
+
+  it('keeps journal text and activity names out of the log', async () => {
+    const secret = 'PRIVATE-MARKER-7f3a';
+    const user = await createUser();
+    const removed = await createActivity(user.id, `Removed ${secret}`);
+    const added = await createActivity(user.id, `Added ${secret}`);
+    const entry = await createEntry(user.id, [removed.id]);
+
+    await updateEntryWorkflow(
+      user.id,
+      entry.id,
+      updateInput({ note: `Edited ${secret}`, activityIds: [added.id] }),
+      { ids: [] },
+    );
+
+    const logs = inspect(vi.mocked(console.info).mock.calls, { depth: null });
+
+    expect(logs).toContain(added.id);
+    expect(logs).not.toContain(secret);
   });
 
   it('logs nothing when the edit transaction fails', async () => {
