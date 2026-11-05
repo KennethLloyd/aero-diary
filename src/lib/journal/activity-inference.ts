@@ -196,6 +196,14 @@ function logInferenceFinished(entryId: string, result: EntryInferenceResult) {
   );
 }
 
+// Raw errors can carry journal text: completeInference passes the note in its query.
+function sanitizedError(error: unknown) {
+  const name = error instanceof Error ? error.name : 'UnknownError';
+  const code = error instanceof Error && 'code' in error ? error.code : undefined;
+
+  return typeof code === 'string' || typeof code === 'number' ? { name, code } : { name };
+}
+
 export async function runEntryActivityInference(
   userId: string,
   entryId: string,
@@ -213,9 +221,15 @@ export async function runEntryActivityInference(
     try {
       await completeInference(userId, entryId, snapshot, ActivityInferenceStatus.FAILED);
     } catch (statusError) {
-      console.error('Automatic activity inference status update failed.', statusError);
+      console.error('Automatic activity inference status update failed.', {
+        entryId,
+        error: sanitizedError(statusError),
+      });
     }
 
-    console.error('Automatic activity inference failed.', error);
+    console.error('Automatic activity inference failed.', {
+      entryId,
+      error: sanitizedError(error),
+    });
   }
 }

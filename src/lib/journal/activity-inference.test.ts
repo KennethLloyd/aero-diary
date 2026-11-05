@@ -208,6 +208,8 @@ describe('runEntryActivityInference', () => {
     vi.clearAllMocks();
   });
 
+  afterEach(() => vi.restoreAllMocks());
+
   it('logs enrichment failures without throwing', async () => {
     const user = await createUser();
     await testDb.activity.create({ data: { userId: user.id, name: 'Gaming', emoji: '🎮' } });
@@ -226,11 +228,77 @@ describe('runEntryActivityInference', () => {
     ).resolves.toMatchObject({
       activityInferenceStatus: ActivityInferenceStatus.FAILED,
     });
-    expect(errorSpy).toHaveBeenCalledWith(
-      'Automatic activity inference failed.',
-      expect.any(Error),
-    );
-    errorSpy.mockRestore();
+    expect(errorSpy).toHaveBeenCalledWith('Automatic activity inference failed.', {
+      entryId: entry.id,
+      error: { name: 'Error' },
+    });
+  });
+
+  it.each([
+    ['string', 'P2002', { name: 'ProviderError', code: 'P2002' }],
+    ['number', 503, { name: 'ProviderError', code: 503 }],
+    ['object', { detail: 'private' }, { name: 'ProviderError' }],
+  ])('logs only the error name and a %s code', async (_type, code, expectedError) => {
+    const user = await createUser();
+    await testDb.activity.create({ data: { userId: user.id, name: 'Gaming', emoji: '🎮' } });
+    const entry = await createEntry(user.id, undefined, ActivityInferenceStatus.PENDING);
+    const providerError = Object.assign(new Error('private message'), {
+      name: 'ProviderError',
+      code,
+    });
+    mocks.configuredLlmClient.mockReturnValue({
+      complete: vi.fn().mockRejectedValue(providerError),
+    });
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    await runEntryActivityInference(user.id, entry.id, snapshot(entry));
+
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    expect(errorSpy).toHaveBeenCalledWith('Automatic activity inference failed.', {
+      entryId: entry.id,
+      error: expectedError,
+    });
+  });
+
+  it('logs a sanitized error when a thrown value is not an Error', async () => {
+    const user = await createUser();
+    await testDb.activity.create({ data: { userId: user.id, name: 'Gaming', emoji: '🎮' } });
+    const entry = await createEntry(user.id, undefined, ActivityInferenceStatus.PENDING);
+    mocks.configuredLlmClient.mockReturnValue({
+      complete: vi.fn().mockRejectedValue('private message'),
+    });
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    await runEntryActivityInference(user.id, entry.id, snapshot(entry));
+
+    expect(errorSpy).toHaveBeenCalledWith('Automatic activity inference failed.', {
+      entryId: entry.id,
+      error: { name: 'UnknownError' },
+    });
+  });
+
+  it('sanitizes a status update failure after the finished event', async () => {
+    const user = await createUser();
+    const entry = await createEntry(user.id, undefined, ActivityInferenceStatus.PENDING);
+    const databaseError = Object.assign(new Error(`Query failed for ${entry.note}`), {
+      name: 'DatabaseError',
+      code: 'P1001',
+    });
+    vi.spyOn(testDb.entry, 'updateMany').mockRejectedValue(databaseError);
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    await expect(
+      runEntryActivityInference(user.id, entry.id, snapshot(entry)),
+    ).resolves.toBeUndefined();
+
+    const sanitizedLog = { entryId: entry.id, error: { name: 'DatabaseError', code: 'P1001' } };
+
+    expect(infoSpy).toHaveBeenCalledTimes(1);
+    expect(errorSpy.mock.calls).toEqual([
+      ['Automatic activity inference status update failed.', sanitizedLog],
+      ['Automatic activity inference failed.', sanitizedLog],
+    ]);
   });
 
   it('marks successful enrichment complete so the timeline can reconcile it', async () => {
