@@ -2,6 +2,7 @@ import 'server-only';
 
 import { db } from '@/lib/db';
 import type { Prisma } from '@/generated/prisma/client';
+import { ActivityInferenceStatus } from '@/generated/prisma/enums';
 import { getDemoCredentials } from '@/lib/auth/demo-config';
 import { getPhotoMemoryConfig } from './photo-memory-config';
 import { enqueueJournalPhotoMemoryJob } from './photo-memory-queue';
@@ -196,6 +197,16 @@ export async function createEntryWorkflow(
   });
 }
 
+function activityChanges(previousIds: readonly string[], nextIds: readonly string[]) {
+  const previous = new Set(previousIds);
+  const next = new Set(nextIds);
+
+  return {
+    addedActivityIds: nextIds.filter((activityId) => !previous.has(activityId)),
+    removedActivityIds: previousIds.filter((activityId) => !next.has(activityId)),
+  };
+}
+
 export async function updateEntryWorkflow(
   userId: string,
   entryId: string,
@@ -219,10 +230,15 @@ export async function updateEntryWorkflow(
     entry.activities.map((activity) => activity.activityId),
   );
 
-  await db.$transaction(async (transaction) => {
+  const edit = await db.$transaction(async (transaction) => {
     const currentEntry = await transaction.entry.findFirst({
       where: { id: entry.id, userId },
-      select: { photos: { select: { id: true } } },
+      select: {
+        note: true,
+        activityInferenceStatus: true,
+        activities: { select: { activityId: true } },
+        photos: { select: { id: true } },
+      },
     });
     if (!currentEntry) throw new Error('Entry was deleted while it was being edited.');
 
@@ -246,6 +262,24 @@ export async function updateEntryWorkflow(
         currentEntry.photos.map((photo) => photo.id),
       );
     }
+
+    return {
+      inferenceWasPending: currentEntry.activityInferenceStatus === ActivityInferenceStatus.PENDING,
+      noteChanged: input.note !== currentEntry.note,
+      ...activityChanges(
+        currentEntry.activities.map((activity) => activity.activityId),
+        activityIds,
+      ),
+    };
+  });
+
+  console.info('Entry activities edited.', {
+    code: 'ENTRY_ACTIVITIES_EDITED',
+    entryId: entry.id,
+    inferenceWasPending: edit.inferenceWasPending,
+    noteChanged: edit.noteChanged,
+    addedActivityIds: edit.addedActivityIds,
+    removedActivityIds: edit.removedActivityIds,
   });
 
   return { id: entry.id };

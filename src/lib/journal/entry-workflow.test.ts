@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Mood } from '@/generated/prisma/enums';
+import { ActivityInferenceStatus, Mood } from '@/generated/prisma/enums';
 import { resetTestDb, testDb } from '@/test/test-db';
 import type { PhotoStore } from '@/lib/drive/store';
 import {
@@ -423,5 +423,145 @@ describe('entry workflow', () => {
     await expect(deleteEntryWorkflow(user.id, entry.id)).resolves.toBeNull();
     await expect(deletePhotoWorkflow(user.id, photo.id)).resolves.toBeNull();
     expect(mocks.deletePhoto).not.toHaveBeenCalled();
+  });
+});
+
+describe('ENTRY_ACTIVITIES_EDITED event', () => {
+  const message = 'Entry activities edited.';
+
+  beforeEach(async () => {
+    await resetTestDb();
+    vi.clearAllMocks();
+    mocks.getPhotoStore.mockReturnValue(createStore());
+    vi.spyOn(console, 'info').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  async function createActivity(userId: string, name: string) {
+    return testDb.activity.create({ data: { userId, name, emoji: '🏷️' } });
+  }
+
+  async function createEntry(
+    userId: string,
+    activityIds: string[],
+    activityInferenceStatus: ActivityInferenceStatus = ActivityInferenceStatus.COMPLETE,
+  ) {
+    return testDb.entry.create({
+      data: {
+        userId,
+        journalDate: '2026-08-18',
+        mood: Mood.GOOD,
+        note: 'Before the edit.',
+        activityInferenceStatus,
+        activities: { create: activityIds.map((activityId) => ({ activityId })) },
+      },
+    });
+  }
+
+  it('logs added and removed tags after a committed edit', async () => {
+    const user = await createUser();
+    const kept = await createActivity(user.id, 'Kept');
+    const removed = await createActivity(user.id, 'Removed');
+    const added = await createActivity(user.id, 'Added');
+    const entry = await createEntry(user.id, [kept.id, removed.id]);
+
+    await updateEntryWorkflow(
+      user.id,
+      entry.id,
+      updateInput({ activityIds: [kept.id, added.id] }),
+      { ids: [] },
+    );
+
+    expect(console.info).toHaveBeenCalledTimes(1);
+    expect(console.info).toHaveBeenCalledWith(message, {
+      code: 'ENTRY_ACTIVITIES_EDITED',
+      entryId: entry.id,
+      inferenceWasPending: false,
+      noteChanged: true,
+      addedActivityIds: [added.id],
+      removedActivityIds: [removed.id],
+    });
+  });
+
+  it('logs an edit that changes no tags while inference is pending', async () => {
+    const user = await createUser();
+    const activity = await createActivity(user.id, 'Kept');
+    const entry = await createEntry(user.id, [activity.id], ActivityInferenceStatus.PENDING);
+
+    await updateEntryWorkflow(
+      user.id,
+      entry.id,
+      updateInput({ note: entry.note, activityIds: [activity.id] }),
+      { ids: [] },
+    );
+
+    expect(console.info).toHaveBeenCalledTimes(1);
+    expect(console.info).toHaveBeenCalledWith(message, {
+      code: 'ENTRY_ACTIVITIES_EDITED',
+      entryId: entry.id,
+      inferenceWasPending: true,
+      noteChanged: false,
+      addedActivityIds: [],
+      removedActivityIds: [],
+    });
+  });
+
+  it('reports a tag attached after the workflow first read the entry as removed', async () => {
+    const user = await createUser();
+    const kept = await createActivity(user.id, 'Kept');
+    const inferred = await createActivity(user.id, 'Inferred');
+    const entry = await createEntry(user.id, [kept.id], ActivityInferenceStatus.PENDING);
+    const findActivities = testDb.activity.findMany.bind(testDb.activity);
+
+    // Ownership validation runs between the workflow's first read and its transaction.
+    vi.spyOn(testDb.activity, 'findMany').mockImplementationOnce((async (
+      args: Parameters<typeof findActivities>[0],
+    ) => {
+      await testDb.entryActivity.create({
+        data: { entryId: entry.id, activityId: inferred.id },
+      });
+      await testDb.entry.update({
+        where: { id: entry.id },
+        data: { activityInferenceStatus: ActivityInferenceStatus.COMPLETE },
+      });
+
+      return findActivities(args);
+    }) as unknown as typeof testDb.activity.findMany);
+
+    await updateEntryWorkflow(user.id, entry.id, updateInput({ activityIds: [kept.id] }), {
+      ids: [],
+    });
+
+    expect(console.info).toHaveBeenCalledWith(
+      message,
+      expect.objectContaining({
+        inferenceWasPending: false,
+        addedActivityIds: [],
+        removedActivityIds: [inferred.id],
+      }),
+    );
+  });
+
+  it('logs nothing when the edit transaction fails', async () => {
+    const user = await createUser();
+    const entry = await createEntry(user.id, []);
+    await testDb.photo.createMany({
+      data: Array.from({ length: 20 }, (_, index) => ({
+        entryId: entry.id,
+        drivePath: `photos/existing-${index}.jpg`,
+        mimeType: 'image/jpeg',
+      })),
+    });
+    const staged = await createStagedPhoto(user.id);
+
+    await expect(
+      updateEntryWorkflow(user.id, entry.id, updateInput(), {
+        draftKey: staged.draftKey,
+        ids: [staged.id],
+      }),
+    ).rejects.toBeInstanceOf(EntryPhotoCapacityError);
+
+    expect(console.info).not.toHaveBeenCalled();
   });
 });
