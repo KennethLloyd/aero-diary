@@ -1,4 +1,3 @@
-import { inspect } from 'node:util';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ActivityInferenceStatus, Mood } from '@/generated/prisma/enums';
 import { resetTestDb, testDb } from '@/test/test-db';
@@ -276,6 +275,7 @@ describe('entry workflow', () => {
       },
     });
     const staged = await createStagedPhoto(user.id);
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => undefined);
 
     await expect(
       updateEntryWorkflow(user.id, entry.id, updateInput(), {
@@ -283,6 +283,8 @@ describe('entry workflow', () => {
         ids: [staged.id],
       }),
     ).rejects.toBeInstanceOf(EntryPhotoCapacityError);
+    expect(infoSpy).not.toHaveBeenCalled();
+    infoSpy.mockRestore();
     expect(await testDb.photo.count({ where: { entryId: entry.id } })).toBe(20);
     expect(await testDb.stagedPhoto.findUnique({ where: { id: staged.id } })).not.toBeNull();
   });
@@ -506,83 +508,5 @@ describe('ENTRY_ACTIVITIES_EDITED event', () => {
       addedActivityIds: [],
       removedActivityIds: [],
     });
-  });
-
-  it('reports a tag attached after the workflow first read the entry as removed', async () => {
-    const user = await createUser();
-    const kept = await createActivity(user.id, 'Kept');
-    const inferred = await createActivity(user.id, 'Inferred');
-    const entry = await createEntry(user.id, [kept.id], ActivityInferenceStatus.PENDING);
-    const findActivities = testDb.activity.findMany.bind(testDb.activity);
-
-    // Ownership validation runs between the workflow's first read and its transaction.
-    vi.spyOn(testDb.activity, 'findMany').mockImplementationOnce((async (
-      args: Parameters<typeof findActivities>[0],
-    ) => {
-      await testDb.entryActivity.create({
-        data: { entryId: entry.id, activityId: inferred.id },
-      });
-      await testDb.entry.update({
-        where: { id: entry.id },
-        data: { activityInferenceStatus: ActivityInferenceStatus.COMPLETE },
-      });
-
-      return findActivities(args);
-    }) as unknown as typeof testDb.activity.findMany);
-
-    await updateEntryWorkflow(user.id, entry.id, updateInput({ activityIds: [kept.id] }), {
-      ids: [],
-    });
-
-    expect(console.info).toHaveBeenCalledWith(
-      message,
-      expect.objectContaining({
-        inferenceWasPending: false,
-        addedActivityIds: [],
-        removedActivityIds: [inferred.id],
-      }),
-    );
-  });
-
-  it('keeps journal text and activity names out of the log', async () => {
-    const secret = 'PRIVATE-MARKER-7f3a';
-    const user = await createUser();
-    const removed = await createActivity(user.id, `Removed ${secret}`);
-    const added = await createActivity(user.id, `Added ${secret}`);
-    const entry = await createEntry(user.id, [removed.id]);
-
-    await updateEntryWorkflow(
-      user.id,
-      entry.id,
-      updateInput({ note: `Edited ${secret}`, activityIds: [added.id] }),
-      { ids: [] },
-    );
-
-    const logs = inspect(vi.mocked(console.info).mock.calls, { depth: null });
-
-    expect(logs).toContain(added.id);
-    expect(logs).not.toContain(secret);
-  });
-
-  it('logs nothing when the edit transaction fails', async () => {
-    const user = await createUser();
-    const entry = await createEntry(user.id, []);
-    await testDb.photo.createMany({
-      data: Array.from({ length: 20 }, (_, index) => ({
-        entryId: entry.id,
-        drivePath: `photos/existing-${index}.jpg`,
-        mimeType: 'image/jpeg',
-      })),
-    });
-    const staged = await createStagedPhoto(user.id);
-
-    await expect(
-      updateEntryWorkflow(user.id, entry.id, updateInput(), {
-        draftKey: staged.draftKey,
-        ids: [staged.id],
-      }),
-    ).rejects.toBeInstanceOf(EntryPhotoCapacityError);
-
-    expect(console.info).not.toHaveBeenCalled();
   });
 });

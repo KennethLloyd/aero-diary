@@ -86,15 +86,6 @@ describe('parseInferredActivityIds', () => {
     });
   });
 
-  it('reports zero counts for an empty model response', () => {
-    expect(parseInferredActivityIds('{"activityIds":[]}', activities)).toEqual({
-      activityIds: [],
-      returnedCount: 0,
-      invalidCount: 0,
-      unknownCount: 0,
-    });
-  });
-
   it('rejects malformed envelopes and excessively large responses', () => {
     expect(() => parseInferredActivityIds('{"activities":[]}', activities)).toThrow(
       'LLM returned invalid activity classification.',

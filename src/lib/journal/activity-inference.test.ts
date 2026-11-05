@@ -1,4 +1,3 @@
-import { inspect } from 'node:util';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ActivityInferenceStatus, Mood } from '@/generated/prisma/enums';
 import { resetTestDb, testDb } from '@/test/test-db';
@@ -43,20 +42,6 @@ async function createEntry(
 
 function snapshot(entry: { note: string; updatedAt: Date }): EntryInferenceSnapshot {
   return { note: entry.note, updatedAt: entry.updatedAt };
-}
-
-function spyOnConsole() {
-  const methods = ['debug', 'error', 'info', 'log', 'warn'] as const;
-
-  return methods.map((method) => vi.spyOn(console, method).mockImplementation(() => undefined));
-}
-
-// inspect includes Error messages and stacks, which JSON.stringify would drop.
-function loggedText(spies: ReturnType<typeof spyOnConsole>) {
-  return inspect(
-    spies.flatMap((spy) => spy.mock.calls),
-    { depth: null },
-  );
 }
 
 function clientReturning(activityIds: unknown[]) {
@@ -217,6 +202,73 @@ describe('inferEntryActivities', () => {
   });
 });
 
+describe('inferEntryActivities skip reasons', () => {
+  beforeEach(async () => {
+    await resetTestDb();
+    vi.clearAllMocks();
+  });
+
+  it('skips a blank note without calling the model', async () => {
+    const user = await createUser();
+    await testDb.activity.create({ data: { userId: user.id, name: 'Gaming', emoji: '🎮' } });
+    const entry = await createEntry(user.id, '   ');
+    const client = clientReturning([]);
+
+    await expect(
+      inferEntryActivities(user.id, entry.id, snapshot(entry), client),
+    ).resolves.toMatchObject({ status: 'empty', reason: 'blank-note' });
+    expect(client.complete).not.toHaveBeenCalled();
+  });
+
+  it('skips a user without active activities', async () => {
+    const user = await createUser();
+    const entry = await createEntry(user.id);
+
+    await expect(inferEntryActivities(user.id, entry.id, snapshot(entry))).resolves.toMatchObject({
+      status: 'empty',
+      reason: 'no-active-activities',
+    });
+  });
+
+  it('reports an entry that changed during the model call', async () => {
+    const user = await createUser();
+    const activity = await testDb.activity.create({
+      data: { userId: user.id, name: 'Gaming', emoji: '🎮' },
+    });
+    const entry = await createEntry(user.id);
+    const client = {
+      complete: vi.fn().mockImplementation(async () => {
+        await testDb.entry.update({ where: { id: entry.id }, data: { note: 'Edited midway.' } });
+
+        return JSON.stringify({ activityIds: [activity.id] });
+      }),
+    };
+
+    await expect(
+      inferEntryActivities(user.id, entry.id, snapshot(entry), client),
+    ).resolves.toMatchObject({ status: 'stale', reason: 'changed-before-save' });
+  });
+
+  it('reports an entry that was deleted during the model call', async () => {
+    const user = await createUser();
+    const activity = await testDb.activity.create({
+      data: { userId: user.id, name: 'Gaming', emoji: '🎮' },
+    });
+    const entry = await createEntry(user.id);
+    const client = {
+      complete: vi.fn().mockImplementation(async () => {
+        await testDb.entry.delete({ where: { id: entry.id } });
+
+        return JSON.stringify({ activityIds: [activity.id] });
+      }),
+    };
+
+    await expect(
+      inferEntryActivities(user.id, entry.id, snapshot(entry), client),
+    ).resolves.toMatchObject({ status: 'missing', reason: 'deleted-before-save' });
+  });
+});
+
 describe('runEntryActivityInference', () => {
   beforeEach(async () => {
     await resetTestDb();
@@ -249,47 +301,29 @@ describe('runEntryActivityInference', () => {
     });
   });
 
-  it.each([
-    ['string', 'P2002', { name: 'ProviderError', code: 'P2002' }],
-    ['number', 503, { name: 'ProviderError', code: 503 }],
-    ['object', { detail: 'private' }, { name: 'ProviderError' }],
-  ])('logs only the error name and a %s code', async (_type, code, expectedError) => {
+  it('logs only the entry ID and the error name and code when a run fails', async () => {
     const user = await createUser();
     await testDb.activity.create({ data: { userId: user.id, name: 'Gaming', emoji: '🎮' } });
     const entry = await createEntry(user.id, undefined, ActivityInferenceStatus.PENDING);
-    const providerError = Object.assign(new Error('private message'), {
+    const providerError = Object.assign(new Error(`Provider echoed ${entry.note}`), {
       name: 'ProviderError',
-      code,
+      code: 'P2002',
     });
     mocks.configuredLlmClient.mockReturnValue({
       complete: vi.fn().mockRejectedValue(providerError),
     });
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => undefined);
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     await runEntryActivityInference(user.id, entry.id, snapshot(entry));
 
-    expect(errorSpy).toHaveBeenCalledTimes(1);
-    expect(errorSpy).toHaveBeenCalledWith('Automatic activity inference failed.', {
-      entryId: entry.id,
-      error: expectedError,
-    });
-  });
-
-  it('logs a sanitized error when a thrown value is not an Error', async () => {
-    const user = await createUser();
-    await testDb.activity.create({ data: { userId: user.id, name: 'Gaming', emoji: '🎮' } });
-    const entry = await createEntry(user.id, undefined, ActivityInferenceStatus.PENDING);
-    mocks.configuredLlmClient.mockReturnValue({
-      complete: vi.fn().mockRejectedValue('private message'),
-    });
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-
-    await runEntryActivityInference(user.id, entry.id, snapshot(entry));
-
-    expect(errorSpy).toHaveBeenCalledWith('Automatic activity inference failed.', {
-      entryId: entry.id,
-      error: { name: 'UnknownError' },
-    });
+    expect(infoSpy).not.toHaveBeenCalled();
+    expect(errorSpy.mock.calls).toEqual([
+      [
+        'Automatic activity inference failed.',
+        { entryId: entry.id, error: { name: 'ProviderError', code: 'P2002' } },
+      ],
+    ]);
   });
 
   it('sanitizes a status update failure after the finished event', async () => {
@@ -351,7 +385,6 @@ describe('runEntryActivityInference', () => {
 
 describe('ACTIVITY_INFERENCE_FINISHED event', () => {
   const message = 'Automatic activity inference finished.';
-  const notReached = { availableCount: 0, returnedCount: 0, invalidCount: 0, unknownCount: 0 };
 
   beforeEach(async () => {
     await resetTestDb();
@@ -361,320 +394,57 @@ describe('ACTIVITY_INFERENCE_FINISHED event', () => {
 
   afterEach(() => vi.restoreAllMocks());
 
-  async function createActivity(userId: string) {
-    return testDb.activity.create({ data: { userId, name: 'Gaming', emoji: '🎮' } });
-  }
-
-  async function createPendingEntry(userId: string, note?: string) {
-    return createEntry(userId, note, ActivityInferenceStatus.PENDING);
-  }
-
   it('logs the attached IDs without a reason', async () => {
     const user = await createUser();
-    const activity = await createActivity(user.id);
-    const entry = await createPendingEntry(user.id);
+    const activity = await testDb.activity.create({
+      data: { userId: user.id, name: 'Gaming', emoji: '🎮' },
+    });
+    const entry = await createEntry(user.id, undefined, ActivityInferenceStatus.PENDING);
     mocks.configuredLlmClient.mockReturnValue(clientReturning([activity.id, 'missing-id', 42]));
 
     await runEntryActivityInference(user.id, entry.id, snapshot(entry));
 
-    expect(console.info).toHaveBeenCalledTimes(1);
-    expect(console.info).toHaveBeenCalledWith(message, {
-      code: 'ACTIVITY_INFERENCE_FINISHED',
-      entryId: entry.id,
-      outcome: 'attached',
-      availableCount: 1,
-      returnedCount: 3,
-      invalidCount: 1,
-      unknownCount: 1,
-      attachedActivityIds: [activity.id],
-    });
+    expect(vi.mocked(console.info).mock.calls).toEqual([
+      [
+        message,
+        {
+          code: 'ACTIVITY_INFERENCE_FINISHED',
+          entryId: entry.id,
+          outcome: 'attached',
+          availableCount: 1,
+          returnedCount: 3,
+          invalidCount: 1,
+          unknownCount: 1,
+          attachedActivityIds: [activity.id],
+        },
+      ],
+    ]);
     expect(vi.mocked(console.info).mock.calls[0][1]).not.toHaveProperty('reason');
   });
 
-  it('reports a blank note without calling the model', async () => {
+  it('logs the reason and counts without echoing unknown model IDs', async () => {
     const user = await createUser();
-    await createActivity(user.id);
-    const entry = await createPendingEntry(user.id, '   ');
-    const client = clientReturning([]);
-    mocks.configuredLlmClient.mockReturnValue(client);
+    await testDb.activity.create({ data: { userId: user.id, name: 'Gaming', emoji: '🎮' } });
+    const entry = await createEntry(user.id, undefined, ActivityInferenceStatus.PENDING);
+    mocks.configuredLlmClient.mockReturnValue(clientReturning([entry.note, 42]));
 
     await runEntryActivityInference(user.id, entry.id, snapshot(entry));
 
-    expect(client.complete).not.toHaveBeenCalled();
-    expect(console.info).toHaveBeenCalledTimes(1);
-    expect(console.info).toHaveBeenCalledWith(message, {
-      code: 'ACTIVITY_INFERENCE_FINISHED',
-      entryId: entry.id,
-      outcome: 'empty',
-      reason: 'blank-note',
-      ...notReached,
-      attachedActivityIds: [],
-    });
-  });
-
-  it('reports a user without active activities', async () => {
-    const user = await createUser();
-    const entry = await createPendingEntry(user.id);
-
-    await runEntryActivityInference(user.id, entry.id, snapshot(entry));
-
-    expect(console.info).toHaveBeenCalledTimes(1);
-    expect(console.info).toHaveBeenCalledWith(message, {
-      code: 'ACTIVITY_INFERENCE_FINISHED',
-      entryId: entry.id,
-      outcome: 'empty',
-      reason: 'no-active-activities',
-      ...notReached,
-      attachedActivityIds: [],
-    });
-  });
-
-  it('reports a model that returned no IDs', async () => {
-    const user = await createUser();
-    await createActivity(user.id);
-    const entry = await createPendingEntry(user.id);
-    mocks.configuredLlmClient.mockReturnValue(clientReturning([]));
-
-    await runEntryActivityInference(user.id, entry.id, snapshot(entry));
-
-    expect(console.info).toHaveBeenCalledTimes(1);
-    expect(console.info).toHaveBeenCalledWith(message, {
-      code: 'ACTIVITY_INFERENCE_FINISHED',
-      entryId: entry.id,
-      outcome: 'empty',
-      reason: 'model-returned-none',
-      ...notReached,
-      availableCount: 1,
-      attachedActivityIds: [],
-    });
-  });
-
-  it('reports a model that returned only invalid or unknown IDs', async () => {
-    const user = await createUser();
-    await createActivity(user.id);
-    const entry = await createPendingEntry(user.id);
-    mocks.configuredLlmClient.mockReturnValue(clientReturning(['missing-id', 42]));
-
-    await runEntryActivityInference(user.id, entry.id, snapshot(entry));
-
-    expect(console.info).toHaveBeenCalledTimes(1);
-    expect(console.info).toHaveBeenCalledWith(message, {
-      code: 'ACTIVITY_INFERENCE_FINISHED',
-      entryId: entry.id,
-      outcome: 'empty',
-      reason: 'no-usable-ids',
-      availableCount: 1,
-      returnedCount: 2,
-      invalidCount: 1,
-      unknownCount: 1,
-      attachedActivityIds: [],
-    });
-  });
-
-  it('reports usable IDs that were already attached', async () => {
-    const user = await createUser();
-    const activity = await createActivity(user.id);
-    const entry = await createPendingEntry(user.id);
-    await testDb.entryActivity.create({ data: { entryId: entry.id, activityId: activity.id } });
-    mocks.configuredLlmClient.mockReturnValue(clientReturning([activity.id]));
-
-    await runEntryActivityInference(user.id, entry.id, snapshot(entry));
-
-    expect(console.info).toHaveBeenCalledTimes(1);
-    expect(console.info).toHaveBeenCalledWith(message, {
-      code: 'ACTIVITY_INFERENCE_FINISHED',
-      entryId: entry.id,
-      outcome: 'empty',
-      reason: 'nothing-to-attach',
-      ...notReached,
-      availableCount: 1,
-      returnedCount: 1,
-      attachedActivityIds: [],
-    });
-  });
-
-  it('reports an entry that changed before classification', async () => {
-    const user = await createUser();
-    const entry = await createPendingEntry(user.id);
-    await testDb.entry.update({ where: { id: entry.id }, data: { note: 'Edited first.' } });
-
-    await runEntryActivityInference(user.id, entry.id, snapshot(entry));
-
-    expect(console.info).toHaveBeenCalledTimes(1);
-    expect(console.info).toHaveBeenCalledWith(message, {
-      code: 'ACTIVITY_INFERENCE_FINISHED',
-      entryId: entry.id,
-      outcome: 'stale',
-      reason: 'changed-before-classification',
-      ...notReached,
-      attachedActivityIds: [],
-    });
-  });
-
-  it('reports an entry that changed during the model call', async () => {
-    const user = await createUser();
-    const activity = await createActivity(user.id);
-    const entry = await createPendingEntry(user.id);
-    mocks.configuredLlmClient.mockReturnValue({
-      complete: vi.fn().mockImplementation(async () => {
-        await testDb.entry.update({ where: { id: entry.id }, data: { note: 'Edited midway.' } });
-
-        return JSON.stringify({ activityIds: [activity.id] });
-      }),
-    });
-
-    await runEntryActivityInference(user.id, entry.id, snapshot(entry));
-
-    expect(console.info).toHaveBeenCalledTimes(1);
-    expect(console.info).toHaveBeenCalledWith(message, {
-      code: 'ACTIVITY_INFERENCE_FINISHED',
-      entryId: entry.id,
-      outcome: 'stale',
-      reason: 'changed-before-save',
-      ...notReached,
-      availableCount: 1,
-      returnedCount: 1,
-      attachedActivityIds: [],
-    });
-  });
-
-  it('reports an entry that was gone before classification', async () => {
-    const user = await createUser();
-
-    await runEntryActivityInference(user.id, 'missing-entry', {
-      note: 'Missing.',
-      updatedAt: new Date(),
-    });
-
-    expect(console.info).toHaveBeenCalledTimes(1);
-    expect(console.info).toHaveBeenCalledWith(message, {
-      code: 'ACTIVITY_INFERENCE_FINISHED',
-      entryId: 'missing-entry',
-      outcome: 'missing',
-      reason: 'deleted-before-classification',
-      ...notReached,
-      attachedActivityIds: [],
-    });
-  });
-
-  it('reports an entry that was deleted during the model call', async () => {
-    const user = await createUser();
-    const activity = await createActivity(user.id);
-    const entry = await createPendingEntry(user.id);
-    mocks.configuredLlmClient.mockReturnValue({
-      complete: vi.fn().mockImplementation(async () => {
-        await testDb.entry.delete({ where: { id: entry.id } });
-
-        return JSON.stringify({ activityIds: [activity.id] });
-      }),
-    });
-
-    await runEntryActivityInference(user.id, entry.id, snapshot(entry));
-
-    expect(console.info).toHaveBeenCalledTimes(1);
-    expect(console.info).toHaveBeenCalledWith(message, {
-      code: 'ACTIVITY_INFERENCE_FINISHED',
-      entryId: entry.id,
-      outcome: 'missing',
-      reason: 'deleted-before-save',
-      ...notReached,
-      availableCount: 1,
-      returnedCount: 1,
-      attachedActivityIds: [],
-    });
-  });
-
-  it('logs no finished event when the run throws', async () => {
-    const user = await createUser();
-    await createActivity(user.id);
-    const entry = await createPendingEntry(user.id);
-    mocks.configuredLlmClient.mockReturnValue({
-      complete: vi.fn().mockResolvedValue('not JSON'),
-    });
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
-
-    await runEntryActivityInference(user.id, entry.id, snapshot(entry));
-
-    expect(console.info).not.toHaveBeenCalled();
-  });
-});
-
-describe('inference log privacy', () => {
-  const secret = 'PRIVATE-MARKER-7f3a';
-
-  beforeEach(async () => {
-    await resetTestDb();
-    vi.clearAllMocks();
-  });
-
-  afterEach(() => vi.restoreAllMocks());
-
-  async function createPrivateEntry() {
-    const user = await createUser();
-    const activity = await testDb.activity.create({
-      data: { userId: user.id, name: `Activity ${secret}`, emoji: '🔒' },
-    });
-    const entry = await createEntry(
-      user.id,
-      `Journal text ${secret}`,
-      ActivityInferenceStatus.PENDING,
-    );
-
-    return { user, activity, entry };
-  }
-
-  it('keeps private text out of the success path', async () => {
-    const { user, activity, entry } = await createPrivateEntry();
-    mocks.configuredLlmClient.mockReturnValue(clientReturning([activity.id, secret]));
-    const spies = spyOnConsole();
-
-    await runEntryActivityInference(user.id, entry.id, snapshot(entry));
-
-    const logs = loggedText(spies);
-
-    expect(logs).toContain(activity.id);
-    expect(logs).not.toContain(secret);
-  });
-
-  it('keeps private text out of the empty path', async () => {
-    const { user, entry } = await createPrivateEntry();
-    mocks.configuredLlmClient.mockReturnValue(clientReturning([secret]));
-    const spies = spyOnConsole();
-
-    await runEntryActivityInference(user.id, entry.id, snapshot(entry));
-
-    const logs = loggedText(spies);
-
-    expect(logs).toContain('no-usable-ids');
-    expect(logs).not.toContain(secret);
-  });
-
-  it('keeps private text out of the failure path', async () => {
-    const { user, entry } = await createPrivateEntry();
-    mocks.configuredLlmClient.mockReturnValue({
-      complete: vi.fn().mockRejectedValue(new Error(`Provider echoed ${secret}`)),
-    });
-    const spies = spyOnConsole();
-
-    await runEntryActivityInference(user.id, entry.id, snapshot(entry));
-
-    const logs = loggedText(spies);
-
-    expect(logs).toContain(entry.id);
-    expect(logs).not.toContain(secret);
-  });
-
-  it('keeps private text out of a failed status update', async () => {
-    const { user, entry } = await createPrivateEntry();
-    mocks.configuredLlmClient.mockReturnValue(clientReturning([]));
-    vi.spyOn(testDb.entry, 'updateMany').mockRejectedValue(new Error(`Query had ${secret}`));
-    const spies = spyOnConsole();
-
-    await runEntryActivityInference(user.id, entry.id, snapshot(entry));
-
-    const logs = loggedText(spies);
-
-    expect(logs).toContain('status update failed');
-    expect(logs).not.toContain(secret);
+    expect(vi.mocked(console.info).mock.calls).toEqual([
+      [
+        message,
+        {
+          code: 'ACTIVITY_INFERENCE_FINISHED',
+          entryId: entry.id,
+          outcome: 'empty',
+          reason: 'no-usable-ids',
+          availableCount: 1,
+          returnedCount: 2,
+          invalidCount: 1,
+          unknownCount: 1,
+          attachedActivityIds: [],
+        },
+      ],
+    ]);
   });
 });

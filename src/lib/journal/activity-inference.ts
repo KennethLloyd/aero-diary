@@ -18,22 +18,11 @@ type InferenceCounts = {
   unknownCount: number;
 };
 
-type SkippedInference = { activityIds: readonly [] } & (
-  | {
-      status: 'empty';
-      reason:
-        | 'blank-note'
-        | 'no-active-activities'
-        | 'model-returned-none'
-        | 'no-usable-ids'
-        | 'nothing-to-attach';
-    }
-  | { status: 'stale'; reason: 'changed-before-classification' | 'changed-before-save' }
-  | { status: 'missing'; reason: 'deleted-before-classification' | 'deleted-before-save' }
-);
-
 export type EntryInferenceResult = InferenceCounts &
-  (SkippedInference | { status: 'attached'; activityIds: string[] });
+  (
+    | { status: 'missing' | 'stale' | 'empty'; reason: string; activityIds: readonly [] }
+    | { status: 'attached'; activityIds: string[] }
+  );
 
 const COUNTS_NOT_REACHED: InferenceCounts = {
   availableCount: 0,
@@ -41,6 +30,14 @@ const COUNTS_NOT_REACHED: InferenceCounts = {
   invalidCount: 0,
   unknownCount: 0,
 };
+
+function skipped(
+  status: 'missing' | 'stale' | 'empty',
+  reason: string,
+  counts = COUNTS_NOT_REACHED,
+): EntryInferenceResult {
+  return { status, reason, activityIds: [], ...counts };
+}
 
 function isCurrentEntry(
   entry: { note: string; updatedAt: Date },
@@ -78,27 +75,9 @@ export async function inferEntryActivities(
     select: { note: true, updatedAt: true },
   });
 
-  if (!entry) {
-    return {
-      status: 'missing',
-      reason: 'deleted-before-classification',
-      activityIds: [],
-      ...COUNTS_NOT_REACHED,
-    };
-  }
-
-  if (!isCurrentEntry(entry, snapshot)) {
-    return {
-      status: 'stale',
-      reason: 'changed-before-classification',
-      activityIds: [],
-      ...COUNTS_NOT_REACHED,
-    };
-  }
-
-  if (!snapshot.note.trim()) {
-    return { status: 'empty', reason: 'blank-note', activityIds: [], ...COUNTS_NOT_REACHED };
-  }
+  if (!entry) return skipped('missing', 'deleted-before-classification');
+  if (!isCurrentEntry(entry, snapshot)) return skipped('stale', 'changed-before-classification');
+  if (!snapshot.note.trim()) return skipped('empty', 'blank-note');
 
   const activities = await db.activity.findMany({
     where: { userId, isArchived: false },
@@ -106,14 +85,7 @@ export async function inferEntryActivities(
     select: { id: true, name: true },
   });
 
-  if (activities.length === 0) {
-    return {
-      status: 'empty',
-      reason: 'no-active-activities',
-      activityIds: [],
-      ...COUNTS_NOT_REACHED,
-    };
-  }
+  if (activities.length === 0) return skipped('empty', 'no-active-activities');
 
   const classification = await classifyJournalActivities(
     snapshot.note,
@@ -131,7 +103,7 @@ export async function inferEntryActivities(
   if (inferredActivityIds.length === 0) {
     const reason = counts.returnedCount === 0 ? 'model-returned-none' : 'no-usable-ids';
 
-    return { status: 'empty', reason, activityIds: [], ...counts };
+    return skipped('empty', reason, counts);
   }
 
   return db.$transaction(async (transaction): Promise<EntryInferenceResult> => {
@@ -144,12 +116,9 @@ export async function inferEntryActivities(
       },
     });
 
-    if (!currentEntry) {
-      return { status: 'missing', reason: 'deleted-before-save', activityIds: [], ...counts };
-    }
-
+    if (!currentEntry) return skipped('missing', 'deleted-before-save', counts);
     if (!isCurrentEntry(currentEntry, snapshot)) {
-      return { status: 'stale', reason: 'changed-before-save', activityIds: [], ...counts };
+      return skipped('stale', 'changed-before-save', counts);
     }
 
     const validActivities = await transaction.activity.findMany({
@@ -166,9 +135,7 @@ export async function inferEntryActivities(
       (activityId) => validIds.has(activityId) && !attachedIds.has(activityId),
     );
 
-    if (activityIdsToAttach.length === 0) {
-      return { status: 'empty', reason: 'nothing-to-attach', activityIds: [], ...counts };
-    }
+    if (activityIdsToAttach.length === 0) return skipped('empty', 'nothing-to-attach', counts);
 
     await transaction.entryActivity.createMany({
       data: activityIdsToAttach.map((activityId) => ({ entryId, activityId })),
