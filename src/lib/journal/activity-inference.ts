@@ -7,13 +7,37 @@ import { configuredLlmClient } from '@/lib/journal/llm-client-config';
 import type { LlmClient } from '@/lib/journal/llm-client';
 
 export type EntryInferenceSnapshot = {
-  note: string
-  updatedAt: Date
+  note: string;
+  updatedAt: Date;
 };
 
-export type EntryInferenceResult =
-  | { status: 'missing' | 'stale' | 'empty'; activityIds: readonly [] }
-  | { status: 'attached'; activityIds: string[] };
+type InferenceCounts = {
+  availableCount: number;
+  returnedCount: number;
+  invalidCount: number;
+  unknownCount: number;
+};
+
+export type EntryInferenceResult = InferenceCounts &
+  (
+    | { status: 'missing' | 'stale' | 'empty'; reason: string; activityIds: readonly [] }
+    | { status: 'attached'; activityIds: string[] }
+  );
+
+const COUNTS_NOT_REACHED: InferenceCounts = {
+  availableCount: 0,
+  returnedCount: 0,
+  invalidCount: 0,
+  unknownCount: 0,
+};
+
+function skipped(
+  status: 'missing' | 'stale' | 'empty',
+  reason: string,
+  counts = COUNTS_NOT_REACHED,
+): EntryInferenceResult {
+  return { status, reason, activityIds: [], ...counts };
+}
 
 function isCurrentEntry(
   entry: { note: string; updatedAt: Date },
@@ -50,24 +74,39 @@ export async function inferEntryActivities(
     where: { id: entryId, userId },
     select: { note: true, updatedAt: true },
   });
-  if (!entry) return { status: 'missing', activityIds: [] };
-  if (!isCurrentEntry(entry, snapshot)) return { status: 'stale', activityIds: [] };
+
+  if (!entry) return skipped('missing', 'deleted-before-classification');
+  if (!isCurrentEntry(entry, snapshot)) return skipped('stale', 'changed-before-classification');
+  if (!snapshot.note.trim()) return skipped('empty', 'blank-note');
 
   const activities = await db.activity.findMany({
     where: { userId, isArchived: false },
     orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
     select: { id: true, name: true },
   });
-  if (activities.length === 0) return { status: 'empty', activityIds: [] };
 
-  const inferredActivityIds = await classifyJournalActivities(
+  if (activities.length === 0) return skipped('empty', 'no-active-activities');
+
+  const classification = await classifyJournalActivities(
     snapshot.note,
     activities,
     client ?? configuredLlmClient(),
   );
-  if (inferredActivityIds.length === 0) return { status: 'empty', activityIds: [] };
+  const inferredActivityIds = classification.activityIds;
+  const counts: InferenceCounts = {
+    availableCount: activities.length,
+    returnedCount: classification.returnedCount,
+    invalidCount: classification.invalidCount,
+    unknownCount: classification.unknownCount,
+  };
 
-  const result = await db.$transaction(async (transaction) => {
+  if (inferredActivityIds.length === 0) {
+    const reason = counts.returnedCount === 0 ? 'model-returned-none' : 'no-usable-ids';
+
+    return skipped('empty', reason, counts);
+  }
+
+  return db.$transaction(async (transaction): Promise<EntryInferenceResult> => {
     const currentEntry = await transaction.entry.findFirst({
       where: { id: entryId, userId },
       select: {
@@ -76,8 +115,11 @@ export async function inferEntryActivities(
         activities: { select: { activityId: true } },
       },
     });
-    if (!currentEntry) return { status: 'missing', activityIds: [] } as const;
-    if (!isCurrentEntry(currentEntry, snapshot)) return { status: 'stale', activityIds: [] } as const;
+
+    if (!currentEntry) return skipped('missing', 'deleted-before-save', counts);
+    if (!isCurrentEntry(currentEntry, snapshot)) {
+      return skipped('stale', 'changed-before-save', counts);
+    }
 
     const validActivities = await transaction.activity.findMany({
       where: {
@@ -89,19 +131,44 @@ export async function inferEntryActivities(
     });
     const validIds = new Set(validActivities.map((activity) => activity.id));
     const attachedIds = new Set(currentEntry.activities.map((activity) => activity.activityId));
-    const activityIdsToAttach = inferredActivityIds.filter((activityId) => (
-      validIds.has(activityId) && !attachedIds.has(activityId)
-    ));
+    const activityIdsToAttach = inferredActivityIds.filter(
+      (activityId) => validIds.has(activityId) && !attachedIds.has(activityId),
+    );
 
-    if (activityIdsToAttach.length === 0) return { status: 'empty', activityIds: [] } as const;
+    if (activityIdsToAttach.length === 0) return skipped('empty', 'nothing-to-attach', counts);
 
     await transaction.entryActivity.createMany({
       data: activityIdsToAttach.map((activityId) => ({ entryId, activityId })),
     });
-    return { status: 'attached', activityIds: activityIdsToAttach } as const;
-  });
 
-  return result;
+    return { status: 'attached', activityIds: activityIdsToAttach, ...counts };
+  });
+}
+
+function logInferenceFinished(entryId: string, result: EntryInferenceResult) {
+  const event = {
+    code: 'ACTIVITY_INFERENCE_FINISHED',
+    entryId,
+    outcome: result.status,
+    availableCount: result.availableCount,
+    returnedCount: result.returnedCount,
+    invalidCount: result.invalidCount,
+    unknownCount: result.unknownCount,
+    attachedActivityIds: result.activityIds,
+  };
+
+  console.info(
+    'Automatic activity inference finished.',
+    result.status === 'attached' ? event : { ...event, reason: result.reason },
+  );
+}
+
+// Raw errors can carry journal text: completeInference passes the note in its query.
+function sanitizedError(error: unknown) {
+  const name = error instanceof Error ? error.name : 'UnknownError';
+  const code = error instanceof Error && 'code' in error ? error.code : undefined;
+
+  return typeof code === 'string' || typeof code === 'number' ? { name, code } : { name };
 }
 
 export async function runEntryActivityInference(
@@ -111,6 +178,9 @@ export async function runEntryActivityInference(
 ): Promise<void> {
   try {
     const result = await inferEntryActivities(userId, entryId, snapshot);
+
+    logInferenceFinished(entryId, result);
+
     if (result.status === 'attached' || result.status === 'empty') {
       await completeInference(userId, entryId, snapshot, ActivityInferenceStatus.COMPLETE);
     }
@@ -118,8 +188,15 @@ export async function runEntryActivityInference(
     try {
       await completeInference(userId, entryId, snapshot, ActivityInferenceStatus.FAILED);
     } catch (statusError) {
-      console.error('Automatic activity inference status update failed.', statusError);
+      console.error('Automatic activity inference status update failed.', {
+        entryId,
+        error: sanitizedError(statusError),
+      });
     }
-    console.error('Automatic activity inference failed.', error);
+
+    console.error('Automatic activity inference failed.', {
+      entryId,
+      error: sanitizedError(error),
+    });
   }
 }

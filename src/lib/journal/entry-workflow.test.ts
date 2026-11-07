@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Mood } from '@/generated/prisma/enums';
+import { ActivityInferenceStatus, Mood } from '@/generated/prisma/enums';
 import { resetTestDb, testDb } from '@/test/test-db';
 import type { PhotoStore } from '@/lib/drive/store';
 import {
@@ -275,6 +275,7 @@ describe('entry workflow', () => {
       },
     });
     const staged = await createStagedPhoto(user.id);
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => undefined);
 
     await expect(
       updateEntryWorkflow(user.id, entry.id, updateInput(), {
@@ -282,6 +283,8 @@ describe('entry workflow', () => {
         ids: [staged.id],
       }),
     ).rejects.toBeInstanceOf(EntryPhotoCapacityError);
+    expect(infoSpy).not.toHaveBeenCalled();
+    infoSpy.mockRestore();
     expect(await testDb.photo.count({ where: { entryId: entry.id } })).toBe(20);
     expect(await testDb.stagedPhoto.findUnique({ where: { id: staged.id } })).not.toBeNull();
   });
@@ -423,5 +426,87 @@ describe('entry workflow', () => {
     await expect(deleteEntryWorkflow(user.id, entry.id)).resolves.toBeNull();
     await expect(deletePhotoWorkflow(user.id, photo.id)).resolves.toBeNull();
     expect(mocks.deletePhoto).not.toHaveBeenCalled();
+  });
+});
+
+describe('ENTRY_ACTIVITIES_EDITED event', () => {
+  const message = 'Entry activities edited.';
+
+  beforeEach(async () => {
+    await resetTestDb();
+    vi.clearAllMocks();
+    mocks.getPhotoStore.mockReturnValue(createStore());
+    vi.spyOn(console, 'info').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  async function createActivity(userId: string, name: string) {
+    return testDb.activity.create({ data: { userId, name, emoji: '🏷️' } });
+  }
+
+  async function createEntry(
+    userId: string,
+    activityIds: string[],
+    activityInferenceStatus: ActivityInferenceStatus = ActivityInferenceStatus.COMPLETE,
+  ) {
+    return testDb.entry.create({
+      data: {
+        userId,
+        journalDate: '2026-08-18',
+        mood: Mood.GOOD,
+        note: 'Before the edit.',
+        activityInferenceStatus,
+        activities: { create: activityIds.map((activityId) => ({ activityId })) },
+      },
+    });
+  }
+
+  it('logs added and removed tags after a committed edit', async () => {
+    const user = await createUser();
+    const kept = await createActivity(user.id, 'Kept');
+    const removed = await createActivity(user.id, 'Removed');
+    const added = await createActivity(user.id, 'Added');
+    const entry = await createEntry(user.id, [kept.id, removed.id]);
+
+    await updateEntryWorkflow(
+      user.id,
+      entry.id,
+      updateInput({ activityIds: [kept.id, added.id] }),
+      { ids: [] },
+    );
+
+    expect(console.info).toHaveBeenCalledTimes(1);
+    expect(console.info).toHaveBeenCalledWith(message, {
+      code: 'ENTRY_ACTIVITIES_EDITED',
+      entryId: entry.id,
+      inferenceWasPending: false,
+      noteChanged: true,
+      addedActivityIds: [added.id],
+      removedActivityIds: [removed.id],
+    });
+  });
+
+  it('logs an edit that changes no tags while inference is pending', async () => {
+    const user = await createUser();
+    const activity = await createActivity(user.id, 'Kept');
+    const entry = await createEntry(user.id, [activity.id], ActivityInferenceStatus.PENDING);
+
+    await updateEntryWorkflow(
+      user.id,
+      entry.id,
+      updateInput({ note: entry.note, activityIds: [activity.id] }),
+      { ids: [] },
+    );
+
+    expect(console.info).toHaveBeenCalledTimes(1);
+    expect(console.info).toHaveBeenCalledWith(message, {
+      code: 'ENTRY_ACTIVITIES_EDITED',
+      entryId: entry.id,
+      inferenceWasPending: true,
+      noteChanged: false,
+      addedActivityIds: [],
+      removedActivityIds: [],
+    });
   });
 });
