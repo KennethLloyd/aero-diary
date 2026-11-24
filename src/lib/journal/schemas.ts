@@ -2,13 +2,7 @@ import { z } from 'zod';
 import { isValidDateKey, parseJournalDate, type JournalDate } from '@/lib/journal/dates';
 import { Mood } from '@/generated/prisma/enums';
 
-const MOOD_VALUES = [
-  Mood.AWFUL,
-  Mood.BAD,
-  Mood.MEH,
-  Mood.GOOD,
-  Mood.RAD,
-] as const;
+const MOOD_VALUES = [Mood.AWFUL, Mood.BAD, Mood.MEH, Mood.GOOD, Mood.RAD] as const;
 
 export const timelineMoodSchema = z.enum(MOOD_VALUES);
 
@@ -32,11 +26,11 @@ export const createEntrySchema = z.object({
 });
 
 export const updateEntrySchema = createEntrySchema;
-export type UpdateEntryInput = z.infer<typeof updateEntrySchema>
+export type UpdateEntryInput = z.infer<typeof updateEntrySchema>;
 
 export const polishEntrySchema = createEntrySchema.pick({ note: true });
 
-export type CreateEntryInput = z.infer<typeof createEntrySchema>
+export type CreateEntryInput = z.infer<typeof createEntrySchema>;
 
 export const entryIdSchema = z
   .string({ error: 'Entry not found.' })
@@ -92,7 +86,7 @@ export const activitySchema = z.object({
     .max(16, { error: 'Emoji must be 16 characters or fewer.' }),
 });
 
-export type ActivityInput = z.infer<typeof activitySchema>
+export type ActivityInput = z.infer<typeof activitySchema>;
 
 export const activityIdSchema = z
   .string({ error: 'Invalid activity.' })

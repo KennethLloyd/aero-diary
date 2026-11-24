@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Mood } from '@/generated/prisma/enums';
-import {
-  activityIdSchema,
-  activitySchema,
-  createEntrySchema,
-} from '@/lib/journal/schemas';
+import { activityIdSchema, activitySchema, createEntrySchema } from '@/lib/journal/schemas';
 
 describe('journal schemas', () => {
   it('accepts a valid entry and trims its note and journal date', () => {
@@ -16,6 +12,7 @@ describe('journal schemas', () => {
     });
 
     expect(result.success).toBe(true);
+
     if (result.success) {
       expect(result.data.note).toBe('A good day.');
       expect(result.data.journalDate).toBe('2026-08-24');
@@ -24,18 +21,22 @@ describe('journal schemas', () => {
   });
 
   it('rejects malformed and impossible journal dates', () => {
-    expect(createEntrySchema.safeParse({
-      mood: Mood.GOOD,
-      note: 'A note.',
-      activityIds: [],
-      journalDate: '2026-02-30',
-    }).success).toBe(false);
-    expect(createEntrySchema.safeParse({
-      mood: Mood.GOOD,
-      note: 'A note.',
-      activityIds: [],
-      journalDate: '2026-8-24',
-    }).success).toBe(false);
+    expect(
+      createEntrySchema.safeParse({
+        mood: Mood.GOOD,
+        note: 'A note.',
+        activityIds: [],
+        journalDate: '2026-02-30',
+      }).success,
+    ).toBe(false);
+    expect(
+      createEntrySchema.safeParse({
+        mood: Mood.GOOD,
+        note: 'A note.',
+        activityIds: [],
+        journalDate: '2026-8-24',
+      }).success,
+    ).toBe(false);
   });
 
   it('rejects invalid moods and empty notes', () => {
