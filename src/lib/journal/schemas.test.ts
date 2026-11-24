@@ -4,6 +4,8 @@ import {
   activityIdSchema,
   activitySchema,
   createEntrySchema,
+  polishEntrySchema,
+  updateEntrySchema,
 } from '@/lib/journal/schemas';
 
 describe('journal schemas', () => {
@@ -16,6 +18,7 @@ describe('journal schemas', () => {
     });
 
     expect(result.success).toBe(true);
+
     if (result.success) {
       expect(result.data.note).toBe('A good day.');
       expect(result.data.journalDate).toBe('2026-08-24');
@@ -24,18 +27,31 @@ describe('journal schemas', () => {
   });
 
   it('rejects malformed and impossible journal dates', () => {
-    expect(createEntrySchema.safeParse({
-      mood: Mood.GOOD,
-      note: 'A note.',
-      activityIds: [],
-      journalDate: '2026-02-30',
-    }).success).toBe(false);
-    expect(createEntrySchema.safeParse({
-      mood: Mood.GOOD,
-      note: 'A note.',
-      activityIds: [],
-      journalDate: '2026-8-24',
-    }).success).toBe(false);
+    expect(
+      createEntrySchema.safeParse({
+        mood: Mood.GOOD,
+        note: 'A note.',
+        activityIds: [],
+        journalDate: '2026-02-30',
+      }).success,
+    ).toBe(false);
+    expect(
+      createEntrySchema.safeParse({
+        mood: Mood.GOOD,
+        note: 'A note.',
+        activityIds: [],
+        journalDate: '2026-8-24',
+      }).success,
+    ).toBe(false);
+  });
+
+  it('accepts long notes for new and edited entries while preserving the Polish limit', () => {
+    const note = 'a'.repeat(20_001);
+    const entry = { mood: Mood.GOOD, note, activityIds: [] };
+
+    expect(createEntrySchema.parse(entry).note).toBe(note);
+    expect(updateEntrySchema.parse(entry).note).toBe(note);
+    expect(polishEntrySchema.safeParse({ note }).success).toBe(false);
   });
 
   it('rejects invalid moods and empty notes', () => {

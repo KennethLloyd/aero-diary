@@ -12,21 +12,19 @@ import {
   type ChangeEvent,
   type MouseEvent,
 } from 'react';
-import { formatJournalDate, getTodayDateKey, parseJournalDate, type JournalDate } from '@/lib/journal/dates';
 import {
-  createEntry,
-  deletePhoto,
-  updateEntry,
-  type EntryActionState,
-} from '@/actions/entries';
+  formatJournalDate,
+  getTodayDateKey,
+  parseJournalDate,
+  type JournalDate,
+} from '@/lib/journal/dates';
+import { createEntry, deletePhoto, updateEntry, type EntryActionState } from '@/actions/entries';
 import { polishEntry, type PolishEntryState } from '@/actions/polish';
 import { AeroButton } from '@/components/aero/AeroButton';
 import { useAeroDockVisibility } from '@/components/aero/AeroDockVisibility';
 import { AeroOrb } from '@/components/aero/AeroOrb';
 import { Mood } from '@/generated/prisma/enums';
-import {
-  MAX_PHOTO_COUNT,
-} from '@/lib/journal/photos';
+import { MAX_PHOTO_COUNT } from '@/lib/journal/photos';
 import {
   createPhotoUploadQueue,
   removeStagedPhoto,
@@ -47,54 +45,51 @@ const DATE_CHANGE_EVENTS = ['focus', 'visibilitychange', 'pageshow'] as const;
 
 function subscribeToDateChanges(onChange: () => void) {
   DATE_CHANGE_EVENTS.forEach((event) => window.addEventListener(event, onChange));
+
   return () => DATE_CHANGE_EVENTS.forEach((event) => window.removeEventListener(event, onChange));
 }
+
 function createClientKey() {
   return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-
 export type EditableEntryPhoto = {
-  id: string
-  removing?: boolean
-}
+  id: string;
+  removing?: boolean;
+};
 
 export type EditableEntry = {
-  id: string
-  journalDate: JournalDate
-  mood: Mood
-  note: string
-  activityIds: string[]
-  photos: EditableEntryPhoto[]
-}
+  id: string;
+  journalDate: JournalDate;
+  mood: Mood;
+  note: string;
+  activityIds: string[];
+  photos: EditableEntryPhoto[];
+};
 
 type StagedPhoto = {
-  clientKey: string
-  file: File
-  name: string
-  url: string
-  status: 'uploading' | 'ready' | 'failed' | 'removing'
-  id?: string
-  error?: string
-}
+  clientKey: string;
+  file: File;
+  name: string;
+  url: string;
+  status: 'uploading' | 'ready' | 'failed' | 'removing';
+  id?: string;
+  error?: string;
+};
 
 export function NewEntryForm({
   activities = [],
   entry,
   todayDateKey,
 }: {
-  activities?: ActivityOption[]
-  entry?: EditableEntry
-  todayDateKey?: JournalDate
+  activities?: ActivityOption[];
+  entry?: EditableEntry;
+  todayDateKey?: JournalDate;
 }) {
-  const action: (
-    prevState: EntryActionState,
-    formData: FormData,
-  ) => Promise<EntryActionState> = entry
-    ? updateEntry.bind(null, entry.id)
-    : createEntry;
+  const action: (prevState: EntryActionState, formData: FormData) => Promise<EntryActionState> =
+    entry ? updateEntry.bind(null, entry.id) : createEntry;
   const [state, formAction, pending] = useActionState<EntryActionState, FormData>(
     action,
     undefined,
@@ -105,15 +100,17 @@ export function NewEntryForm({
     getTodayDateKey,
     () => initialTodayDateKey,
   );
-  const [selectedJournalDate, setSelectedJournalDate] = useState<JournalDate | undefined>(entry?.journalDate);
+  const [selectedJournalDate, setSelectedJournalDate] = useState<JournalDate | undefined>(
+    entry?.journalDate,
+  );
   const journalDate = selectedJournalDate ?? browserTodayDate;
   const [polishState, setPolishState] = useState<PolishEntryState>();
   const [polishing, setPolishing] = useState(false);
   const [mood, setMood] = useState<Mood>(entry?.mood ?? Mood.GOOD);
   const [note, setNote] = useState(entry?.note ?? '');
   const [polishSnapshot, setPolishSnapshot] = useState<{
-    original: string
-    polished: string
+    original: string;
+    polished: string;
   }>();
   const [showingOriginal, setShowingOriginal] = useState(false);
   const [selectedActivityIds, setSelectedActivityIds] = useState<Set<string>>(
@@ -143,24 +140,27 @@ export function NewEntryForm({
     draftKeyRef.current = draftKey;
   }, [draftKey]);
 
-  useEffect(() => () => {
-    const staged = stagedPhotosRef.current;
-    staged.forEach((photo) => {
-      URL.revokeObjectURL(photo.url);
-      removedPhotoKeysRef.current.add(photo.clientKey);
-    });
-
-    staged.forEach((photo) => {
-      const cleanup = photo.id
-        ? removeStagedPhoto(photo.id, true)
-        : draftKeyRef.current
-          ? removeStagedPhotoByKey(draftKeyRef.current, photo.clientKey, true)
-          : Promise.resolve();
-      void cleanup.catch((error: unknown) => {
-        console.error('Unable to clean up a staged photo after leaving the entry form.', error);
+  useEffect(
+    () => () => {
+      const staged = stagedPhotosRef.current;
+      staged.forEach((photo) => {
+        URL.revokeObjectURL(photo.url);
+        removedPhotoKeysRef.current.add(photo.clientKey);
       });
-    });
-  }, []);
+
+      staged.forEach((photo) => {
+        const cleanup = photo.id
+          ? removeStagedPhoto(photo.id, true)
+          : draftKeyRef.current
+            ? removeStagedPhotoByKey(draftKeyRef.current, photo.clientKey, true)
+            : Promise.resolve();
+        void cleanup.catch((error: unknown) => {
+          console.error('Unable to clean up a staged photo after leaving the entry form.', error);
+        });
+      });
+    },
+    [],
+  );
 
   useEffect(() => {
     const sentinel = saveSentinelRef.current;
@@ -190,6 +190,7 @@ export function NewEntryForm({
       const next = new Set(selected);
       if (next.has(activityId)) next.delete(activityId);
       else next.add(activityId);
+
       return next;
     });
   }
@@ -199,20 +200,23 @@ export function NewEntryForm({
     if (!input) return;
 
     input.focus();
+
     if (typeof input.showPicker === 'function') {
       try {
         input.showPicker();
+
         return;
       } catch {
         // Fall back for browsers that require a visible native control.
       }
     }
+
     input.click();
   }
 
-
   function toggleOriginal() {
     if (!polishSnapshot) return;
+
     const nextShowingOriginal = !showingOriginal;
     setShowingOriginal(nextShowingOriginal);
     setNote(nextShowingOriginal ? polishSnapshot.original : polishSnapshot.polished);
@@ -220,6 +224,7 @@ export function NewEntryForm({
 
   function undoPolish() {
     if (!polishSnapshot) return;
+
     setNote(polishSnapshot.original);
     setPolishSnapshot(undefined);
     setShowingOriginal(false);
@@ -228,6 +233,7 @@ export function NewEntryForm({
   function handlePolish(event: MouseEvent<HTMLButtonElement>) {
     const formElement = event.currentTarget.form;
     if (!formElement) return;
+
     const originalNote = note;
     setPolishing(true);
     setPolishState(undefined);
@@ -236,6 +242,7 @@ export function NewEntryForm({
       try {
         const result = await polishEntry(undefined, new FormData(formElement));
         setPolishState(result);
+
         if (result?.revisedText) {
           setPolishSnapshot({ original: originalNote, polished: result.revisedText });
           setShowingOriginal(false);
@@ -250,42 +257,53 @@ export function NewEntryForm({
   function removeLocalPhoto(clientKey: string) {
     const photo = stagedPhotosRef.current.find((item) => item.clientKey === clientKey);
     if (photo) URL.revokeObjectURL(photo.url);
+
     setStagedPhotos((current) => current.filter((item) => item.clientKey !== clientKey));
   }
 
   function queuePhoto(photo: StagedPhoto, photoDraftKey: string) {
-    setStagedPhotos((current) => current.map((item) => (
-      item.clientKey === photo.clientKey
-        ? { ...item, status: 'uploading', error: undefined }
-        : item
-    )));
+    setStagedPhotos((current) =>
+      current.map((item) =>
+        item.clientKey === photo.clientKey
+          ? { ...item, status: 'uploading', error: undefined }
+          : item,
+      ),
+    );
 
-    void photoUploadQueueRef.current.enqueue(
-      () => uploadStagedPhoto(photo.file, photoDraftKey, photo.clientKey),
-    ).then(({ id }) => {
-      if (removedPhotoKeysRef.current.has(photo.clientKey)) {
-        void removeStagedPhoto(id, true).catch((error) => {
-          console.error('Unable to clean up a removed staged photo.', error);
-        });
-        return;
-      }
-      setStagedPhotos((current) => current.map((item) => (
-        item.clientKey === photo.clientKey
-          ? { ...item, id, status: 'ready', error: undefined }
-          : item
-      )));
-    }).catch((error: unknown) => {
-      if (removedPhotoKeysRef.current.has(photo.clientKey)) return;
-      setStagedPhotos((current) => current.map((item) => (
-        item.clientKey === photo.clientKey
-          ? {
-            ...item,
-            status: 'failed',
-            error: error instanceof Error ? error.message : 'Unable to upload this photo.',
-          }
-          : item
-      )));
-    });
+    void photoUploadQueueRef.current
+      .enqueue(() => uploadStagedPhoto(photo.file, photoDraftKey, photo.clientKey))
+      .then(({ id }) => {
+        if (removedPhotoKeysRef.current.has(photo.clientKey)) {
+          void removeStagedPhoto(id, true).catch((error) => {
+            console.error('Unable to clean up a removed staged photo.', error);
+          });
+
+          return;
+        }
+
+        setStagedPhotos((current) =>
+          current.map((item) =>
+            item.clientKey === photo.clientKey
+              ? { ...item, id, status: 'ready', error: undefined }
+              : item,
+          ),
+        );
+      })
+      .catch((error: unknown) => {
+        if (removedPhotoKeysRef.current.has(photo.clientKey)) return;
+
+        setStagedPhotos((current) =>
+          current.map((item) =>
+            item.clientKey === photo.clientKey
+              ? {
+                  ...item,
+                  status: 'failed',
+                  error: error instanceof Error ? error.message : 'Unable to upload this photo.',
+                }
+              : item,
+          ),
+        );
+      });
   }
 
   function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
@@ -295,17 +313,22 @@ export function NewEntryForm({
 
     setPhotoError(undefined);
     const available = MAX_PHOTO_COUNT - existingPhotos.length - stagedPhotos.length;
+
     if (available <= 0) {
       setPhotoError('This entry already has 20 photos.');
+
       return;
     }
+
     const activeDraftKey = draftKey || createClientKey();
     setDraftKey(activeDraftKey);
 
     const selected = Array.from(files).slice(0, available);
+
     if (selected.length < files.length) {
       setPhotoError(`Only ${available} photo slot${available === 1 ? '' : 's'} remain.`);
     }
+
     selected.forEach((file) => {
       const photo: StagedPhoto = {
         clientKey: createClientKey(),
@@ -336,6 +359,7 @@ export function NewEntryForm({
         console.error('Unable to clean up a removed staged photo.', error);
       });
       removeLocalPhoto(photo.clientKey);
+
       return;
     }
 
@@ -344,50 +368,65 @@ export function NewEntryForm({
         console.error('Unable to clean up a removed staged photo.', error);
       });
       removeLocalPhoto(photo.clientKey);
+
       return;
     }
 
-    setStagedPhotos((current) => current.map((item) => (
-      item.clientKey === photo.clientKey ? { ...item, status: 'removing' } : item
-    )));
-    void removeStagedPhoto(photo.id).then(() => {
-      removeLocalPhoto(photo.clientKey);
-    }).catch((error: unknown) => {
-      removedPhotoKeysRef.current.delete(photo.clientKey);
-      setStagedPhotos((current) => current.map((item) => (
-        item.clientKey === photo.clientKey
-          ? {
-            ...item,
-            status: 'ready',
-            error: error instanceof Error ? error.message : 'Unable to remove this photo.',
-          }
-          : item
-      )));
-      setPhotoError(error instanceof Error ? error.message : 'Unable to remove this photo.');
-    });
+    setStagedPhotos((current) =>
+      current.map((item) =>
+        item.clientKey === photo.clientKey ? { ...item, status: 'removing' } : item,
+      ),
+    );
+    void removeStagedPhoto(photo.id)
+      .then(() => {
+        removeLocalPhoto(photo.clientKey);
+      })
+      .catch((error: unknown) => {
+        removedPhotoKeysRef.current.delete(photo.clientKey);
+        setStagedPhotos((current) =>
+          current.map((item) =>
+            item.clientKey === photo.clientKey
+              ? {
+                  ...item,
+                  status: 'ready',
+                  error: error instanceof Error ? error.message : 'Unable to remove this photo.',
+                }
+              : item,
+          ),
+        );
+        setPhotoError(error instanceof Error ? error.message : 'Unable to remove this photo.');
+      });
   }
 
   function removeExistingPhoto(photoId: string) {
     if (!window.confirm('Remove this photo permanently?')) return;
-    setExistingPhotos((current) => current.map((photo) => (
-      photo.id === photoId ? { ...photo, removing: true } : photo
-    )));
+
+    setExistingPhotos((current) =>
+      current.map((photo) => (photo.id === photoId ? { ...photo, removing: true } : photo)),
+    );
     startTransition(async () => {
       try {
         const result = await deletePhoto(photoId, undefined, new FormData());
+
         if (result?.error) {
           setPhotoError(result.error);
-          setExistingPhotos((current) => current.map((photo) => (
-            photo.id === photoId ? { ...photo, removing: undefined } : photo
-          )));
+          setExistingPhotos((current) =>
+            current.map((photo) =>
+              photo.id === photoId ? { ...photo, removing: undefined } : photo,
+            ),
+          );
+
           return;
         }
+
         setExistingPhotos((current) => current.filter((photo) => photo.id !== photoId));
       } catch {
         setPhotoError('Unable to remove your photo. Please try again.');
-        setExistingPhotos((current) => current.map((photo) => (
-          photo.id === photoId ? { ...photo, removing: undefined } : photo
-        )));
+        setExistingPhotos((current) =>
+          current.map((photo) =>
+            photo.id === photoId ? { ...photo, removing: undefined } : photo,
+          ),
+        );
       }
     });
   }
@@ -398,12 +437,10 @@ export function NewEntryForm({
   const removingExistingPhoto = existingPhotos.some((photo) => photo.removing);
 
   const selectedMoodObj = MOODS.find((m) => m.value === mood) ?? MOODS[3];
-  const rankedActivities = entry
-    ? rankEditableActivities(activities, selectedActivityIds)
-    : [];
-  const selectedActivityCount = rankedActivities.filter((activity) => (
-    selectedActivityIds.has(activity.id)
-  )).length;
+  const rankedActivities = entry ? rankEditableActivities(activities, selectedActivityIds) : [];
+  const selectedActivityCount = rankedActivities.filter((activity) =>
+    selectedActivityIds.has(activity.id),
+  ).length;
   const collapsedActivityCount = selectedActivityCount + EDIT_ACTIVITY_PREVIEW_SIZE;
   const visibleActivities = showAllActivities
     ? rankedActivities
@@ -423,7 +460,10 @@ export function NewEntryForm({
           <input key={activityId} type="hidden" name="activityId" value={activityId} />
         ))}
         {stagedPhotos
-          .filter((photo): photo is StagedPhoto & { id: string } => photo.status === 'ready' && Boolean(photo.id))
+          .filter(
+            (photo): photo is StagedPhoto & { id: string } =>
+              photo.status === 'ready' && Boolean(photo.id),
+          )
           .map((photo) => (
             <input key={photo.clientKey} type="hidden" name="stagedPhotoId" value={photo.id} />
           ))}
@@ -463,9 +503,11 @@ export function NewEntryForm({
                 required
                 tabIndex={-1}
                 aria-hidden="true"
-                onChange={(event) => setSelectedJournalDate(
-                  event.target.value ? parseJournalDate(event.target.value) : undefined,
-                )}
+                onChange={(event) =>
+                  setSelectedJournalDate(
+                    event.target.value ? parseJournalDate(event.target.value) : undefined,
+                  )
+                }
               />
             </p>
           </div>
@@ -473,12 +515,16 @@ export function NewEntryForm({
 
         {/* 1. Mood Selector */}
         <section className="relative z-10 space-y-3 text-center" aria-labelledby="mood-heading">
-          <h2 id="mood-heading" className="text-sm font-bold uppercase tracking-wider text-[#2b4c73]">
+          <h2
+            id="mood-heading"
+            className="text-sm font-bold uppercase tracking-wider text-[#2b4c73]"
+          >
             How was your day?
           </h2>
           <div className="aero-mood-selector mx-auto max-w-xs rounded-2xl border border-white/80 bg-white/40 p-2 shadow-inner sm:max-w-sm sm:p-2.5">
             {MOODS.map((option) => {
               const selected = mood === option.value;
+
               return (
                 <button
                   key={option.value}
@@ -498,13 +544,19 @@ export function NewEntryForm({
             })}
           </div>
           <p className="text-sm font-bold text-[#0a2f5c] drop-shadow-sm">
-            Feeling <span className="underline decoration-[#4a9be6] decoration-2">{selectedMoodObj.label}</span>
+            Feeling{' '}
+            <span className="underline decoration-[#4a9be6] decoration-2">
+              {selectedMoodObj.label}
+            </span>
           </p>
         </section>
 
         {/* 2. Journal Input */}
         <div className="relative z-10 flex flex-1 flex-col gap-2">
-          <label htmlFor="entry-note" className="text-xs font-bold uppercase tracking-wider text-[#2b4c73]">
+          <label
+            htmlFor="entry-note"
+            className="text-xs font-bold uppercase tracking-wider text-[#2b4c73]"
+          >
             Journal Note
           </label>
           <textarea
@@ -512,10 +564,10 @@ export function NewEntryForm({
             name="note"
             className="aero-input min-h-44 w-full resize-y rounded-xl border-white/80 bg-white/95 p-4 text-[15px] leading-relaxed text-[#1a2c42] placeholder:text-[#8ba2b8] sm:min-h-52 sm:text-base"
             placeholder="What’s on your mind today?"
-            maxLength={20_000}
             value={note}
             onChange={(event) => {
               setNote(event.target.value);
+
               if (polishSnapshot) {
                 setPolishSnapshot(
                   showingOriginal
@@ -540,10 +592,18 @@ export function NewEntryForm({
             </button>
             {polishSnapshot ? (
               <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-[#144e9d]">
-                <button type="button" onClick={toggleOriginal} className="aero-link-control text-xs font-bold underline">
+                <button
+                  type="button"
+                  onClick={toggleOriginal}
+                  className="aero-link-control text-xs font-bold underline"
+                >
                   {showingOriginal ? 'Show polished' : 'Show original'}
                 </button>
-                <button type="button" onClick={undoPolish} className="aero-link-control text-xs font-bold underline">
+                <button
+                  type="button"
+                  onClick={undoPolish}
+                  className="aero-link-control text-xs font-bold underline"
+                >
                   Undo polish
                 </button>
               </div>
@@ -551,7 +611,10 @@ export function NewEntryForm({
           </div>
 
           {polishState?.error ? (
-            <p role="alert" className="rounded-lg border border-amber-300 bg-amber-50/95 px-3 py-2 text-xs font-semibold text-amber-800">
+            <p
+              role="alert"
+              className="rounded-lg border border-amber-300 bg-amber-50/95 px-3 py-2 text-xs font-semibold text-amber-800"
+            >
               {polishState.error}
             </p>
           ) : null}
@@ -561,7 +624,10 @@ export function NewEntryForm({
           <section className="relative z-10 space-y-2.5" aria-labelledby="activity-heading">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 id="activity-heading" className="text-xs font-bold uppercase tracking-wider text-[#2b4c73]">
+                <h2
+                  id="activity-heading"
+                  className="text-xs font-bold uppercase tracking-wider text-[#2b4c73]"
+                >
                   Activities
                 </h2>
                 <p className="mt-1 text-xs font-medium text-[#2b4c73]">
@@ -580,6 +646,7 @@ export function NewEntryForm({
                 <div id="activity-options" className="flex flex-wrap gap-1.5">
                   {visibleActivities.map((activity) => {
                     const selected = selectedActivityIds.has(activity.id);
+
                     return (
                       <button
                         key={activity.id}
@@ -737,23 +804,33 @@ export function NewEntryForm({
                 className="flex h-16 w-16 flex-col items-center justify-center gap-0.5 rounded-xl border border-dashed border-[#7da8cc] bg-white/55 text-[#0a2f5c] shadow-xs transition hover:bg-white/85 active:scale-95"
                 aria-label={totalPhotoCount > 0 ? 'Add more photos' : 'Add photos'}
               >
-                <span className="text-xl" aria-hidden="true">📷</span>
-                <span className="text-[10px] font-bold">{totalPhotoCount > 0 ? 'Add more' : 'Add photos'}</span>
+                <span className="text-xl" aria-hidden="true">
+                  📷
+                </span>
+                <span className="text-[10px] font-bold">
+                  {totalPhotoCount > 0 ? 'Add more' : 'Add photos'}
+                </span>
               </button>
             ) : null}
           </div>
 
           {uploadingPhotoCount > 0 ? (
             <p role="status" className="text-xs font-semibold text-[#2b4c73]">
-              {uploadingPhotoCount} photo{uploadingPhotoCount === 1 ? '' : 's'} still uploading. Saving will be available when the transfer finishes.
+              {uploadingPhotoCount} photo{uploadingPhotoCount === 1 ? '' : 's'} still uploading.
+              Saving will be available when the transfer finishes.
             </p>
           ) : null}
           {photoError ? (
-            <p role="alert" className="rounded-lg border border-amber-300 bg-amber-50/95 px-3 py-2 text-xs font-semibold text-amber-800">
+            <p
+              role="alert"
+              className="rounded-lg border border-amber-300 bg-amber-50/95 px-3 py-2 text-xs font-semibold text-amber-800"
+            >
               {photoError}
             </p>
           ) : null}
-          {uploadingPhotoCount === 0 && removingPhotoCount === 0 && totalPhotoCount < MAX_PHOTO_COUNT ? (
+          {uploadingPhotoCount === 0 &&
+          removingPhotoCount === 0 &&
+          totalPhotoCount < MAX_PHOTO_COUNT ? (
             <p className="text-xs font-medium text-[#2b4c73]">
               Select JPEG, PNG, HEIC, or HEIF photos. Transfers continue while you write.
             </p>
@@ -761,7 +838,10 @@ export function NewEntryForm({
         </section>
 
         {state?.error ? (
-          <p role="alert" className="relative z-10 rounded-xl border border-red-300 bg-red-50/95 px-4 py-2.5 text-sm font-semibold text-red-700">
+          <p
+            role="alert"
+            className="relative z-10 rounded-xl border border-red-300 bg-red-50/95 px-4 py-2.5 text-sm font-semibold text-red-700"
+          >
             {state.error}
           </p>
         ) : null}
@@ -769,14 +849,18 @@ export function NewEntryForm({
         <div ref={saveSentinelRef} data-entry-save-sentinel className="relative z-10 pt-2">
           <AeroButton
             type="submit"
-            disabled={pending || uploadingPhotoCount > 0 || removingPhotoCount > 0 || removingExistingPhoto}
+            disabled={
+              pending || uploadingPhotoCount > 0 || removingPhotoCount > 0 || removingExistingPhoto
+            }
             className="w-full py-3 text-base shadow-md"
           >
             {pending
               ? 'Saving memory…'
               : uploadingPhotoCount > 0
                 ? 'Waiting for photos…'
-                : entry ? 'Save changes' : 'Save entry'}
+                : entry
+                  ? 'Save changes'
+                  : 'Save entry'}
           </AeroButton>
         </div>
       </form>
