@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { Mood } from '@/generated/prisma/enums';
-import { activityIdSchema, activitySchema, createEntrySchema } from '@/lib/journal/schemas';
+import {
+  activityIdSchema,
+  activitySchema,
+  createEntrySchema,
+  polishEntrySchema,
+  updateEntrySchema,
+} from '@/lib/journal/schemas';
 
 describe('journal schemas', () => {
   it('accepts a valid entry and trims its note and journal date', () => {
@@ -37,6 +43,15 @@ describe('journal schemas', () => {
         journalDate: '2026-8-24',
       }).success,
     ).toBe(false);
+  });
+
+  it('accepts long notes for new and edited entries while preserving the Polish limit', () => {
+    const note = 'a'.repeat(20_001);
+    const entry = { mood: Mood.GOOD, note, activityIds: [] };
+
+    expect(createEntrySchema.parse(entry).note).toBe(note);
+    expect(updateEntrySchema.parse(entry).note).toBe(note);
+    expect(polishEntrySchema.safeParse({ note }).success).toBe(false);
   });
 
   it('rejects invalid moods and empty notes', () => {

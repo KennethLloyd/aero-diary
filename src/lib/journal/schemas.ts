@@ -17,8 +17,7 @@ export const createEntrySchema = z.object({
   note: z
     .string({ error: 'Write a note before saving.' })
     .trim()
-    .min(1, { error: 'Write a note before saving.' })
-    .max(20_000, { error: 'Notes must be 20,000 characters or fewer.' }),
+    .min(1, { error: 'Write a note before saving.' }),
   activityIds: z
     .array(z.string().trim().min(1).max(100))
     .max(100, { error: 'Choose fewer activities.' }),
@@ -28,7 +27,11 @@ export const createEntrySchema = z.object({
 export const updateEntrySchema = createEntrySchema;
 export type UpdateEntryInput = z.infer<typeof updateEntrySchema>;
 
-export const polishEntrySchema = createEntrySchema.pick({ note: true });
+export const polishEntrySchema = z.object({
+  note: createEntrySchema.shape.note.max(20_000, {
+    error: 'Polish supports up to 20,000 characters. You can still save your note as written.',
+  }),
+});
 
 export type CreateEntryInput = z.infer<typeof createEntrySchema>;
 

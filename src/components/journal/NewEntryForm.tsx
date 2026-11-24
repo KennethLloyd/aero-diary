@@ -564,7 +564,6 @@ export function NewEntryForm({
             name="note"
             className="aero-input min-h-44 w-full resize-y rounded-xl border-white/80 bg-white/95 p-4 text-[15px] leading-relaxed text-[#1a2c42] placeholder:text-[#8ba2b8] sm:min-h-52 sm:text-base"
             placeholder="What’s on your mind today?"
-            maxLength={20_000}
             value={note}
             onChange={(event) => {
               setNote(event.target.value);
